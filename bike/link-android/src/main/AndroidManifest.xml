@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Connect to the bonded meter and run the clock (CTS) GATT server it reads. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Keep the CPU awake during the ~3 s meter setup only (capped by the setup watchdog). -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
+</manifest>

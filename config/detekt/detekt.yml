@@ -24,6 +24,10 @@ naming:
     ignoreAnnotated: ['Composable']
 
 complexity:
+  TooManyFunctions:
+    # Methods an interface or a framework callback requires (spi implementations, BluetoothGattCallback)
+    # are not a design choice; count only the class's own functions.
+    ignoreOverridden: true
   CyclomaticComplexMethod:
     # A `when` whose branches are one call each (an event dispatch) is not complex logic.
     ignoreSimpleWhenEntries: true

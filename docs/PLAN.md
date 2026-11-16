@@ -1,6 +1,6 @@
 # Handlebar Link v2 — plan
 
-Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2.1–M2.4 and the structure fixes of the
+Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2 (engine, runtime, Android adapters) and the structure fixes of the
 architecture review (`docs/reviews/2026-11-16-architecture-review.md`). Mistakes and their rules:
 `docs/LESSONS.md`.
 
