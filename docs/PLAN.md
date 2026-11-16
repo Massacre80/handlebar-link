@@ -58,10 +58,24 @@ Key rules (details in 01 §5, 03 §7):
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 
-Tooling (versions verified 2026-11-16, see 01 §7): Gradle 9.8.2, AGP 9.5.1, Kotlin 2.4.21,
-compile/target SDK 37, minSdk 33, JDK 21, coroutines 1.11.0, Compose BOM 2026.09.00,
-Navigation 3, Spotless + ktlint, detekt, Android Lint as errors, Kover, Turbine, AssertK,
-Robolectric (service shell only), Roborazzi (screenshots). CI: one GitHub Actions job running
+Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
+notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
+Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 33, JDK 21
+(AGP needs ≥ 17), coroutines 1.11.0, Compose BOM 2026.09.00, Navigation 3 1.2.1,
+Lifecycle 2.11.0, DataStore 1.3.0, Spotless 8.11.0 + ktlint 1.8.0, detekt 1.23.8, Android Lint as
+errors, Kover 0.9.11, Turbine 1.2.1, AssertK 0.28.1, Robolectric 4.18 (service shell only).
+Screenshot tests: Google's **Compose Preview Screenshot Testing as an AGP 9.5 test suite**
+(`testOptions { screenshotTests.create(...) }`), as Google's official `testing-setup` skill
+prescribes for AGP ≥ 9.5.0-alpha03. It replaces Roborazzi from 03 §8; no third-party dependency.
+The project layout follows Google's official AGP 9 template (`android create empty-activity`):
+built-in Kotlin, version catalog, repository content filters, foojay toolchain resolver,
+configuration and build cache on, `src/*/kotlin` source folders.
+
+Agent tooling in this repo: Google's Android CLI (`android docs` searches the official Android
+Knowledge Base) and the official Android skills in `.claude/skills/` (android-cli, navigation-3,
+testing-setup, android-intent-security, android-permissions-security, edge-to-edge, r8-analyzer,
+jetpack-compose-performance, anr-audit-and-fix). Update them with `android skills update --all`.
+CI: one GitHub Actions job running
 `./gradlew check assembleRelease`, plus gitleaks and Dependabot.
 
 One application id, `com.abid.handlebarlink`: v2 simply replaces the prototype on the phone. The
