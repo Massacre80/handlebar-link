@@ -71,7 +71,8 @@ abstract class CheckForbiddenCode : DefaultTask() {
 
         val RULES =
             listOf(
-                Rule(Regex("""\bprintln?\("""), "print/println: use the Logger (rule 9)"),
+                // The logcat sink is the Logger's own output (`Log.println(priority, tag, line)`).
+                Rule(Regex("""\bprintln?\("""), "print/println: use the Logger (rule 9)", allowedIn = LOGCAT_SINK),
                 Rule(
                     Regex("""^\s*import\s+android\.util\.Log\b"""),
                     "android.util.Log: use the Logger (rule 9)",

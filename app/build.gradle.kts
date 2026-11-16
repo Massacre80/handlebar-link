@@ -17,10 +17,14 @@ android {
 
 dependencies {
     implementation(projects.core.common)
-    implementation(projects.bike.link)
+    implementation(projects.bike.linkAndroid)
     implementation(projects.core.designsystem)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.datastore.preferences)
+
+    testImplementation(projects.core.testing)
+    testImplementation(projects.bike.linkTest)
 
     androidTestImplementation(libs.androidx.test.runner)
 }

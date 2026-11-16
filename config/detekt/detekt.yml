@@ -3,13 +3,18 @@
 # Defaults checked against detekt-core 1.23.8's default-detekt-config.yml.
 
 comments:
-  # Rule 16: public API is documented. Off by default in detekt.
+  # Rule 16: library modules document their public API for the modules that use it. Off by default in
+  # detekt. :app is excluded: nothing depends on it, so it has no public API. The other excludes are
+  # detekt's defaults for these rules (replacing `excludes` drops them otherwise; LESSONS.md 3).
   UndocumentedPublicClass:
     active: true
+    excludes: &undocumentedExcludes ['**/test/**', '**/androidTest/**', '**/commonTest/**', '**/jvmTest/**', '**/androidUnitTest/**', '**/androidInstrumentedTest/**', '**/jsTest/**', '**/iosTest/**', '**/app/src/**']
   UndocumentedPublicFunction:
     active: true
+    excludes: *undocumentedExcludes
   UndocumentedPublicProperty:
     active: true
+    excludes: *undocumentedExcludes
 
 coroutines:
   # Rule 6: no GlobalScope. Off by default in detekt; works without type resolution.
@@ -64,6 +69,8 @@ style:
         value: 'java.time.OffsetDateTime.now'
   ForbiddenImport:
     active: true
+    # The logcat sink is the Logger's one bridge to Android's log (checkForbiddenCode allows the same file).
+    excludes: ['**/app/src/main/kotlin/com/abid/handlebarlink/diagnostics/LogcatSink.kt']
     imports:
       - value: 'android.util.Log'
         reason: 'Use the Logger.'
