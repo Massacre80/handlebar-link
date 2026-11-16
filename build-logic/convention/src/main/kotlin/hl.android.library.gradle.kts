@@ -23,6 +23,9 @@ android {
         targetCompatibility = JavaVersion.toVersion(jvmTargetVersion)
     }
     lint { applyProjectPolicy(project) }
+    // JaCoCo for unit tests (Google's testing-setup skill): createDebugUnitTestCoverageReport.
+    testCoverage { jacocoVersion = libs.versions.jacoco.get() }
+    buildTypes.named("debug") { enableUnitTestCoverage = true }
 }
 
 configure<KotlinAndroidProjectExtension> {

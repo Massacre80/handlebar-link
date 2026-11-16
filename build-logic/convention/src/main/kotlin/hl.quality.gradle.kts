@@ -1,11 +1,10 @@
-// Formatting (Spotless + ktlint), static analysis (detekt) and coverage (Kover) for every module.
-// All three are wired into `check`.
+// Formatting (Spotless + ktlint) and static analysis (detekt) for every module, both wired into `check`.
+// Coverage (JaCoCo) is set up per module type in hl.jvm.library / hl.android.*.
 import io.gitlab.arturbosch.detekt.Detekt
 
 plugins {
     id("com.diffplug.spotless")
     id("io.gitlab.arturbosch.detekt")
-    id("org.jetbrains.kotlinx.kover")
 }
 
 spotless {

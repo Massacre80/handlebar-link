@@ -15,6 +15,8 @@ previous one is done, and never work on CarPlay before M5.
   `:app` wires them (`checkModuleBoundaries`).
 - No `println`, `android.util.Log`, direct clock reads or `GlobalScope` (`checkForbiddenCode`).
 - Library modules use explicit API: everything is `internal` unless it is documented public API.
+- Follow the official Android skills in `.claude/skills/` where they give a recommendation (e.g.
+  Hilt and JaCoCo from `testing-setup`); record any deviation and its reason in `docs/PLAN.md`.
 - Prefer the official sources: `android docs search "…"` (Android Knowledge Base) and the skills in
   `.claude/skills/`. Check versions on Maven before changing `gradle/libs.versions.toml`.
 - The phone runs v2 only; never reinstall the old prototype.

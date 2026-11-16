@@ -17,7 +17,8 @@ dependencies {
     implementation(libs.serialization.gradlePlugin)
     implementation(libs.spotless.gradlePlugin)
     implementation(libs.detekt.gradlePlugin)
-    implementation(libs.kover.gradlePlugin)
+    implementation(libs.hilt.gradlePlugin)
+    implementation(libs.ksp.gradlePlugin)
     // Makes the type-safe `libs` catalog usable inside the precompiled script plugins (Libs.kt).
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
 }

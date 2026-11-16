@@ -8,12 +8,12 @@ How Handlebar Link is tested, and the commands to run. Strategy and reasons:
 ```sh
 ./gradlew check                          # everything below; must pass before every commit
 ./gradlew :bike:protocol:test            # one module's unit tests
-./gradlew :bike:protocol:koverLog        # line coverage of a module
-./gradlew :bike:protocol:koverHtmlReport # build/reports/kover/html/index.html
+./gradlew :bike:protocol:jacocoTestReport   # build/reports/jacoco/test/html/index.html
+./gradlew :app:createDebugUnitTestCoverageReport  # coverage for an Android module's unit tests
 ```
 
 `check` runs, in every module: unit tests, Spotless + ktlint, detekt, Android Lint with warnings as
-errors, Kover, and at the root `checkModuleBoundaries` and `checkForbiddenCode`.
+errors, JaCoCo coverage verification (pure Kotlin modules), and at the root `checkModuleBoundaries` and `checkForbiddenCode`.
 
 detekt runs without type resolution. Its type-resolving tasks are not in `check`: AGP 9 Android
 modules have none, and in pure Kotlin modules detekt 1.23 cannot resolve Kotlin 2.4's standard
@@ -24,7 +24,8 @@ covers the rules that would need it (println, android.util.Log, direct clock rea
 ## Rules
 
 - **Fakes, not mocks.** A platform dependency gets an interface, an Android implementation and a
-  `Fake*` in the module's `testFixtures`, so other modules' tests can reuse it. No mocking library.
+  `Fake*` in the module's `testFixtures`, so other modules' tests can reuse it. Mockk only if a fake
+  is impossible (testing-setup skill).
 - **JUnit 4 + AssertK**, one behaviour per test, Arrange / Act / Assert, names in backticks that read
   as a sentence.
 - **Golden vectors.** Protocol tests compare against bytes copied from `docs/protocol/SAB_PROTOCOL.md`
@@ -35,14 +36,23 @@ covers the rules that would need it (println, android.util.Log, direct clock rea
   that a test catches it (done for M1: id byte order, CTS fraction, command id start).
 - No unit tests for Activities, Compose layouts or DI wiring (Google's testing-setup skill).
 
-## Coverage gates (Kover)
+## Coverage gates (JaCoCo)
 
 | Module | Minimum lines | Current |
 |---|---|---|
-| `:bike:protocol` | 90 % | 98.8 % (M1) |
+| `:bike:protocol` | 90 % | 98.9 % (M1) |
 
-Kover rather than JaCoCo: it is JetBrains' coverage tool for Kotlin and reports Kotlin constructs
-(inline functions, `when`) correctly; the plan chose it in `01-architecture.md` §7.
+JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). Pure Kotlin
+modules use Gradle's `jacoco` plugin with `jacocoTestCoverageVerification` in `check`; Android modules
+have `enableUnitTestCoverage` on debug, and get a verification task when they get tests (M2).
+
+## Dependency injection in tests (Hilt)
+
+Set up per Google's testing-setup skill and its Hilt testing reference:
+- `hilt-android-testing` with `kspTest` / `kspAndroidTest` (`build-logic/.../hl.hilt.gradle.kts`).
+- Instrumented tests run in `HiltTestApplication` through `app/src/androidTest/.../HiltTestRunner.kt`.
+- Robolectric tests use `@HiltAndroidTest` + `@Config(application = HiltTestApplication::class)`.
+- Replace a binding for all tests with `@TestInstallIn` (preferred); `@UninstallModules` only for one test.
 
 ## Not automated
 

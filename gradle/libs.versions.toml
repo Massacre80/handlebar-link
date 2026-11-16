@@ -6,6 +6,8 @@
 androidGradlePlugin = "9.5.1"
 kotlin = "2.4.21"
 foojay = "1.0.0"
+# KSP 2.3.x supports AGP 9 built-in Kotlin (fixes in 2.3.5/2.3.6/2.3.10); 2.3.13 is marked "Defect in release".
+ksp = "2.3.14"
 
 # Android SDK levels
 compileSdk = "37"
@@ -23,9 +25,12 @@ androidxDatastore = "1.3.0"
 androidxLifecycle = "2.11.0"
 androidxNavigation3 = "1.2.1"
 coroutines = "1.11.0"
+# Hilt ≥ 2.59 is required for AGP 9 (the Android docs still show 2.57.1, which does not support AGP 9).
+hilt = "2.60.1"
 serialization = "1.13.0"
 
 # Tests
+androidxTestRunner = "1.7.0"
 assertk = "0.28.1"
 junit = "4.13.2"
 robolectric = "4.18"
@@ -35,7 +40,8 @@ turbine = "1.2.1"
 detekt = "1.23.8"
 # detekt 1.23.x runs on the Kotlin compiler it was built with; its own classpath is pinned to this.
 detektKotlin = "2.0.21"
-kover = "0.9.11"
+# Coverage, as Google's testing-setup skill prescribes.
+jacoco = "0.8.16"
 ktlint = "1.8.0"
 spotless = "8.11.0"
 
@@ -56,8 +62,12 @@ kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutine
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
 
+androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
+hilt-android-testing = { module = "com.google.dagger:hilt-android-testing", version.ref = "hilt" }
 junit = { module = "junit:junit", version.ref = "junit" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
@@ -67,7 +77,8 @@ android-gradlePlugin = { module = "com.android.tools.build:gradle", version.ref 
 compose-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 detekt-gradlePlugin = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 kotlin-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
-kover-gradlePlugin = { module = "org.jetbrains.kotlinx:kover-gradle-plugin", version.ref = "kover" }
+hilt-gradlePlugin = { module = "com.google.dagger:hilt-android-gradle-plugin", version.ref = "hilt" }
+ksp-gradlePlugin = { module = "com.google.devtools.ksp:symbol-processing-gradle-plugin", version.ref = "ksp" }
 serialization-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
 spotless-gradlePlugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 

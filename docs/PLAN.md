@@ -45,7 +45,9 @@ only `:app` wires them together, and a build check enforces it.
 
 Key rules (details in 01 §5, 03 §7):
 
-- Manual DI: each engine has a `create(...)` factory; `:app` has one `AppGraph`. No Hilt/Koin.
+- DI: **Hilt** (with KSP), as Google's `testing-setup` skill prescribes for a project without a DI
+  framework. Only `:app` applies it (`hl.hilt`); engines stay framework-free and expose `create(...)`
+  factories that `:app`'s Hilt modules call. Tests swap engines for fakes with `@TestInstallIn`.
 - `explicitApi()`: everything in a library is `internal` unless it is documented API.
 - Each engine has one sealed error type that also says how to recover. Android exceptions and status
   codes are translated in exactly one adapter. `CancellationException` is never swallowed.
@@ -62,8 +64,9 @@ Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the offi
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
 Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 33, JDK 21
 (AGP needs ≥ 17), coroutines 1.11.0, Compose BOM 2026.09.00, Navigation 3 1.2.1,
-Lifecycle 2.11.0, DataStore 1.3.0, Spotless 8.11.0 + ktlint 1.8.0, detekt 1.23.8, Android Lint as
-errors, Kover 0.9.11, Turbine 1.2.1, AssertK 0.28.1, Robolectric 4.18 (service shell only).
+Lifecycle 2.11.0, DataStore 1.3.0, Hilt 2.60.1 + KSP 2.3.14 (Hilt ≥ 2.59 is required for AGP 9),
+Spotless 8.11.0 + ktlint 1.8.0, detekt 1.23.8, Android Lint as errors, JaCoCo 0.8.16 (coverage, per
+the testing-setup skill), Turbine 1.2.1, AssertK 0.28.1, Robolectric 4.18.
 Screenshot tests: Google's **Compose Preview Screenshot Testing as an AGP 9.5 test suite**
 (`testOptions { screenshotTests.create(...) }`), as Google's official `testing-setup` skill
 prescribes for AGP ≥ 9.5.0-alpha03. It replaces Roborazzi from 03 §8; no third-party dependency.
