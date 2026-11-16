@@ -114,7 +114,7 @@ public fun SignalCard(
             HlText(title, HlTheme.typography.value, colors.inkInverse, maxLines = 1)
             HlText(subtitle, HlTheme.typography.meta, colors.inkInverseMuted, maxLines = 1)
         }
-        action?.let { SignalButton(it, night) }
+        action?.let { SignalButton(it, tone, night) }
     }
 }
 
@@ -160,13 +160,27 @@ private fun SignalBadge(
 @Composable
 private fun SignalButton(
     action: SignalAction,
+    tone: SignalTone,
     night: Boolean,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
     val height = if (night) HlTheme.sizes.action else HlTheme.sizes.chip
-    val fill = if (action.primary) colors.action else colors.inkInverse.copy(alpha = QUIET_FILL)
-    val ink = if (action.primary) colors.onAction else colors.inkInverse
+    // Artboards: an offer ("Connect") is brand in both looks, a retry is white in both, "Return" follows
+    // the look's action colour (white on Night, brand on Bento).
+    val fill =
+        when {
+            !action.primary -> colors.inkInverse.copy(alpha = QUIET_FILL)
+            tone == SignalTone.IDLE -> colors.brand
+            tone == SignalTone.ERROR -> colors.inkInverse
+            else -> colors.action
+        }
+    val ink =
+        when {
+            !action.primary -> colors.inkInverse
+            tone == SignalTone.IDLE -> colors.brandInk
+            else -> colors.onAction
+        }
     val style =
         if (night) HlTheme.typography.value else HlTheme.typography.label.copy(fontWeight = FontWeight.SemiBold)
     // The visual pill can be 36 dp (Bento); the touch target stays at least 48 dp.

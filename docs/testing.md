@@ -94,3 +94,9 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
 - Each `AndroidBikeLink` starts a `HandlerThread` that is never quit. `RideCoordinator` creates one
   link per selected address, so this only leaks when the rider switches bikes; fix when bike
   switching exists (M5 settings).
+- Component previews (`core/designsystem/.../component/*Previews.kt`) render without a device:
+  `JAVA_HOME=…; PATH=$JAVA_HOME/bin:$PATH android preview render :core:designsystem --fqn=<preview> -o <dir>`
+  (`android preview list :core:designsystem` lists them). The CLI's Gradle run needs Java on the PATH.
+  Renders show the first clickable element with Compose's focus highlight (non-touch mode); on the phone
+  (touch mode) it does not appear. Press feedback is foundation's default indication until the design
+  defines one.

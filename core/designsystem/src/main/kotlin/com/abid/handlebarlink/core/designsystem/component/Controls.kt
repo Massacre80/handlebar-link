@@ -36,16 +36,21 @@ public fun HlButton(
     enabled: Boolean = true,
 ) {
     val colors = HlTheme.colors
+    // Bento's artboard: inverse fill. Night has no sheet artboard: a dark fill would vanish on its ground,
+    // so it uses Night's action colours (white), as its CarPlay buttons do.
+    val night = HlTheme.variant == HlThemeVariant.NIGHT
+    val fill = if (night) colors.action else colors.surfaceInverse
+    val ink = if (night) colors.onAction else colors.inkInverse
     Box(
         modifier
             .fillMaxWidth()
             .height(HlTheme.sizes.controlLarge)
             .clip(RoundedCornerShape(HlTheme.radii.control))
-            .background(if (enabled) colors.surfaceInverse else colors.raisedLo)
+            .background(if (enabled) fill else colors.raisedLo)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        HlText(label, HlTheme.typography.value, if (enabled) colors.inkInverse else colors.inkMuted, maxLines = 1)
+        HlText(label, HlTheme.typography.value, if (enabled) ink else colors.inkMuted, maxLines = 1)
     }
 }
 
@@ -183,6 +188,7 @@ public fun HlOptionRow(
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
+    val night = HlTheme.variant == HlThemeVariant.NIGHT
     val shape = RoundedCornerShape(HlTheme.radii.control)
     Row(
         modifier
@@ -212,10 +218,13 @@ public fun HlOptionRow(
         }
         if (selected) {
             Box(
-                Modifier.size(HlTheme.sizes.indicator).background(colors.ink, CircleShape),
+                // Bento's artboard: ink disc, brand tick. On Night's light ink a brand tick would vanish: brand disc.
+                Modifier
+                    .size(HlTheme.sizes.indicator)
+                    .background(if (night) colors.brand else colors.ink, CircleShape),
                 contentAlignment = Alignment.Center,
             ) {
-                HlIcon(HlIcons.Check, colors.brand, size = HlTheme.sizes.iconMicro)
+                HlIcon(HlIcons.Check, if (night) colors.brandInk else colors.brand, size = HlTheme.sizes.iconMicro)
             }
         } else {
             Box(
