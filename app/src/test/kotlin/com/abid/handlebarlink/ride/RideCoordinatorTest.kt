@@ -42,12 +42,13 @@ class RideCoordinatorTest {
     private val created = mutableListOf<String>()
     private val performed = mutableListOf<ControlAction>()
     private val settings = InMemorySettings()
+    private var rechecks = 0
 
     private fun TestScope.coordinator(): RideCoordinator {
         val time = TestTimeProvider(testScheduler)
         return RideCoordinator(
             settings = settings,
-            provider = { address -> link.also { created += address } },
+            provider = { address -> RideLink(link.also { created += address }) { rechecks++ } },
             target =
                 ControlTarget {
                     performed += it
@@ -178,6 +179,20 @@ class RideCoordinatorTest {
             }
 
             assertThat(created).containsExactly(bike.address)
+        }
+
+    @Test
+    fun `coming back to the app re-reads the permission of the selected bike's link`() =
+        runTest {
+            val coordinator = coordinator()
+            coordinator.recheckPermission()
+            assertThat(rechecks).isEqualTo(0)
+
+            settings.bike.value = bike
+            runCurrent()
+            coordinator.recheckPermission()
+
+            assertThat(rechecks).isEqualTo(1)
         }
 
     private class InMemorySettings : BikeSettings {

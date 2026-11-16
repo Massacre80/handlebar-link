@@ -24,6 +24,9 @@ import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.settings.NoActions
+import com.abid.handlebarlink.ui.settings.PreviewAccess
+import com.abid.handlebarlink.ui.settings.PreviewSettings
 import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.android.tools.screenshot.PreviewTest
 
@@ -70,15 +73,9 @@ private fun Settings(variant: HlThemeVariant) =
     HlTheme(variant) {
         HlBackground(Modifier.fillMaxSize()) {
             SettingsScreen(
-                if (variant ==
-                    HlThemeVariant.NIGHT
-                ) {
-                    AppTheme.NIGHT
-                } else {
-                    AppTheme.BENTO
-                },
-                onTheme = {},
-                onBack = {},
+                PreviewSettings.copy(theme = if (variant == HlThemeVariant.NIGHT) AppTheme.NIGHT else AppTheme.BENTO),
+                PreviewAccess,
+                NoActions,
             )
         }
     }

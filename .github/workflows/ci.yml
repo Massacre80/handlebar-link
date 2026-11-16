@@ -7,6 +7,11 @@ on:
     branches: [main, v2]
   pull_request:
   workflow_dispatch:
+    inputs:
+      record-screenshots:
+        description: Re-record the screenshot references on Linux and upload them (artifact screenshot-references)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,6 +48,23 @@ jobs:
         with:
           # The default "enhanced" cache is only a free preview for private repositories.
           cache-provider: basic
+
+      # Screenshot references are recorded where they are verified: here, on Linux (docs/LESSONS.md 26).
+      # On request (manual run with record-screenshots, or "[record screenshots]" in the commit message):
+      # record, upload them, and let the check below verify against them. docs/testing.md has the steps.
+      - name: Record screenshot references (on request)
+        if: inputs.record-screenshots || contains(github.event.head_commit.message, '[record screenshots]')
+        run: >-
+          ./gradlew :core:designsystem:updateDebugScreenshotTestDefaultTestSuite
+          :app:updateDebugScreenshotTestDefaultTestSuite --console=plain
+
+      - name: Upload screenshot references (on request)
+        if: inputs.record-screenshots || contains(github.event.head_commit.message, '[record screenshots]')
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: screenshot-references
+          path: "**/src/screenshotTestDefaultDebug/reference/"
+          retention-days: 7
 
       - name: Check (format, detekt, lint, tests, coverage, module boundaries)
         run: ./gradlew check --console=plain

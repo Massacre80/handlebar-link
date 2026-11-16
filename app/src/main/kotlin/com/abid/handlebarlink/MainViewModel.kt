@@ -4,22 +4,38 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.AppearanceSettings
+import com.abid.handlebarlink.data.BikeSettings
+import com.abid.handlebarlink.ride.RideCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** App-wide UI state: the theme. */
+/** App-wide UI state: the theme, and whether the ride can start. */
 @HiltViewModel
 class MainViewModel
     @Inject
     constructor(
         appearance: AppearanceSettings,
+        bikes: BikeSettings,
+        private val coordinator: RideCoordinator,
     ) : ViewModel() {
         /** The rider's theme (Night until loaded). */
         val theme: StateFlow<AppTheme> =
             appearance.theme.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), AppTheme.NIGHT)
+
+        /** Whether a bike is chosen (the ride can start). */
+        val bikeChosen: StateFlow<Boolean> =
+            bikes.bike
+                .map { it != null }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+
+        /** The app came to the foreground: the Bluetooth permission may have changed meanwhile. */
+        fun onResumed() {
+            coordinator.recheckPermission()
+        }
 
         private companion object {
             /** Keeps the flow across configuration changes (Android architecture recommendations). */

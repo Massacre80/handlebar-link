@@ -74,4 +74,19 @@
     <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
     <string name="theme_bento">Bento</string>
     <string name="theme_bento_detail">Light, everything in cards</string>
+    <!-- Settings: bike and permissions -->
+    <string name="settings_bike">Bike</string>
+    <string name="settings_permissions">Permissions</string>
+    <string name="bike_needs_nearby">Allow Nearby devices to see your bike</string>
+    <string name="bike_none_paired">No Honda meter paired yet</string>
+    <string name="bike_pair_hint">Pair in Bluetooth</string>
+    <string name="permission_nearby">Nearby devices</string>
+    <string name="permission_nearby_why">Connects to your bike\'s meter</string>
+    <string name="permission_notifications">Notifications</string>
+    <string name="permission_notifications_why">Shows the ride and asks for help when needed</string>
+    <string name="permission_media">Notification access</string>
+    <string name="permission_media_why">Lets the handlebar control CarPlay in CarLink</string>
+    <string name="access_granted">Allowed</string>
+    <string name="access_ask">Allow</string>
+    <string name="access_blocked">Open settings</string>
 </resources>

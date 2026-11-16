@@ -18,6 +18,14 @@ spotless {
     }
 }
 
+// Lint reads files under build/ while Spotless writes and deletes its scratch copies there
+// (build/spotless-clean): run in parallel, lint failed with FileNotFoundException (2026-11-16, -17;
+// docs/LESSONS.md 25). Lint always runs after the two Spotless tasks that write them (the formats set
+// below). By exact name: a name filter still creates every task to test it (lesson 21).
+tasks.configureEach {
+    if (name.startsWith("lint")) mustRunAfter("spotlessKotlin", "spotlessKotlinGradle")
+}
+
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.layout.projectDirectory.file("config/detekt/detekt.yml"))

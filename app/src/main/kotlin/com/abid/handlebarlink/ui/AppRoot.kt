@@ -1,5 +1,7 @@
 package com.abid.handlebarlink.ui
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.fadeIn
@@ -21,18 +23,22 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
+import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.later.LaterScreen
@@ -48,6 +54,12 @@ import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.navigation.rememberNavigationState
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
+import com.abid.handlebarlink.ui.permissions.Access
+import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
+import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
+import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
+import com.abid.handlebarlink.ui.settings.SettingsAccess
+import com.abid.handlebarlink.ui.settings.SettingsActions
 import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.abid.handlebarlink.ui.settings.SettingsViewModel
 
@@ -85,12 +97,9 @@ fun AppRoot() {
                     barSpace,
                 )
             }
-            entry<SettingsRoute> {
-                val viewModel: SettingsViewModel = hiltViewModel()
-                val theme by viewModel.theme.collectAsStateWithLifecycle()
-                SettingsScreen(theme, onTheme = viewModel::choose, onBack = navigator::goBack)
-            }
+            entry<SettingsRoute> { SettingsEntry(onBack = navigator::goBack) }
         }
+    RideAutoStart()
     HlBackground(Modifier.fillMaxSize()) {
         val motion = HlTheme.motion
         NavDisplay(
@@ -129,5 +138,50 @@ private fun BoxScope.FloatingTabBar(
                     .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
                     .widthIn(max = HlTheme.sizes.contentMax),
         )
+    }
+}
+
+/** Settings with its view model and the three permissions (re-read on every resume). */
+@Composable
+private fun SettingsEntry(onBack: () -> Unit) {
+    val context = LocalContext.current
+    val viewModel: SettingsViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val nearby = rememberNearbyAccess()
+    val notifications = rememberNotificationAccess()
+    val media = rememberMediaAccess()
+    // The meters can only be listed with Nearby devices; read them again whenever that or the page resumes.
+    LifecycleResumeEffect(nearby.status) {
+        viewModel.refreshMeters()
+        onPauseOrDispose {}
+    }
+    SettingsScreen(
+        state,
+        SettingsAccess(nearby.status, notifications.status, media.status),
+        SettingsActions(
+            onTheme = viewModel::choose,
+            onBike = viewModel::choose,
+            onAccess = { listOf(nearby, notifications, media)[it].act() },
+            onPair = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+            onBack = onBack,
+        ),
+    )
+}
+
+/**
+ * Starts the ride while the app is on screen (a foreground service may only start then), once a bike is
+ * chosen and Nearby devices is allowed; a running ride ignores the second start. Each resume also re-reads
+ * the permission for the link (Android sends no broadcast when it changes). Waking on ignition is M4.
+ */
+@Composable
+private fun RideAutoStart() {
+    val context = LocalContext.current
+    val viewModel: MainViewModel = hiltViewModel()
+    val bikeChosen by viewModel.bikeChosen.collectAsStateWithLifecycle()
+    val nearby = rememberNearbyAccess()
+    LifecycleResumeEffect(bikeChosen, nearby.status) {
+        viewModel.onResumed()
+        if (bikeChosen && nearby.status == Access.GRANTED) RideService.start(context)
+        onPauseOrDispose {}
     }
 }

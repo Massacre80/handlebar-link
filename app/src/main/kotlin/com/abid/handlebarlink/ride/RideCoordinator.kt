@@ -46,13 +46,21 @@ class RideCoordinator
         private val log = logger.child("ride")
         private val riding = AtomicBoolean(false)
 
-        /** The selected bike's link (one per address, created once), or null when no bike is selected. */
-        val link: StateFlow<BikeLink?> =
+        private val rideLink: StateFlow<RideLink?> =
             settings.bike
                 .map { it?.address }
                 .distinctUntilChanged()
                 .map { address -> address?.let(provider::create) }
                 .stateIn(scope, SharingStarted.Eagerly, null)
+
+        /** The selected bike's link (one per address, created once), or null when no bike is selected. */
+        val link: StateFlow<BikeLink?> =
+            rideLink.map { it?.link }.stateIn(scope, SharingStarted.Eagerly, null)
+
+        /** The app is back in the foreground: the Bluetooth permission may have changed meanwhile. */
+        fun recheckPermission() {
+            rideLink.value?.recheckPermission?.invoke()
+        }
 
         /**
          * Runs the ride: starts the link and routes presses until the link no longer needs to be kept

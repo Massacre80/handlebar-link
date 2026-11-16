@@ -10,10 +10,18 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Inject
 
+/** A link and what the app must tell it from outside: Android sends no broadcast when a permission changes. */
+class RideLink(
+    /** The link. */
+    val link: BikeLink,
+    /** Re-reads the Bluetooth permission (the app calls it when it comes back to the foreground). */
+    val recheckPermission: () -> Unit,
+)
+
 /** Creates the link for a bike; tests replace it with one that returns a FakeBikeLink. */
 fun interface BikeLinkProvider {
     /** A link to the meter at [address]. */
-    fun create(address: String): BikeLink
+    fun create(address: String): RideLink
 }
 
 /** The Android link from `:bike:link-android`, on the confined bike-link dispatcher. */
@@ -25,6 +33,8 @@ class AndroidBikeLinkProvider
         private val time: TimeProvider,
         private val logger: Logger,
     ) : BikeLinkProvider {
-        override fun create(address: String): BikeLink =
-            AndroidBikeLink.create(context, address, dispatcher, time, logger.child("bike"))
+        override fun create(address: String): RideLink {
+            val link = AndroidBikeLink.create(context, address, dispatcher, time, logger.child("bike"))
+            return RideLink(link, link::recheckPermission)
+        }
     }

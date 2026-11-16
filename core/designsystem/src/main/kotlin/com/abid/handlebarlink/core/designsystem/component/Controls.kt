@@ -22,6 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -176,7 +177,10 @@ public fun HlSectionLabel(
     )
 }
 
-/** One choice of a single-choice list: optional icon, title, line and a radio (a check when [selected]). */
+/**
+ * One choice of a single-choice list: optional icon, title, line and a radio (a check when [selected]).
+ * [container]: the unselected fill; the design's sheet uses raisedLo, a page on the screen colour uses panel.
+ */
 @Composable
 public fun HlOptionRow(
     @DrawableRes icon: Int?,
@@ -185,6 +189,7 @@ public fun HlOptionRow(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    container: Color = HlTheme.colors.raisedLo,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -194,7 +199,7 @@ public fun HlOptionRow(
         modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(if (selected) colors.raisedHi else colors.raisedLo)
+            .background(if (selected) colors.raisedHi else container)
             .then(if (selected) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
@@ -238,13 +243,15 @@ public fun HlOptionRow(
     }
 }
 
-/** A read-only value row (the sheet's "Name" field): value on the left, a hint on the right. */
+/** A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the right. */
 @Composable
 public fun HlValueRow(
     value: String,
     hint: String?,
     modifier: Modifier = Modifier,
+    detail: String? = null,
     onClick: (() -> Unit)? = null,
+    container: Color = HlTheme.colors.raisedLo,
 ) {
     val colors = HlTheme.colors
     Row(
@@ -252,13 +259,16 @@ public fun HlValueRow(
             .fillMaxWidth()
             .sizeIn(minHeight = HlTheme.sizes.controlLarge)
             .clip(RoundedCornerShape(HlTheme.radii.control))
-            .background(colors.raisedLo)
+            .background(container)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
     ) {
-        HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink, Modifier.weight(1f))
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2)) {
+            HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink)
+            detail?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted) }
+        }
         hint?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted, maxLines = 1) }
     }
 }

@@ -6,9 +6,9 @@ import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.LibraryExtension
 
 /**
- * Pixels that may differ before a screenshot fails, as a fraction (0.0003 = 0.03 %). Measured 2026-11-17:
- * Linux CI and macOS render the same preview up to 0.02 % apart (anti-aliasing, image scaling), while the
- * smallest real change tried (cards' corner radius 28 → 24 dp) changed 0.04 % or more.
+ * Pixels that may differ before a screenshot fails, as a fraction (0.0003 = 0.03 %): below the smallest
+ * real change tried (cards' corner radius 28 → 24 dp: 0.04 % or more). References and checks both run on
+ * Linux, where renders repeat exactly; macOS differs up to 10 % (gradient fades), so it never verifies.
  * Declared before the blocks below: `withPlugin` runs them at once if AGP is already applied.
  */
 val screenshotTolerance = 0.0003f
@@ -51,7 +51,9 @@ pluginManager.withPlugin("com.android.library") {
     }
 }
 
-// `check` verifies the screenshots too (a planted card-radius change failed both suites). By name: matching
-// over all tasks would create AGP's release preview task, which fails because AGP 9 runs unit tests for
-// debug only.
-tasks.named("check") { dependsOn("testDebugScreenshotTestDefaultTestSuite") }
+// `check` verifies the screenshots on CI only: references are recorded and verified on Linux, where CI
+// runs (docs/LESSONS.md 26); macOS renders gradients and blurred shadows a little differently. Locally,
+// render previews to look at a change (docs/testing.md). By name, not by matching all tasks (lesson 21).
+if (providers.environmentVariable("CI").orNull == "true") {
+    tasks.named("check") { dependsOn("testDebugScreenshotTestDefaultTestSuite") }
+}
