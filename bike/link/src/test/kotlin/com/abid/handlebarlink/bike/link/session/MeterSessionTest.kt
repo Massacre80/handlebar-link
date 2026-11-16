@@ -27,9 +27,9 @@ import com.abid.handlebarlink.bike.protocol.FunctionId
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.bike.protocol.SeriesCode
-import com.abid.handlebarlink.core.log.LogEntry
-import com.abid.handlebarlink.core.log.LogSink
-import com.abid.handlebarlink.core.log.Logger
+import com.abid.handlebarlink.core.common.log.LogEntry
+import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.testing.RecordingLogSink
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
@@ -48,9 +48,9 @@ import java.time.ZoneOffset
 
 class MeterSessionTest {
     private val meter = FakeGattLink()
-    private val logged = mutableListOf<LogEntry>()
-    private val session =
-        MeterSession(meter, Logger("test", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), listOf(LogSink(logged::add))))
+    private val sink = RecordingLogSink()
+    private val logged: List<LogEntry> get() = sink.entries
+    private val session = MeterSession(meter, Logger("test", Clock.fixed(Instant.EPOCH, ZoneOffset.UTC), listOf(sink)))
 
     @Test
     fun `happy path - the exact frames, in RoadSync's order, and what the meter reported`() =

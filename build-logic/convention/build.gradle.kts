@@ -8,6 +8,8 @@ kotlin {
             .get()
             .toInt(),
     )
+    // The build logic follows the same rule as the modules: a warning fails the build.
+    compilerOptions { allWarningsAsErrors.set(true) }
 }
 
 dependencies {

@@ -18,7 +18,7 @@ import com.abid.handlebarlink.bike.protocol.FunctionSource
 import com.abid.handlebarlink.bike.protocol.SabSafety
 import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.bike.protocol.SeriesCode
-import com.abid.handlebarlink.core.log.Logger
+import com.abid.handlebarlink.core.common.log.Logger
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow

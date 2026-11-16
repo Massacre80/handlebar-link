@@ -1,6 +1,8 @@
 # Handlebar Link — rules for coding agents
 
-Read `docs/PLAN.md` first: goal, decisions, modules, milestones. Do not start a milestone before the
+Read `docs/PLAN.md` first: goal, decisions, modules, milestones. Then read `docs/LESSONS.md`: every
+mistake made so far and the rule that prevents it. **When you find a mistake, add it there** (what
+happened → rule) in the same commit as the fix. Do not start a milestone before the
 previous one is done, and never work on CarPlay before M5.
 
 ## Hard rules
@@ -11,8 +13,25 @@ previous one is done, and never work on CarPlay before M5.
   a capture on the bike. Never guess; read RoadSync's decompiled source when the spec is unclear.
 - Never write to the meter's DFU service or send data command 0x0B: `SabSafety` must approve every
   write and subscription.
-- Engines (`:bike:*`, later `:carplay:*`) never depend on each other or on `:designsystem`; only
-  `:app` wires them (`checkModuleBoundaries`).
+- Engines (`:bike:*`, later `:carplay:*`) never depend on each other or on `:core:designsystem`; only
+  `:app` wires them. Every module needs a rule in `ModuleRules.kt` (`checkModuleDependencies`).
+- Types in a public signature come through `api(...)`. Test doubles of public types live in test-only
+  modules (`:core:testing`, `*-test`); fakes of internal types stay in the module's `src/test`.
+
+## Engine architecture (architecture review, section (c))
+
+- One public interface per engine (`BikeLink`), implemented by an `internal` runtime, built by a
+  factory; Hilt `@Singleton` scoping and all Hilt modules live in `:app/di`.
+- Expose `StateFlow` (from a private `MutableStateFlow`) for state, a no-replay `Flow` for events.
+  Effects the app must act on (keep the service alive, show a problem) are state, not callbacks.
+  No `stateIn`/`shareIn(WhileSubscribed)` inside an engine.
+- No hidden scopes: the engine runs in `suspend fun run()` called by the app's coordinator; each
+  connection generation is a child job; cleanup in `finally { withContext(NonCancellable) { … } }`.
+- All engine state is confined to one injected single-threaded dispatcher; platform callbacks only
+  `trySend`; public command methods are non-suspending and thread-safe.
+- Dispatcher, `TimeProvider` and `Random` are injected; tests use one test scheduler.
+- Errors: `LinkException` inside; one runtime boundary turns it into an event, rethrows
+  `CancellationException`, and maps anything else to `Unexpected` with a reasoned `@Suppress`.
 - No `println`, `android.util.Log`, direct clock reads or `GlobalScope` (`checkForbiddenCode`).
 - Library modules use explicit API: everything is `internal` unless it is documented public API.
 - Follow the official Android skills in `.claude/skills/` where they give a recommendation (e.g.

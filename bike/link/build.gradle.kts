@@ -11,7 +11,12 @@ coverage {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.bike.protocol)
+    // Types of these appear in the public API (LinkError, LinkState, Logger, StateFlow): `api`, as in
+    // Now in Android's core/data.
+    api(projects.core.common)
+    api(projects.bike.protocol)
+    api(libs.kotlinx.coroutines.core)
     implementation(libs.kotlinx.coroutines.android)
+
+    testImplementation(projects.core.testing)
 }

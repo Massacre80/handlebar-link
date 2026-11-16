@@ -16,10 +16,9 @@ android {
 }
 
 dependencies {
-    implementation(projects.core)
-    implementation(projects.bike.protocol)
+    implementation(projects.core.common)
     implementation(projects.bike.link)
-    implementation(projects.designsystem)
+    implementation(projects.core.designsystem)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
 

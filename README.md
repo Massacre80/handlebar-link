@@ -20,8 +20,9 @@ Requires JDK 21 and the Android SDK (platform 37).
 | `:core` | pure Kotlin: logging, time, shared types |
 | `:bike:protocol` | pure Kotlin: the meter's BLE protocol (`docs/protocol/SAB_PROTOCOL.md`) |
 | `:bike:link` | Bluetooth link to the meter: GATT, state machine |
-| `:designsystem` | our Compose tokens and components |
+| `:core:designsystem` | our Compose tokens and components |
 | `:app` | ride service, auto-start, pairing, screens |
 | `build-logic/` | convention plugins (`hl.*`) shared by every module |
 
-Engines never depend on each other; `./gradlew checkModuleBoundaries` enforces it.
+Engines never depend on each other; each module's `checkModuleDependencies` enforces
+`build-logic/convention/src/main/kotlin/ModuleRules.kt`.

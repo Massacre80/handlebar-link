@@ -12,12 +12,12 @@ import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 /**
- * Fails the build on calls the project forbids (docs/research/01-architecture.md §5, rules 6, 8, 9, 11).
+ * Fails the build on code the project forbids in production sources (docs/research/01-architecture.md
+ * §5; architecture review MUST-1; Android "Best practices for coroutines").
  *
- * detekt has rules for these, but they need type resolution: AGP 9 Android modules get no
- * type-resolving detekt task, and in pure Kotlin modules detekt 1.23 cannot resolve Kotlin 2.4's
- * standard library (it missed `println` and flagged reachable code as unreachable), so those tasks
- * are not part of `check`. This plain source scan is the guaranteed check.
+ * detekt has rules for most of these, but they need type resolution, which `check` does not run
+ * (AGP 9 Android modules have no type-resolving task, and detekt 1.23 cannot resolve Kotlin 2.4's
+ * standard library; docs/LESSONS.md 1–2). This plain source scan is the guaranteed check.
  */
 @CacheableTask
 abstract class CheckForbiddenCode : DefaultTask() {
@@ -36,27 +36,36 @@ abstract class CheckForbiddenCode : DefaultTask() {
         val root = rootDirectory.get().asFile
         val problems =
             sources.files.filter { it.extension == "kt" }.sorted().flatMap { file ->
-                file.readLines().withIndex().flatMap { (index, line) ->
-                    val code = line.trim()
-                    if (code.startsWith("//") || code.startsWith("*") || code.startsWith("/*")) {
-                        emptyList()
-                    } else {
-                        RULES
-                            .filter { it.pattern.containsMatchIn(line) }
-                            .map { "${file.relativeTo(root).invariantSeparatorsPath}:${index + 1}: ${it.reason}" }
-                    }
-                }
+                val path = file.relativeTo(root).invariantSeparatorsPath
+                file.readLines().withIndex().flatMap { (index, line) -> problemsIn(path, index + 1, line) }
             }
         report.get().asFile.writeText(problems.joinToString("\n").ifEmpty { "ok" })
         if (problems.isNotEmpty()) throw GradleException("Forbidden code:\n" + problems.joinToString("\n"))
     }
 
+    private fun problemsIn(
+        path: String,
+        lineNumber: Int,
+        line: String,
+    ): List<String> {
+        val code = line.trim()
+        if (code.startsWith("//") || code.startsWith("*") || code.startsWith("/*")) return emptyList()
+        return RULES
+            .filter { rule -> rule.pattern.containsMatchIn(line) && rule.allowedIn?.containsMatchIn(path) != true }
+            .map { "$path:$lineNumber: ${it.reason}" }
+    }
+
     private class Rule(
         val pattern: Regex,
         val reason: String,
+        /** Production paths where the call is the designated place for it. */
+        val allowedIn: Regex? = null,
     )
 
     private companion object {
+        /** :app's dependency-injection modules: the one place dispatchers and app scopes are created. */
+        val APP_DI = Regex("""^app/src/main/kotlin/com/abid/handlebarlink/di/""")
+
         val RULES =
             listOf(
                 Rule(Regex("""\bprintln?\("""), "print/println: use the Logger (rule 9)"),
@@ -70,6 +79,21 @@ abstract class CheckForbiddenCode : DefaultTask() {
                     "java.time now(): use the injected clock (rule 8)",
                 ),
                 Rule(Regex("""\bGlobalScope\b"""), "GlobalScope: use a scope you own (rule 6)"),
+                Rule(
+                    Regex("""\bDispatchers\.(Main|IO|Default|Unconfined)\b"""),
+                    "hard-coded Dispatchers: inject a dispatcher (coroutines best practices)",
+                    allowedIn = APP_DI,
+                ),
+                Rule(
+                    Regex("""\bCoroutineScope\("""),
+                    "new CoroutineScope: run in the caller's scope or an injected one (rule 6)",
+                    allowedIn = APP_DI,
+                ),
+                Rule(
+                    Regex("""\brunCatching\b"""),
+                    "runCatching swallows cancellation: catch specific exceptions (rule 7)",
+                ),
+                Rule(Regex("""\brunBlocking\b"""), "runBlocking blocks the thread: use suspend functions"),
                 Rule(
                     Regex("""@SuppressLint\(\s*"MissingPermission"\s*\)"""),
                     "@SuppressLint(\"MissingPermission\"): check permissions at the adapter (rule 11)",

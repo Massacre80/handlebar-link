@@ -12,12 +12,11 @@ comments:
     active: true
 
 coroutines:
-  # Rule 6: no GlobalScope. Off by default in detekt.
+  # Rule 6: no GlobalScope. Off by default in detekt; works without type resolution.
   GlobalCoroutineUsage:
     active: true
-  # Rule 7: never swallow cancellation. Off by default in detekt.
-  SuspendFunSwallowedCancellation:
-    active: true
+  # InjectDispatcher and SuspendFunSwallowedCancellation need type resolution, which `check` does not
+  # run (docs/LESSONS.md 1): checkForbiddenCode enforces dispatchers, scopes and runCatching instead.
 
 naming:
   FunctionNaming:

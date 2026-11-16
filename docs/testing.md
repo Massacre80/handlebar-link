@@ -13,18 +13,22 @@ How Handlebar Link is tested, and the commands to run. Strategy and reasons:
 ```
 
 `check` runs, in every module: unit tests, Spotless + ktlint, detekt, Android Lint with warnings as
-errors, JaCoCo coverage verification (pure Kotlin modules), and at the root `checkModuleBoundaries` and `checkForbiddenCode`.
+errors, JaCoCo coverage verification, `checkModuleDependencies`, and at the root `checkForbiddenCode`.
 
 detekt runs without type resolution. Its type-resolving tasks are not in `check`: AGP 9 Android
 modules have none, and in pure Kotlin modules detekt 1.23 cannot resolve Kotlin 2.4's standard
 library, so it missed `println` and flagged reachable code as unreachable. `checkForbiddenCode`
-covers the rules that would need it (println, android.util.Log, direct clock reads, GlobalScope,
-`@SuppressLint("MissingPermission")`).
+covers the rules that would need it: println, android.util.Log, direct clock reads, GlobalScope,
+hard-coded `Dispatchers.*` and new `CoroutineScope(...)` (both allowed only in `:app`'s `di/`),
+`runCatching`, `runBlocking`, `@SuppressLint("MissingPermission")`. Generic catches are detekt's
+`TooGenericExceptionCaught`, which works without type resolution.
 
 ## Rules
 
 - **Fakes, not mocks.** A platform dependency gets an interface, an Android implementation and a
-  `Fake*` in the module's `testFixtures`, so other modules' tests can reuse it. Mockk only if a fake
+  `Fake*`. Fakes of internal types stay in the module's `src/test`; fakes of public types go in a
+  test-only module (`:core:testing`, `:bike:link-test`) that other modules' tests depend on, as in
+  Now in Android (`core:testing`, `core:data-test`). Mockk only if a fake
   is impossible (testing-setup skill).
 - **JUnit 4 + AssertK**, one behaviour per test, Arrange / Act / Assert, names in backticks that read
   as a sentence.

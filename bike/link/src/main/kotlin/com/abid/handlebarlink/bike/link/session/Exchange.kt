@@ -6,7 +6,7 @@ import com.abid.handlebarlink.bike.link.machine.Timeouts
 import com.abid.handlebarlink.bike.protocol.ReplyMatch
 import com.abid.handlebarlink.bike.protocol.SabFrame
 import com.abid.handlebarlink.bike.protocol.SabSafety
-import com.abid.handlebarlink.core.log.Logger
+import com.abid.handlebarlink.core.common.log.Logger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope

@@ -1,6 +1,8 @@
 # Handlebar Link v2 — plan
 
-Status: **proposed, awaiting approval** (2026-11-16). Nothing below is built yet.
+Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2.1–M2.3 and the structure fixes of the
+architecture review (`docs/reviews/2026-11-16-architecture-review.md`). Mistakes and their rules:
+`docs/LESSONS.md`.
 
 ## Goal
 
@@ -39,16 +41,22 @@ The working prototype stays on branch `prototype` as a reference.
 
 ## Structure
 
-Five Gradle modules plus `build-logic` (convention plugins). Engines never depend on each other;
-only `:app` wires them together, and a build check enforces it.
+Modules plus `build-logic` (convention plugins), named after Now in Android's `core:*` convention
+(architecture review MUST-4). Engines never depend on each other; only `:app` wires them together.
+Every module's dependencies are checked from its real Gradle configurations against
+`build-logic/.../ModuleRules.kt` (`checkModuleDependencies`); a module without a rule fails.
 
 ```
-:core              pure Kotlin    Logger, time, small shared types
+:core:common       pure Kotlin    Logger, logfmt, TimeProvider
+:core:testing      pure Kotlin    test-only: TestTimeProvider (virtual time), RecordingLogSink
+:core:designsystem Android lib    tokens + ~20 owned Compose components (no Bluetooth, no app logic)
 :bike:protocol     pure Kotlin    SAB codec: UUIDs, frames, replies, CTS encoding
-:bike:link         Android lib    GATT transport, CTS server, meter session, connection supervisor
-:designsystem      Android lib    tokens + ~20 owned Compose components (no Bluetooth, no app logic)
-:app               application    ride service, auto-start, pairing, button routing, screens, diagnostics
-(later) :carplay:protocol, :carplay:engine — added only when CarPlay work starts
+:bike:link         Android lib    state machine, setup session, runtime, GATT/CTS adapters; public
+                                  API types come through api(:core:common, :bike:protocol, coroutines)
+:bike:link-test    pure Kotlin    test-only: FakeBikeLink for :app's tests (added in M2.4)
+:app               application    the only Hilt module: ride service, auto-start, pairing, button
+                                  routing, screens, diagnostics (package-by-feature: di/, ride/, …)
+(later) :carplay:protocol, :carplay:engine, :carplay:engine-test — same pattern
 ```
 
 Key rules (details in 01 §5, 03 §7):
@@ -63,7 +71,7 @@ Key rules (details in 01 §5, 03 §7):
 - All BLE work runs on one thread. A CarPlay failure (later) can never take down the bike link.
 - Logs go through our own `Logger`: logcat, an on-screen ring, a rotating file. Crashes and Android's
   exit reasons are recorded; diagnostics can be shared. No third-party SDKs, no `INTERNET` permission.
-- UI: colours, sizes, type and motion come only from `:designsystem` tokens; the build rejects raw
+- UI: colours, sizes, type and motion come only from `:core:designsystem` tokens; the build rejects raw
   values elsewhere. Dark by default, plus Day and Sunlight themes; 76 dp glove-sized targets.
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
@@ -104,7 +112,7 @@ No milestone starts before the previous one is done.
 | **M2** | `:bike:link`: GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests, the real Android transport, CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
 | **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
-| **M5** | UI: tokens and components in `:designsystem`; setup, status, button mapping, diagnostics and settings screens. | Screenshot tests for every component and screen; glove and sunlight check on the bike. |
+| **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. | Screenshot tests for every component and screen; glove and sunlight check on the bike. |
 | **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
 
 ## Things only the phone or bike can settle

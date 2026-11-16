@@ -35,8 +35,9 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 rootProject.name = "handlebar-link"
 
-include(":core")
+include(":core:common")
+include(":core:testing")
+include(":core:designsystem")
 include(":bike:protocol")
 include(":bike:link")
-include(":designsystem")
 include(":app")
