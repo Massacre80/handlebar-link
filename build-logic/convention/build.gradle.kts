@@ -21,6 +21,7 @@ dependencies {
     implementation(libs.detekt.gradlePlugin)
     implementation(libs.hilt.gradlePlugin)
     implementation(libs.ksp.gradlePlugin)
+    implementation(libs.vcu.gradlePlugin)
     // Makes the type-safe `libs` catalog usable inside the precompiled script plugins (Libs.kt).
     implementation(files(libs.javaClass.superclass.protectionDomain.codeSource.location))
 }

@@ -36,6 +36,10 @@ previous one is done, and never work on CarPlay before M5.
 - Library modules use explicit API: everything is `internal` unless it is documented public API.
 - Follow the official Android skills in `.claude/skills/` where they give a recommendation (e.g.
   Hilt and JaCoCo from `testing-setup`); record any deviation and its reason in `docs/PLAN.md`.
+- **Never type a library or a version into the build** (docs/LESSONS.md 17). Add one with
+  `./gradlew addLibrary --coordinates=group:artifact [--alias=key] [--version-ref=existingKey]`
+  (latest stable from Google Maven / Maven Central, formatted afterwards); update all with
+  `./gradlew versionCatalogUpdate`; `./gradlew versionCatalogUpdate --check` fails on outdated ones.
 - Prefer the official sources: `android docs search "…"` (Android Knowledge Base) and the skills in
   `.claude/skills/`. Check versions on Maven before changing `gradle/libs.versions.toml`.
 - Android 12+ (minSdk 31). Use the current API; branch to the older one only where a supported release

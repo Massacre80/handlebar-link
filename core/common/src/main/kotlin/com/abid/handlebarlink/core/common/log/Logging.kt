@@ -39,7 +39,11 @@ public data class LogEntry(
     val error: Throwable?,
 )
 
-/** Where log entries go (logcat, the in-app ring buffer, a file). Implementations must not throw. */
+/**
+ * Where log entries go (logcat, the in-app ring buffer, a file). Loggers call sinks on the caller's
+ * thread, which may be the main thread: a sink must not throw and must not block (hand disk I/O to its
+ * own writer thread).
+ */
 public fun interface LogSink {
     /** Writes one entry. */
     public fun write(entry: LogEntry)

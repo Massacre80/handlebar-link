@@ -66,10 +66,17 @@ abstract class CheckForbiddenCode : DefaultTask() {
         /** :app's dependency-injection modules: the one place dispatchers and app scopes are created. */
         val APP_DI = Regex("""^app/src/main/kotlin/com/abid/handlebarlink/di/""")
 
+        /** The one bridge from our Logger to Android's log. */
+        val LOGCAT_SINK = Regex("""^app/src/main/kotlin/com/abid/handlebarlink/diagnostics/LogcatSink\.kt$""")
+
         val RULES =
             listOf(
                 Rule(Regex("""\bprintln?\("""), "print/println: use the Logger (rule 9)"),
-                Rule(Regex("""^\s*import\s+android\.util\.Log\b"""), "android.util.Log: use the Logger (rule 9)"),
+                Rule(
+                    Regex("""^\s*import\s+android\.util\.Log\b"""),
+                    "android.util.Log: use the Logger (rule 9)",
+                    allowedIn = LOGCAT_SINK,
+                ),
                 Rule(
                     Regex("""\bSystem\.(currentTimeMillis|nanoTime)\("""),
                     "System time: use the injected clock (rule 8)",

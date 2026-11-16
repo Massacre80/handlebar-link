@@ -82,3 +82,9 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
   Two full `check` runs afterwards passed; lint's model does not reference `spotless-clean`. Cause not
   established. If it happens again: keep the log, check `build/intermediates/lint-cache`, and record
   the finding in docs/LESSONS.md.
+- Gradle deprecations from detekt 1.23.8 (`DetektPlugin.kt:28` `ReportingExtension.file`, removed in
+  Gradle 10; `DetektPlugin.kt:99` `Configuration.setVisible`, removed in Gradle 11), traced with
+  `./gradlew help --warning-mode all --stacktrace`. Not our code; blocks Gradle 10 until detekt 2 is
+  stable (it also fixes type resolution, docs/LESSONS.md 1–2).
+- `versionCatalogUpdate`/`versionCatalogFormat` (version-catalog-update 1.1.2) are declared
+  `notCompatibleWithConfigurationCache`: they run without the cache; every other task uses it.
