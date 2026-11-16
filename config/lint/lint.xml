@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Lint runs with warningsAsErrors (build-logic Android.kt). Each entry below needs a reason. -->
+<lint>
+    <!-- Dependency freshness is Dependabot's job; these would fail the build whenever a new
+         version ships, which makes old commits unbuildable. -->
+    <issue id="GradleDependency" severity="ignore" />
+    <issue id="NewerVersionAvailable" severity="ignore" />
+    <issue id="AndroidGradlePluginVersion" severity="ignore" />
+
+    <!-- A library's bundled lint checks were built against another lint version, so lint skips them
+         (seen with androidx.lifecycle 2.11.0 on AGP 9.5.1). Nothing in our code to fix; kept visible
+         in the report instead of failing the build. Re-check when lifecycle or AGP is updated. -->
+    <issue id="ObsoleteLintCustomCheck" severity="informational" />
+</lint>

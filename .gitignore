@@ -6,6 +6,7 @@ local.properties
 .idea/
 .DS_Store
 *.apk
+*.aab
 *.pk8
 *.p7b
 *.jks

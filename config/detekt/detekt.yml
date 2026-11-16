@@ -1,0 +1,21 @@
+# Additions to detekt's default rules (buildUponDefaultConfig = true). Keep this file short:
+# every entry needs a reason.
+
+naming:
+  FunctionNaming:
+    # Composable functions are PascalCase by convention.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    # Compose-style constants (e.g. `val HbSpacing = …`).
+    constantPattern: '[A-Z][A-Za-z0-9]*'
+
+complexity:
+  LongParameterList:
+    # Composables take many optional parameters by design.
+    ignoreAnnotated: ['Composable']
+    ignoreDefaultParameters: true
+
+style:
+  UnusedPrivateMember:
+    # @Preview functions are used by tooling, not code.
+    ignoreAnnotated: ['Preview']
