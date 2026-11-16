@@ -1,6 +1,7 @@
 # Handlebar Link v2 — plan
 
-Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2 (engine, runtime, Android adapters) and the structure fixes of the
+Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2 (engine, runtime, Android adapters), M3.1–M3.2 (app wiring, ride service), UI.1
+(design tokens, Night and Bento themes) and the structure fixes of the
 architecture review (`docs/reviews/2026-11-16-architecture-review.md`). Mistakes and their rules:
 `docs/LESSONS.md`.
 
@@ -74,8 +75,13 @@ Key rules (details in 01 §5, 03 §7):
 - All BLE work runs on one thread. A CarPlay failure (later) can never take down the bike link.
 - Logs go through our own `Logger`: logcat, an on-screen ring, a rotating file. Crashes and Android's
   exit reasons are recorded; diagnostics can be shared. No third-party SDKs, no `INTERNET` permission.
-- UI: colours, sizes, type and motion come only from `:core:designsystem` tokens; the build rejects raw
-  values elsewhere. Dark by default, plus Day and Sunlight themes; 76 dp glove-sized targets.
+- UI: the owner's design (Paper file "CB350RS"). Colours, sizes, type and motion come only from
+  `:core:designsystem` tokens (`design/*.css`, checked by `TokenDriftTest`); detekt rejects raw numbers
+  elsewhere. Two themes the rider picks in settings, never switched automatically: **Night** (default:
+  dark, bike photo, glass cards) and **Bento** (light, card grid); each has its own Home layout. A fully
+  custom Compose theme, not Material (Android "Custom design systems in Compose"). Touch targets ≥ 48 dp.
+  Data without a source yet (odometer, trip, service, intercom battery, CarPlay) shows an empty state,
+  never a made-up number. (Replaces "Dark/Day/Sunlight, 76 dp", 2026-11-17.)
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 
@@ -115,7 +121,7 @@ No milestone starts before the previous one is done.
 | **M2** | `:bike:link` (pure Kotlin engine): GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests; `:bike:link-android`: the real Android transport and CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
 | **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
-| **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. | Screenshot tests for every component and screen; glove and sunlight check on the bike. |
+| **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components, UI.3 Home (both layouts), UI.4 screenshot tests. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
 | **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
 
 ## Things only the phone or bike can settle

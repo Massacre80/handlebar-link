@@ -43,8 +43,10 @@ complexity:
 
 style:
   # Rule 14: protocol bytes live only in *:protocol modules, where every number comes from the spec.
+  # Design tokens live only in the design system's theme package, where TokenDriftTest checks every
+  # value against core/designsystem/design/*.css; everything else uses the tokens.
   MagicNumber:
-    excludes: ['**/test/**', '**/testFixtures/**', '**/*.kts', '**/protocol/src/main/**']
+    excludes: ['**/test/**', '**/testFixtures/**', '**/*.kts', '**/protocol/src/main/**', '**/designsystem/src/main/kotlin/**/theme/**']
   UnusedPrivateMember:
     # @Preview functions are used by tooling, not code.
     ignoreAnnotated: ['Preview']

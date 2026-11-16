@@ -27,6 +27,6 @@ abstract class DataModule {
         @Singleton
         fun preferences(
             @ApplicationContext context: Context,
-        ): DataStore<Preferences> = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("bike") }
+        ): DataStore<Preferences> = PreferenceDataStoreFactory.create { context.preferencesDataStoreFile("settings") }
     }
 }

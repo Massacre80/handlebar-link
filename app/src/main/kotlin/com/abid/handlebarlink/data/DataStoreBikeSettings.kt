@@ -27,7 +27,10 @@ class DataStoreBikeSettings
         }
 
         override suspend fun forget() {
-            store.edit { it.clear() }
+            store.edit {
+                it.remove(ADDRESS)
+                it.remove(NAME)
+            }
         }
 
         private companion object {
