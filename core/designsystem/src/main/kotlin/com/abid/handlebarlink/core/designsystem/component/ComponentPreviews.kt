@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -80,20 +81,25 @@ internal fun Gauges() {
 
 @Composable
 internal fun Devices() {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s10)) {
+    CardRow {
         if (HlTheme.variant == HlThemeVariant.NIGHT) {
             DeviceTile(
                 "Intercom",
                 "Helmet intercom",
                 "EJEAS V6 Pro+",
                 connected = true,
-                Modifier.weight(NIGHT_TILE_WEIGHT),
+                Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
                 status = "72%",
             )
-            AddDeviceSlot("Add device", "Intercom or headset", Modifier.weight(1f), onClick = {})
+            AddDeviceSlot("Add device", "Intercom or headset", Modifier.weight(1f).fillMaxHeight(), onClick = {})
         } else {
-            DeviceRow("Helmet intercom", "Intercom · 72%", connected = true, Modifier.weight(BENTO_DEVICE_WEIGHT))
-            AddDeviceSlot("Add", null, Modifier.weight(BENTO_ADD_WEIGHT), onClick = {})
+            DeviceRow(
+                "Helmet intercom",
+                "Intercom · 72%",
+                connected = true,
+                Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
+            )
+            AddDeviceSlot("Add", null, Modifier.weight(BENTO_ADD_WEIGHT).fillMaxHeight(), onClick = {})
         }
     }
 }

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -40,6 +41,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.AddDeviceSlot
 import com.abid.handlebarlink.core.designsystem.component.ArcGauge
+import com.abid.handlebarlink.core.designsystem.component.CardRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
@@ -90,18 +92,18 @@ internal fun HomeBento(
             BentoBikeCard()
             BentoStats()
             CarPlayCard()
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
+            CardRow {
                 DeviceRow(
                     stringResource(R.string.intercom_none),
                     stringResource(R.string.intercom_none_detail),
                     connected = null,
-                    modifier = Modifier.weight(BENTO_DEVICE_WEIGHT),
+                    modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
                 AddDeviceSlot(
                     stringResource(R.string.add_device_short),
                     detail = null,
-                    Modifier.weight(BENTO_ADD_WEIGHT),
+                    Modifier.weight(BENTO_ADD_WEIGHT).fillMaxHeight(),
                 )
             }
             Spacer(Modifier.height(spacing.s8))

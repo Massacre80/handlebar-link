@@ -7,8 +7,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -25,7 +28,10 @@ import androidx.compose.ui.unit.Dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
-/** A card: glass with a hairline edge in Night, solid in Bento. */
+/**
+ * A card: glass with a hairline edge in Night, solid in Bento. Cards placed side by side share one height:
+ * give their row `Modifier.height(IntrinsicSize.Min)` and each card `fillMaxHeight()` (see [CardRow]).
+ */
 @Composable
 public fun HlCard(
     modifier: Modifier = Modifier,
@@ -67,7 +73,7 @@ public fun DeviceTile(
     // The design height is a minimum: with large text the tile grows instead of clipping.
     HlCard(modifier) {
         Column(
-            Modifier.heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
+            Modifier.fillMaxHeight().heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
             verticalArrangement = Arrangement.spacedBy(spacing.s12, Alignment.Bottom),
         ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -114,7 +120,7 @@ public fun DeviceRow(
     val spacing = HlTheme.spacing
     HlCard(modifier) {
         Row(
-            Modifier.padding(spacing.s12),
+            Modifier.fillMaxHeight().padding(spacing.s12),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s12),
         ) {
@@ -225,4 +231,30 @@ public fun StatusPill(
             maxLines = 1,
         )
     }
+}
+
+/**
+ * A row of cards that all take the tallest card's height (the intercom card and the add-device slot), so
+ * their edges and bottom-aligned text line up whatever the text size.
+ */
+@Composable
+public fun CardRow(
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Row(
+        modifier.fillMaxWidth().height(IntrinsicSize.Min),
+        // The artboards' gaps: 10 dp between Night's tiles, 8 dp in Bento's grid.
+        horizontalArrangement =
+            Arrangement.spacedBy(
+                if (HlTheme.variant ==
+                    HlThemeVariant.NIGHT
+                ) {
+                    HlTheme.spacing.s10
+                } else {
+                    HlTheme.spacing.s8
+                },
+            ),
+        content = content,
+    )
 }

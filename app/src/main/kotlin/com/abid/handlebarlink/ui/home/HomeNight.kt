@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -39,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.AddDeviceSlot
 import com.abid.handlebarlink.core.designsystem.component.ArcGauge
+import com.abid.handlebarlink.core.designsystem.component.CardRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
@@ -83,21 +85,18 @@ internal fun HomeNight(
             NightGauges(column)
             Box(column.height(heroHeight)) {
                 HeroBike(Modifier.align(Alignment.TopCenter))
-                Row(
-                    Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.s10),
-                ) {
+                CardRow(Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16)) {
                     DeviceTile(
                         stringResource(R.string.intercom),
                         stringResource(R.string.intercom_none),
                         stringResource(R.string.intercom_none_detail),
                         connected = null,
-                        modifier = Modifier.weight(NIGHT_TILE_WEIGHT),
+                        modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
                     )
                     AddDeviceSlot(
                         stringResource(R.string.add_device),
                         stringResource(R.string.coming_soon),
-                        Modifier.weight(1f),
+                        Modifier.weight(1f).fillMaxHeight(),
                     )
                 }
             }
