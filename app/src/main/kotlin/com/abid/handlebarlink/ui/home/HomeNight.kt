@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -52,7 +54,11 @@ import com.abid.handlebarlink.core.designsystem.component.TickRing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
-/** "Home 3 — Night": the bike as the hero between the gauges and the cards. */
+/**
+ * "Home 3 — Night": the bike as the hero between the gauges and the cards. The bike area keeps the
+ * artboard's share of the screen height but never less than the tiles need; when the screen is too short
+ * the page scrolls, and wide windows centre a column of at most [HlSizes.contentMax].
+ */
 @Composable
 internal fun HomeNight(
     state: HomeUiState,
@@ -60,35 +66,45 @@ internal fun HomeNight(
     contentPadding: PaddingValues,
 ) {
     val spacing = HlTheme.spacing
-    Column(
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-            .padding(contentPadding),
-    ) {
-        NightHeader(state, onSettings)
-        NightGauges()
-        Box(Modifier.weight(1f).fillMaxWidth()) {
-            HeroBike(Modifier.align(Alignment.TopCenter))
-            Row(
-                Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
-                horizontalArrangement = Arrangement.spacedBy(spacing.s10),
-            ) {
-                DeviceTile(
-                    stringResource(R.string.intercom),
-                    stringResource(R.string.intercom_none),
-                    stringResource(R.string.intercom_none_detail),
-                    connected = null,
-                    modifier = Modifier.weight(NIGHT_TILE_WEIGHT),
-                )
-                AddDeviceSlot(
-                    stringResource(R.string.add_device),
-                    stringResource(R.string.coming_soon),
-                    Modifier.weight(1f),
-                )
+    val column = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val heroHeight = maxOf(maxHeight * HERO_SHARE, HlTheme.sizes.tile + spacing.s24 * 2)
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = maxHeight)
+                .windowInsetsPadding(
+                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
+                ).padding(contentPadding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            NightHeader(state, onSettings, column)
+            NightGauges(column)
+            Box(column.height(heroHeight)) {
+                HeroBike(Modifier.align(Alignment.TopCenter))
+                Row(
+                    Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.s10),
+                ) {
+                    DeviceTile(
+                        stringResource(R.string.intercom),
+                        stringResource(R.string.intercom_none),
+                        stringResource(R.string.intercom_none_detail),
+                        connected = null,
+                        modifier = Modifier.weight(NIGHT_TILE_WEIGHT),
+                    )
+                    AddDeviceSlot(
+                        stringResource(R.string.add_device),
+                        stringResource(R.string.coming_soon),
+                        Modifier.weight(1f),
+                    )
+                }
             }
+            // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.
+            Spacer(Modifier.weight(1f))
+            CarPlayCard(column.padding(spacing.s16))
         }
-        CarPlayCard(Modifier.padding(spacing.s16))
     }
 }
 
@@ -97,9 +113,10 @@ internal fun HomeNight(
 private fun NightHeader(
     state: HomeUiState,
     onSettings: () -> Unit,
+    modifier: Modifier,
 ) {
     val spacing = HlTheme.spacing
-    Box(Modifier.fillMaxWidth()) {
+    Box(modifier) {
         Column(
             Modifier.align(Alignment.TopCenter).padding(top = spacing.s18),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -119,10 +136,10 @@ private fun NightHeader(
 
 /** Service and trip gauges: empty until the Garage and ride logging exist. */
 @Composable
-private fun NightGauges() {
+private fun NightGauges(modifier: Modifier) {
     val spacing = HlTheme.spacing
     Row(
-        Modifier.fillMaxWidth().padding(top = spacing.s22, start = spacing.s16, end = spacing.s16),
+        modifier.padding(top = spacing.s22, start = spacing.s16, end = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s28, Alignment.CenterHorizontally),
     ) {
         ArcGauge(
@@ -169,6 +186,8 @@ private fun HeroBike(modifier: Modifier) {
 
 // The artboard's ratios: the render is 560 of 411 wide and fades from 52 % to 86 % of its height;
 // the tiles are 186:168.
+// The hero (bike and tiles) spans 386 of the artboard's 856 dp height.
+private const val HERO_SHARE = 0.45f
 private const val HERO_OVERSCAN = 1.36f
 private const val HERO_FADE_START = 0.52f
 private const val HERO_FADE_END = 0.86f

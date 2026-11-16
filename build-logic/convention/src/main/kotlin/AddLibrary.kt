@@ -23,7 +23,9 @@ import java.net.http.HttpResponse
  *
  * The version comes from the repository's published metadata (Google Maven, then Maven Central): the
  * latest stable release, or, with `--version-ref`, an existing version entry after checking that the
- * artifact is published at that version. The catalog is then formatted by `versionCatalogFormat`.
+ * artifact is published at that version. `--allow-prerelease` takes the latest release of any kind, for
+ * artifacts that have no stable release yet (say why in the catalog). The catalog is then formatted by
+ * `versionCatalogFormat`.
  */
 @UntrackedTask(because = "edits gradle/libs.versions.toml in place")
 abstract class AddLibrary : DefaultTask() {
@@ -43,6 +45,12 @@ abstract class AddLibrary : DefaultTask() {
     @get:Optional
     @get:Option(option = "version-ref", description = "existing [versions] key to reuse")
     abstract val versionRef: Property<String>
+
+    /** Accept a pre-release when the artifact has no stable release. */
+    @get:Input
+    @get:Optional
+    @get:Option(option = "allow-prerelease", description = "take the latest release even if it is not stable")
+    abstract val allowPrerelease: Property<Boolean>
 
     @get:Internal
     abstract val catalog: RegularFileProperty
@@ -67,7 +75,10 @@ abstract class AddLibrary : DefaultTask() {
             if (version !in published) throw GradleException("$group:$artifact is not published at $ref = $version")
             versionKey = ref
         } else {
-            version = published.lastOrNull(::isStable) ?: throw GradleException("no stable release of $group:$artifact")
+            version =
+                published.lastOrNull(::isStable)
+                    ?: published.lastOrNull()?.takeIf { allowPrerelease.getOrElse(false) }
+                    ?: throw GradleException("no stable release of $group:$artifact (--allow-prerelease to accept one)")
             versionKey = camelCase(key)
             if (versionOf(toml, versionKey) != null) throw GradleException("[versions] already has '$versionKey'")
             toml = appendTo(toml, "versions", "$versionKey = \"$version\"")

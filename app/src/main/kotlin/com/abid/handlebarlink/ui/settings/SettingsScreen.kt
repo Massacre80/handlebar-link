@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
@@ -43,6 +45,8 @@ fun SettingsScreen(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.safeDrawing)
+            .wrapContentWidth()
+            .widthIn(max = HlTheme.sizes.contentMax)
             .padding(horizontal = spacing.s16, vertical = spacing.s8),
         verticalArrangement = Arrangement.spacedBy(spacing.s20),
     ) {

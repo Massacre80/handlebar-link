@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -99,7 +100,8 @@ private fun RowScope.TabItem(
                         ).clip(CircleShape)
                         .background(colors.raisedHi)
                 } else {
-                    Modifier.weight(1f).clip(CircleShape)
+                    // A pill clip would shave long labels at large text; the press area stays rounded.
+                    Modifier.weight(1f).clip(RoundedCornerShape(HlTheme.radii.control))
                 },
             ).selectable(selected = active, role = Role.Tab, onClick = onClick)
     Column(

@@ -1,6 +1,7 @@
 plugins {
     id("hl.android.application")
     id("hl.compose")
+    id("hl.screenshot")
     id("hl.hilt")
     // Navigation 3 keys are @Serializable so the back stack survives configuration changes.
     id("org.jetbrains.kotlin.plugin.serialization")

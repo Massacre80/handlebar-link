@@ -33,6 +33,9 @@ ksp = "2.3.14"
 ktlint = "1.8.0"
 minSdk = "31"
 robolectric = "4.18"
+# Compose Preview Screenshot Testing has no stable release yet (added with --allow-prerelease);
+# the engine (screenshot-validation-junit-engine) is released with this API under the same version.
+screenshotValidationApi = "0.0.1-alpha17"
 serialization = "1.13.0"
 spotless = "8.11.0"
 targetSdk = "37"
@@ -72,6 +75,8 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 kotlinx-serialization-core = { module = "org.jetbrains.kotlinx:kotlinx-serialization-core", version.ref = "serialization" }
 ksp-gradlePlugin = { module = "com.google.devtools.ksp:symbol-processing-gradle-plugin", version.ref = "ksp" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
+screenshot-validation-api = { module = "com.android.tools.screenshot:screenshot-validation-api", version.ref = "screenshotValidationApi" }
+screenshot-validation-junit-engine = { module = "com.android.tools.screenshot:screenshot-validation-junit-engine", version.ref = "screenshotValidationApi" }
 serialization-gradlePlugin = { module = "org.jetbrains.kotlin:kotlin-serialization", version.ref = "kotlin" }
 spotless-gradlePlugin = { module = "com.diffplug.spotless:spotless-plugin-gradle", version.ref = "spotless" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }

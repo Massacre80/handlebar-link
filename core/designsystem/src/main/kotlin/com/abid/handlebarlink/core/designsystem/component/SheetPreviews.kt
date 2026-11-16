@@ -10,7 +10,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 // The add-device sheet ("Flow · Add device — what is it?") in both looks.
 
 @Composable
-private fun Sheet() {
+internal fun Sheet() {
     HlSheet {
         HlHeader(HlIcons.Bluetooth, "EJEAS V6 Pro+", "Paired · looks like an audio headset")
         Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {

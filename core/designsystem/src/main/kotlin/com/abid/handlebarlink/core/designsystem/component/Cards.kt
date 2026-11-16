@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -63,8 +64,12 @@ public fun DeviceTile(
     val colors = HlTheme.colors
     val type = HlTheme.typography
     val spacing = HlTheme.spacing
-    HlCard(modifier.height(HlTheme.sizes.tile)) {
-        Column(Modifier.padding(spacing.s16), verticalArrangement = Arrangement.SpaceBetween) {
+    // The design height is a minimum: with large text the tile grows instead of clipping.
+    HlCard(modifier) {
+        Column(
+            Modifier.heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
+            verticalArrangement = Arrangement.spacedBy(spacing.s12, Alignment.Bottom),
+        ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     Modifier
@@ -77,7 +82,7 @@ public fun DeviceTile(
                 Spacer(Modifier.weight(1f))
                 status?.let { HlText(it, type.meta, colors.inkMuted, maxLines = 1) }
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.weight(1f, fill = false))
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 HlText(kind, type.meta, colors.inkMuted, maxLines = 1)
                 Row(
@@ -89,9 +94,9 @@ public fun DeviceTile(
                         size = HlTheme.sizes.dotLarge,
                         glow = connected == true,
                     )
-                    HlText(name, type.lead, colors.ink, maxLines = 1)
+                    HlText(name, type.lead, colors.ink, maxLines = 2)
                 }
-                HlText(detail, type.label, colors.inkMuted, maxLines = 1)
+                HlText(detail, type.label, colors.inkMuted, maxLines = 2)
             }
         }
     }
@@ -152,16 +157,20 @@ public fun AddDeviceSlot(
             .dashedOutline(colors.lineStrong, strokes.outline, radii.hero, strokes.dashOn, strokes.dashOff)
             .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
     if (night) {
-        Column(outline.height(HlTheme.sizes.tile).padding(spacing.s16)) {
+        Column(
+            outline.heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
+            verticalArrangement = Arrangement.SpaceBetween,
+        ) {
             Box(
                 Modifier.size(HlTheme.sizes.chip).background(colors.brand, RoundedCornerShape(radii.nested)),
                 contentAlignment = Alignment.Center,
             ) {
                 HlIcon(HlIcons.Plus, colors.brandInk, size = HlTheme.sizes.iconTiny)
             }
-            Spacer(Modifier.weight(1f))
-            HlText(title, HlTheme.typography.lead, colors.ink, maxLines = 1)
-            detail?.let { HlText(it, HlTheme.typography.label, colors.inkMuted, maxLines = 1) }
+            Column(Modifier.padding(top = spacing.s12)) {
+                HlText(title, HlTheme.typography.lead, colors.ink, maxLines = 2)
+                detail?.let { HlText(it, HlTheme.typography.label, colors.inkMuted, maxLines = 2) }
+            }
         }
     } else {
         Row(

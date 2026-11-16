@@ -111,8 +111,8 @@ public fun SignalCard(
     ) {
         SignalBadge(tone, accent, progress)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            HlText(title, HlTheme.typography.value, colors.inkInverse, maxLines = 1)
-            HlText(subtitle, HlTheme.typography.meta, colors.inkInverseMuted, maxLines = 1)
+            HlText(title, HlTheme.typography.value, colors.inkInverse, maxLines = 2)
+            HlText(subtitle, HlTheme.typography.meta, colors.inkInverseMuted, maxLines = 2)
         }
         action?.let { SignalButton(it, tone, night) }
     }

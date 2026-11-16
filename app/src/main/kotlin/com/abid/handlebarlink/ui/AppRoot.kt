@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -91,7 +92,8 @@ fun AppRoot() {
                     Modifier
                         .align(Alignment.BottomCenter)
                         .navigationBarsPadding()
-                        .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20),
+                        .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
+                        .widthIn(max = HlTheme.sizes.contentMax),
             )
         }
     }

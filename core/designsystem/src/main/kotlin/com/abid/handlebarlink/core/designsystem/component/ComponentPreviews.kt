@@ -17,7 +17,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 // compared with the design. UI.4 turns them into screenshot tests.
 
 @Composable
-private fun Gallery(
+internal fun Gallery(
     variant: HlThemeVariant,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -33,7 +33,7 @@ private fun Gallery(
 }
 
 @Composable
-private fun Pills() {
+internal fun Pills() {
     Row(horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
         StatusPill("Connected", on = true)
         StatusPill("Looking for bike", on = false)
@@ -41,7 +41,7 @@ private fun Pills() {
 }
 
 @Composable
-private fun Gauges() {
+internal fun Gauges() {
     if (HlTheme.variant == HlThemeVariant.NIGHT) {
         Row(
             Modifier.fillMaxWidth(),
@@ -79,7 +79,7 @@ private fun Gauges() {
 }
 
 @Composable
-private fun Devices() {
+internal fun Devices() {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s10)) {
         if (HlTheme.variant == HlThemeVariant.NIGHT) {
             DeviceTile(
@@ -99,7 +99,7 @@ private fun Devices() {
 }
 
 @Composable
-private fun CarPlayStates() {
+internal fun CarPlayStates() {
     val offer = SignalAction("Connect", primary = true) {}
     SignalCard("Connect Abid's iPhone?", "CarPlay over Wi-Fi Direct", SignalTone.IDLE, action = offer)
     val cancel = SignalAction("Cancel", primary = false) {}
@@ -116,7 +116,7 @@ private fun CarPlayStates() {
     SignalCard("Couldn't connect", "Unlock iPhone and try again", SignalTone.ERROR, action = retry)
 }
 
-private val Tabs =
+internal val PreviewTabs =
     listOf(
         HlTab(HlIcons.Home, "Home"),
         HlTab(HlIcons.Rides, "Rides"),
@@ -131,7 +131,7 @@ private fun Everything() {
     Gauges()
     Devices()
     CarPlayStates()
-    HlTabBar(Tabs, selected = 0, onSelect = {})
+    HlTabBar(PreviewTabs, selected = 0, onSelect = {})
     Row(horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
         HlIconButton(HlIcons.Settings, "Settings", onClick = {})
     }

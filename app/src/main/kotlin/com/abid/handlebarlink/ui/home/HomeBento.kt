@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,10 +15,12 @@ import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -60,37 +63,49 @@ internal fun HomeBento(
     contentPadding: PaddingValues,
 ) {
     val spacing = HlTheme.spacing
+    // The page scrolls full width; wide windows centre a column of at most HlSizes.contentMax.
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
-            .padding(contentPadding)
-            .padding(horizontal = spacing.s16),
-        verticalArrangement = Arrangement.spacedBy(spacing.s8),
+            .padding(contentPadding),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = spacing.s8),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            Modifier
+                .widthIn(max = HlTheme.sizes.contentMax)
+                .fillMaxWidth()
+                .padding(horizontal = spacing.s16),
+            verticalArrangement = Arrangement.spacedBy(spacing.s8),
         ) {
-            Pill(state.link)
-            Spacer(Modifier.weight(1f))
-            HlIconButton(HlIcons.Settings, stringResource(R.string.settings), onSettings)
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = spacing.s8),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Pill(state.link)
+                Spacer(Modifier.weight(1f))
+                HlIconButton(HlIcons.Settings, stringResource(R.string.settings), onSettings)
+            }
+            BentoBikeCard()
+            BentoStats()
+            CarPlayCard()
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
+                DeviceRow(
+                    stringResource(R.string.intercom_none),
+                    stringResource(R.string.intercom_none_detail),
+                    connected = null,
+                    modifier = Modifier.weight(BENTO_DEVICE_WEIGHT),
+                )
+                // Bento's slot has no second line in the artboard (it would not fit its narrow column).
+                AddDeviceSlot(
+                    stringResource(R.string.add_device_short),
+                    detail = null,
+                    Modifier.weight(BENTO_ADD_WEIGHT),
+                )
+            }
+            Spacer(Modifier.height(spacing.s8))
         }
-        BentoBikeCard()
-        BentoStats()
-        CarPlayCard()
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
-            DeviceRow(
-                stringResource(R.string.intercom_none),
-                stringResource(R.string.intercom_none_detail),
-                connected = null,
-                modifier = Modifier.weight(BENTO_DEVICE_WEIGHT),
-            )
-            // Bento's slot has no second line in the artboard (it would not fit its narrow column).
-            AddDeviceSlot(stringResource(R.string.add_device_short), detail = null, Modifier.weight(BENTO_ADD_WEIGHT))
-        }
-        Spacer(Modifier.height(spacing.s8))
     }
 }
 
@@ -128,7 +143,8 @@ private fun BentoStats() {
     val colors = HlTheme.colors
     val type = HlTheme.typography
     Row(
-        Modifier.fillMaxWidth().height(HlTheme.sizes.statCard),
+        // The design height is a minimum (large text); both cards take the taller one's height.
+        Modifier.fillMaxWidth().height(IntrinsicSize.Min).heightIn(min = HlTheme.sizes.statCard),
         horizontalArrangement = Arrangement.spacedBy(spacing.s8),
     ) {
         HlCard(Modifier.weight(1f).fillMaxSize()) {
