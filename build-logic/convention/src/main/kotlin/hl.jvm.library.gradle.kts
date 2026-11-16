@@ -26,9 +26,22 @@ tasks.withType<JavaCompile>().configureEach {
 // `checkForbiddenCode` scan are the gates. Revisit with detekt 2.x.
 
 // Coverage with JaCoCo (Google's testing-setup skill). A module sets its minimum in its own build file:
-// tasks.jacocoTestCoverageVerification { violationRules { rule { limit { minimum = "0.90".toBigDecimal() } } } }
+// coverage { minimumLines = "0.90".toBigDecimal() }
 jacoco {
     toolVersion = libs.versions.jacoco.get()
+}
+
+val coverage = coverageExtension()
+
+tasks.named<JacocoCoverageVerification>("jacocoTestCoverageVerification") {
+    violationRules {
+        rule {
+            limit {
+                counter = "LINE"
+                minimum = coverage.minimumLines.get()
+            }
+        }
+    }
 }
 
 tasks.named<Test>("test") { finalizedBy(tasks.named("jacocoTestReport")) }

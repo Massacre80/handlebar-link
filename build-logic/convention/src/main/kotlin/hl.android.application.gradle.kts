@@ -34,10 +34,12 @@ android {
         }
     }
     lint { applyProjectPolicy(project) }
-    // JaCoCo for unit tests (Google's testing-setup skill): createDebugUnitTestCoverageReport.
+    // JaCoCo for unit tests (Google's testing-setup skill); the tasks are set up in Coverage.kt.
     testCoverage { jacocoVersion = libs.versions.jacoco.get() }
     buildTypes.named("debug") { enableUnitTestCoverage = true }
 }
+
+configureAndroidCoverage()
 
 configure<KotlinAndroidProjectExtension> {
     jvmToolchain(jdkVersion)

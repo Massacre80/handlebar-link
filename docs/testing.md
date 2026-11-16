@@ -33,18 +33,26 @@ covers the rules that would need it (println, android.util.Log, direct clock rea
   source (spec section, or "verified on the CB350").
 - **Coroutines:** `runTest` with virtual time, Turbine for flows (from M2).
 - **New tests must be able to fail.** When a suite passes on the first run, plant a bug and check
-  that a test catches it (done for M1: id byte order, CTS fraction, command id start).
+  that a test catches it (M1: id byte order, CTS fraction, command id start; M2.2: four missing
+  closes / wake-lock releases, each caught by the fuzz test and by its scenario test).
+- **State machines get a randomised invariant test** (`ReducerFuzzTest`: 10 000 seeded runs, every
+  mode visited ≥ 100 times, invariants checked after every event).
 - No unit tests for Activities, Compose layouts or DI wiring (Google's testing-setup skill).
 
 ## Coverage gates (JaCoCo)
 
 | Module | Minimum lines | Current |
 |---|---|---|
+| `:core` | 90 % | 95.0 % (M2.1) |
 | `:bike:protocol` | 90 % | 98.9 % (M1) |
+| `:bike:link` | 90 % | 97.4 % (M2.2) |
 
-JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). Pure Kotlin
-modules use Gradle's `jacoco` plugin with `jacocoTestCoverageVerification` in `check`; Android modules
-have `enableUnitTestCoverage` on debug, and get a verification task when they get tests (M2).
+JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). A module
+sets its minimum with `coverage { minimumLines = "0.90".toBigDecimal() }`; zero means no gate.
+- Pure Kotlin modules: Gradle's `jacoco` plugin, `jacocoTestCoverageVerification` in `check`.
+- Android modules: `jacocoDebugUnitTestReport` / `jacocoDebugUnitTestCoverageVerification`
+  (`build-logic/.../Coverage.kt`), after Now in Android's `Jacoco.kt`: class directories come from
+  AGP's Variant API (`ScopedArtifact.CLASSES`), never from internal build paths.
 
 ## Dependency injection in tests (Hilt)
 

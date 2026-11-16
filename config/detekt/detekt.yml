@@ -25,6 +25,9 @@ naming:
     ignoreAnnotated: ['Composable']
 
 complexity:
+  CyclomaticComplexMethod:
+    # A `when` whose branches are one call each (an event dispatch) is not complex logic.
+    ignoreSimpleWhenEntries: true
   LongParameterList:
     # Composables take many optional parameters by design.
     ignoreAnnotated: ['Composable']
