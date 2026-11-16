@@ -34,7 +34,10 @@ covers the rules that would need it (println, android.util.Log, direct clock rea
 - **Coroutines:** `runTest` with virtual time, Turbine for flows (from M2).
 - **New tests must be able to fail.** When a suite passes on the first run, plant a bug and check
   that a test catches it (M1: id byte order, CTS fraction, command id start; M2.2: four missing
-  closes / wake-lock releases, each caught by the fuzz test and by its scenario test).
+  closes / wake-lock releases, each caught by the fuzz test and by its scenario test; M2.3: five
+  session bugs, incl. subscribing after the write, caught only once an instant-reply test existed).
+- **Fakes must be able to expose races.** `FakeGattLink` can answer with no radio time
+  (`opMillis = 0`), which is what proves the reply is subscribed before the write.
 - **State machines get a randomised invariant test** (`ReducerFuzzTest`: 10 000 seeded runs, every
   mode visited ≥ 100 times, invariants checked after every event).
 - No unit tests for Activities, Compose layouts or DI wiring (Google's testing-setup skill).
@@ -45,7 +48,7 @@ covers the rules that would need it (println, android.util.Log, direct clock rea
 |---|---|---|
 | `:core` | 90 % | 95.0 % (M2.1) |
 | `:bike:protocol` | 90 % | 98.9 % (M1) |
-| `:bike:link` | 90 % | 97.4 % (M2.2) |
+| `:bike:link` | 90 % | 98.0 % (M2.3) |
 
 JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). A module
 sets its minimum with `coverage { minimumLines = "0.90".toBigDecimal() }`; zero means no gate.

@@ -45,4 +45,33 @@ internal object Timeouts {
 
     /** Missing keys or authentication failures before the bond counts as broken. */
     const val AUTH_FAILURES_FOR_BROKEN_BOND = 2
+
+    // Setup session (§2.5; SAB_PROTOCOL.md §1.4, §1.5, §5.2, §6.1).
+
+    /** GATT work waits at most this long for bonding to finish (RoadSync's bond step, SAB §1.4). */
+    const val BOND_SETTLE_MS = 30_000L
+
+    /** The MTU RoadSync requests (SAB §1.5). */
+    const val MTU = 247
+
+    /** MTU request; a failure is tolerated (SAB §1.5). */
+    const val MTU_MS = 3_000L
+
+    /** Pause after the MTU exchange, as RoadSync does (SAB §4.2 step 2). */
+    const val AFTER_MTU_MS = 50L
+
+    /** Service discovery (RoadSync: 20 s); on a bonded link Android answers from its cache. */
+    const val DISCOVER_MS = 15_000L
+
+    /** A read, a CCCD write or a write's confirmation. */
+    const val OPERATION_MS = 3_000L
+
+    /** Wait for an assignment result or a command receipt (SAB §5.2, §6.1). */
+    const val REPLY_MS = 2_000L
+
+    /** Tries per assignment before the setup fails. */
+    const val ASSIGNMENT_TRIES = 5
+
+    /** Tries for REQUEST_SAB_MODE's receipt; an unconfirmed request is logged, not fatal. */
+    const val COMMAND_TRIES = 3
 }
