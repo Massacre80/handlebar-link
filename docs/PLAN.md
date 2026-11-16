@@ -88,8 +88,8 @@ No milestone starts before the previous one is done.
 
 | # | What | Done when |
 |---|---|---|
-| **M0** | Empty project, set up properly: `build-logic`, version catalog, the five modules, quality gates (format, detekt, lint, explicit API, module boundaries), CI, a blank screen. | `./gradlew check` passes locally and in CI; the blank app installs on the Poco. |
-| **M1** | `:bike:protocol`: the meter codec, written from `SAB_PROTOCOL.md`. | Unit tests cover every frame, reply and code verified on the CB350. |
+| **M0** ✅ | Empty project, set up properly: `build-logic`, version catalog, the five modules, quality gates (format, detekt, lint, explicit API, module boundaries), CI, a blank screen. | `./gradlew check` passes locally and in CI; the blank app installs on the Poco. |
+| **M1** ✅ | `:bike:protocol`: the meter codec, written from `SAB_PROTOCOL.md`. | Unit tests cover every frame, reply and code verified on the CB350. |
 | **M2** | `:bike:link`: GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests, the real Android transport, CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
 | **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |

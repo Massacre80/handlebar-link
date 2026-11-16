@@ -39,4 +39,13 @@ val checkModuleBoundaries =
         report.set(layout.buildDirectory.file("reports/module-boundaries.txt"))
     }
 
-tasks.named("check") { dependsOn(checkModuleBoundaries) }
+val checkForbiddenCode =
+    tasks.register<CheckForbiddenCode>("checkForbiddenCode") {
+        group = "verification"
+        description = "Fails on forbidden calls (println, android.util.Log, direct clock reads, GlobalScope, …)."
+        sources.from(modules.map { it.fileTree("src/main") { include("**/*.kt") } })
+        rootDirectory.set(layout.projectDirectory)
+        report.set(layout.buildDirectory.file("reports/forbidden-code.txt"))
+    }
+
+tasks.named("check") { dependsOn(checkModuleBoundaries, checkForbiddenCode) }

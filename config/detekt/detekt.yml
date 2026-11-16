@@ -1,13 +1,28 @@
 # Additions to detekt's default rules (buildUponDefaultConfig = true). Keep this file short:
-# every entry needs a reason.
+# every entry needs a reason. Rule numbers refer to docs/research/01-architecture.md §5.
+# Defaults checked against detekt-core 1.23.8's default-detekt-config.yml.
+
+comments:
+  # Rule 16: public API is documented. Off by default in detekt.
+  UndocumentedPublicClass:
+    active: true
+  UndocumentedPublicFunction:
+    active: true
+  UndocumentedPublicProperty:
+    active: true
+
+coroutines:
+  # Rule 6: no GlobalScope. Off by default in detekt.
+  GlobalCoroutineUsage:
+    active: true
+  # Rule 7: never swallow cancellation. Off by default in detekt.
+  SuspendFunSwallowedCancellation:
+    active: true
 
 naming:
   FunctionNaming:
     # Composable functions are PascalCase by convention.
     ignoreAnnotated: ['Composable']
-  TopLevelPropertyNaming:
-    # Compose-style constants (e.g. `val HbSpacing = …`).
-    constantPattern: '[A-Z][A-Za-z0-9]*'
 
 complexity:
   LongParameterList:
@@ -16,6 +31,33 @@ complexity:
     ignoreDefaultParameters: true
 
 style:
+  # Rule 14: protocol bytes live only in *:protocol modules, where every number comes from the spec.
+  MagicNumber:
+    excludes: ['**/test/**', '**/testFixtures/**', '**/*.kts', '**/protocol/src/main/**']
   UnusedPrivateMember:
     # @Preview functions are used by tooling, not code.
     ignoreAnnotated: ['Preview']
+  # Rules 8 and 9: time only through an injected clock; output only through our Logger.
+  # Off by default in detekt.
+  ForbiddenMethodCall:
+    active: true
+    methods:
+      - reason: 'Use the Logger.'
+        value: 'kotlin.io.print'
+      - reason: 'Use the Logger.'
+        value: 'kotlin.io.println'
+      - reason: 'Read time from the injected Clock.'
+        value: 'java.lang.System.currentTimeMillis'
+      - reason: 'Read time from the injected Clock.'
+        value: 'java.time.Instant.now'
+      - reason: 'Read time from the injected Clock.'
+        value: 'java.time.LocalDateTime.now'
+      - reason: 'Read time from the injected Clock.'
+        value: 'java.time.ZonedDateTime.now'
+      - reason: 'Read time from the injected Clock.'
+        value: 'java.time.OffsetDateTime.now'
+  ForbiddenImport:
+    active: true
+    imports:
+      - value: 'android.util.Log'
+        reason: 'Use the Logger.'
