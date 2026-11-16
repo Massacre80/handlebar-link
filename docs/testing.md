@@ -52,7 +52,7 @@ hard-coded `Dispatchers.*` and new `CoroutineScope(...)` (both allowed only in `
 |---|---|---|
 | `:core` | 90 % | 95.0 % (M2.1) |
 | `:bike:protocol` | 90 % | 98.9 % (M1) |
-| `:bike:link` | 90 % | 98.0 % (M2.3) |
+| `:bike:link` | 90 % | 97.3 % (M2.4) |
 
 JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). A module
 sets its minimum with `coverage { minimumLines = "0.90".toBigDecimal() }`; zero means no gate.
@@ -73,3 +73,11 @@ Set up per Google's testing-setup skill and its Hilt testing reference:
 
 Real Bluetooth: there is no emulator stack worth trusting. Each milestone that touches the bike ends
 with an on-device check (`docs/research/02-ble-connection.md` §6.5).
+
+## Known intermittent issues
+
+- 2026-11-16, once: `:bike:link:lintAnalyzeDebugUnitTest` failed with `FileNotFoundException` for a file
+  under `build/spotless-clean/` (Spotless's scratch copy), right after that test file was rewritten.
+  Two full `check` runs afterwards passed; lint's model does not reference `spotless-clean`. Cause not
+  established. If it happens again: keep the log, check `build/intermediates/lint-cache`, and record
+  the finding in docs/LESSONS.md.

@@ -18,6 +18,8 @@ internal object ModuleRules {
             ":bike:protocol" to emptySet(),
             // Engines never depend on each other, on the design system, or on test modules.
             ":bike:link" to setOf(":core:common", ":bike:protocol"),
+            // Test doubles of :bike:link's public API (test-only).
+            ":bike:link-test" to setOf(":bike:link"),
         )
 
     /** Modules only tests may use: `:core:testing` and every `*-test` module. */
