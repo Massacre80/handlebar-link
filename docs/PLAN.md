@@ -64,8 +64,8 @@ Navigation 3, Spotless + ktlint, detekt, Android Lint as errors, Kover, Turbine,
 Robolectric (service shell only), Roborazzi (screenshots). CI: one GitHub Actions job running
 `./gradlew check assembleRelease`, plus gitleaks and Dependabot.
 
-Debug builds use the application id `com.abid.handlebarlink.dev`, so v2 installs next to the
-prototype. The prototype stays on the phone until v2 matches it on the bike.
+One application id, `com.abid.handlebarlink`: v2 simply replaces the prototype on the phone. The
+prototype stays available on branch `prototype`.
 
 ## Milestones
 
