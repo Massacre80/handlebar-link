@@ -9,10 +9,10 @@ foojay = "1.0.0"
 # KSP 2.3.x supports AGP 9 built-in Kotlin (fixes in 2.3.5/2.3.6/2.3.10); 2.3.13 is marked "Defect in release".
 ksp = "2.3.14"
 
-# Android SDK levels
+# Android SDK levels: Android 12 (API 31) and newer (docs/PLAN.md, "Fixed decisions").
 compileSdk = "37"
 targetSdk = "37"
-minSdk = "33"
+minSdk = "31"
 # Bytecode level for every module; the toolchain that compiles it is JDK 21.
 jvmTarget = "17"
 jdk = "21"

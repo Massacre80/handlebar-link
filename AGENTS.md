@@ -19,6 +19,9 @@ previous one is done, and never work on CarPlay before M5.
   Hilt and JaCoCo from `testing-setup`); record any deviation and its reason in `docs/PLAN.md`.
 - Prefer the official sources: `android docs search "…"` (Android Knowledge Base) and the skills in
   `.claude/skills/`. Check versions on Maven before changing `gradle/libs.versions.toml`.
+- Android 12+ (minSdk 31). Use the current API; branch to the older one only where a supported release
+  needs it, in one place with the reason. Retries and recovery the link needs are fine. No hidden APIs,
+  reflection or known-fragile workarounds.
 - The phone runs v2 only; never reinstall the old prototype.
 
 ## Testing

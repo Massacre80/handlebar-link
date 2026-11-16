@@ -14,6 +14,14 @@ One app of our own on the Poco F1 (Android 17) mounted on the Honda CB350:
 Fixed decisions: everything plays on the iPhone through CarPlay; the Poco never plays its own media
 and has no internet. Voice = Siri through CarPlay ("… on YouTube Music").
 
+**Supported: Android 12 (API 31) and newer** (decided 2026-11-16). The current API is used where it
+exists, with a version branch to the older API only where a supported release needs it (e.g. the
+API 33 GATT methods, the API 37 `connectGatt(BluetoothGattConnectionSettings, …)`, the API 36 CDM
+presence request). Retries and recovery that the link needs are part of the design. **No workaround
+code that is known to be fragile:** no hidden APIs (the research's `BluetoothGatt.refresh()` is
+dropped), no reflection, and no extra wake-up paths unless an on-bike test shows they are needed
+(the PendingIntent scan of 02 §3.5 is not built by default).
+
 ## Sources
 
 Every decision below comes from the research in `docs/research/`:
@@ -62,7 +70,7 @@ Key rules (details in 01 §5, 03 §7):
 
 Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
-Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 33, JDK 21
+Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 31, JDK 21
 (AGP needs ≥ 17), coroutines 1.11.0, Compose BOM 2026.09.00, Navigation 3 1.2.1,
 Lifecycle 2.11.0, DataStore 1.3.0, Hilt 2.60.1 + KSP 2.3.14 (Hilt ≥ 2.59 is required for AGP 9),
 Spotless 8.11.0 + ktlint 1.8.0, detekt 1.23.8, Android Lint as errors, JaCoCo 0.8.16 (coverage, per
