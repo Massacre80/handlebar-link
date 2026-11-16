@@ -2,6 +2,8 @@ plugins {
     id("hl.android.application")
     id("hl.compose")
     id("hl.hilt")
+    // Navigation 3 keys are @Serializable so the back stack survives configuration changes.
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -25,6 +27,11 @@ dependencies {
     implementation(libs.androidx.lifecycle.service)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.navigation3.runtime)
+    implementation(libs.androidx.navigation3.ui)
+    implementation(libs.androidx.lifecycle.viewmodel.navigation3)
+    implementation(libs.kotlinx.serialization.core)
 
     testImplementation(projects.core.testing)
     testImplementation(projects.bike.linkTest)

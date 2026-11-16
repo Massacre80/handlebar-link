@@ -85,6 +85,12 @@ Key rules (details in 01 §5, 03 §7):
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 
+Navigation (UI.3, from the Navigation 3 "multiple back stacks" recipe and the Navigation principles):
+five tabs, each with its own saved back stack; Home is the fixed start destination and the app exits
+through it (Back from another tab's root goes to Home); switching tabs replaces the other tab's entries;
+each page gets saved UI state and its own ViewModel scope (entry decorators). Settings opens on Home's
+stack as a full page without the tab bar. Tabs without a feature show an empty page.
+
 Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
 Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 31, JDK 21
@@ -121,7 +127,7 @@ No milestone starts before the previous one is done.
 | **M2** | `:bike:link` (pure Kotlin engine): GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests; `:bike:link-android`: the real Android transport and CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
 | **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
-| **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components, UI.3 Home (both layouts), UI.4 screenshot tests. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
+| **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components ✅, UI.3 pages and navigation ✅, UI.4 screenshot tests. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
 | **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
 
 ## Things only the phone or bike can settle

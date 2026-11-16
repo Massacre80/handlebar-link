@@ -1,0 +1,68 @@
+package com.abid.handlebarlink.ui.navigation
+
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.navigation3.runtime.NavBackStack
+import androidx.navigation3.runtime.NavKey
+import assertk.assertThat
+import assertk.assertions.containsExactly
+import assertk.assertions.isEqualTo
+import org.junit.Test
+
+/** The rules of the Navigation 3 "multiple back stacks" recipe and the navigation principles. */
+class NavigatorTest {
+    private val state =
+        NavigationState(
+            TOP_LEVEL_DESTINATIONS.associate { it.route to NavBackStack<NavKey>(it.route) },
+            mutableIntStateOf(0),
+        )
+    private val navigator = Navigator(state)
+
+    @Test
+    fun `the app starts on Home, the fixed start destination`() {
+        assertThat(state.topLevelRoute).isEqualTo(HomeRoute)
+        assertThat(state.routesInUse).containsExactly(HomeRoute)
+    }
+
+    @Test
+    fun `a tab shows on top of Home, and switching tabs replaces it (exit through Home)`() {
+        navigator.navigate(RidesRoute)
+        assertThat(state.routesInUse).containsExactly(HomeRoute, RidesRoute)
+
+        navigator.navigate(GarageRoute)
+
+        assertThat(state.routesInUse).containsExactly(HomeRoute, GarageRoute)
+        assertThat(state.current).isEqualTo(GarageRoute)
+    }
+
+    @Test
+    fun `Back from a tab's root goes to Home, not to the previous tab`() {
+        navigator.navigate(RidesRoute)
+        navigator.navigate(GarageRoute)
+
+        navigator.goBack()
+
+        assertThat(state.topLevelRoute).isEqualTo(HomeRoute)
+        assertThat(state.routesInUse).containsExactly(HomeRoute)
+    }
+
+    @Test
+    fun `Settings opens on Home's stack and Back closes it`() {
+        navigator.navigate(SettingsRoute)
+        assertThat(state.current).isEqualTo(SettingsRoute)
+        assertThat(state.topLevelRoute).isEqualTo(HomeRoute)
+
+        navigator.goBack()
+
+        assertThat(state.current).isEqualTo(HomeRoute)
+    }
+
+    @Test
+    fun `a tab keeps its own history while another tab is shown`() {
+        navigator.navigate(SettingsRoute)
+        navigator.navigate(IntercomRoute)
+
+        navigator.navigate(HomeRoute)
+
+        assertThat(state.current).isEqualTo(SettingsRoute)
+    }
+}

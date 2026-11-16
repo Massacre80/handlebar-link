@@ -19,4 +19,59 @@
     <string name="problem_permission">Allow Nearby devices for Handlebar Link</string>
     <string name="problem_repair">The pairing with the bike is gone: pair it again</string>
     <string name="problem_bluetooth_stuck">The bike keeps failing to connect: turn Bluetooth off and on</string>
+
+    <!-- The bike (Garage will let the rider edit these) -->
+    <string name="bike_model">CB350RS</string>
+    <string name="bike_full_name">Honda CB350RS</string>
+    <string name="bike_details">Matte Grey · 348 cc</string>
+
+    <!-- Status pill -->
+    <string name="pill_no_bike">No bike chosen</string>
+    <string name="pill_not_riding">Not riding</string>
+    <string name="pill_looking">Looking for bike</string>
+    <string name="pill_connecting">Connecting</string>
+    <string name="pill_connected">Connected</string>
+    <string name="pill_reconnecting">Reconnecting</string>
+    <string name="pill_bluetooth_off">Bluetooth is off</string>
+    <string name="pill_permission">Allow Nearby devices</string>
+    <string name="pill_pairing">Pair the bike again</string>
+
+    <!-- Home: empty states until each data source exists -->
+    <string name="no_value">—</string>
+    <string name="no_data">No data yet</string>
+    <string name="gauge_service">To next service</string>
+    <string name="gauge_trip">Trip today</string>
+    <string name="odometer">Odometer</string>
+    <string name="next_service">Next service</string>
+    <string name="km_today">km today</string>
+    <string name="no_rides">No rides yet</string>
+    <string name="service_not_set">Set it in Garage</string>
+    <string name="intercom">Intercom</string>
+    <string name="intercom_none">No intercom yet</string>
+    <string name="intercom_none_detail">Not set up</string>
+    <string name="add_device">Add device</string>
+    <string name="add_device_short">Add</string>
+    <string name="coming_soon">Coming soon</string>
+    <string name="carplay_title">CarPlay</string>
+    <string name="carplay_interim">Runs in CarLink for now</string>
+    <string name="settings">Settings</string>
+    <string name="back">Back</string>
+
+    <!-- Tabs -->
+    <string name="tab_home">Home</string>
+    <string name="tab_rides">Rides</string>
+    <string name="tab_carplay">CarPlay</string>
+    <string name="tab_garage">Garage</string>
+    <string name="tab_intercom">Intercom</string>
+    <string name="later_rides">Your rides appear here once ride logging exists.</string>
+    <string name="later_carplay">CarPlay runs in CarLink until our own receiver is ready.</string>
+    <string name="later_garage">Odometer, service and bike details will live here.</string>
+    <string name="later_intercom">Pairing and audio for your helmet intercom will live here.</string>
+
+    <!-- Settings -->
+    <string name="settings_look">Look</string>
+    <string name="theme_night">Night</string>
+    <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
+    <string name="theme_bento">Bento</string>
+    <string name="theme_bento_detail">Light, everything in cards</string>
 </resources>

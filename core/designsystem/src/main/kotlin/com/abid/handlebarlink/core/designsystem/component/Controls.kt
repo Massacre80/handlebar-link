@@ -176,10 +176,10 @@ public fun HlSectionLabel(
     )
 }
 
-/** One choice of a single-choice list: icon, title, line and a radio (a check when [selected]). */
+/** One choice of a single-choice list: optional icon, title, line and a radio (a check when [selected]). */
 @Composable
 public fun HlOptionRow(
-    @DrawableRes icon: Int,
+    @DrawableRes icon: Int?,
     title: String,
     subtitle: String,
     selected: Boolean,
@@ -201,16 +201,18 @@ public fun HlOptionRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
     ) {
-        Box(
-            Modifier
-                .size(HlTheme.sizes.avatar)
-                .background(
-                    if (selected) colors.raisedLo else colors.raisedHi,
-                    RoundedCornerShape(HlTheme.radii.nested),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
+        if (icon != null) {
+            Box(
+                Modifier
+                    .size(HlTheme.sizes.avatar)
+                    .background(
+                        if (selected) colors.raisedLo else colors.raisedHi,
+                        RoundedCornerShape(HlTheme.radii.nested),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
+            }
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
             HlText(title, HlTheme.typography.value, colors.ink)

@@ -1,0 +1,98 @@
+package com.abid.handlebarlink.ui
+
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.ui.NavDisplay
+import com.abid.handlebarlink.R
+import com.abid.handlebarlink.core.designsystem.component.HlBackground
+import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlTab
+import com.abid.handlebarlink.core.designsystem.component.HlTabBar
+import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.ui.home.HomeScreen
+import com.abid.handlebarlink.ui.home.HomeViewModel
+import com.abid.handlebarlink.ui.later.LaterScreen
+import com.abid.handlebarlink.ui.navigation.CarPlayRoute
+import com.abid.handlebarlink.ui.navigation.GarageRoute
+import com.abid.handlebarlink.ui.navigation.HomeRoute
+import com.abid.handlebarlink.ui.navigation.IntercomRoute
+import com.abid.handlebarlink.ui.navigation.Navigator
+import com.abid.handlebarlink.ui.navigation.RidesRoute
+import com.abid.handlebarlink.ui.navigation.SettingsRoute
+import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.navigation.rememberNavigationState
+import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
+import com.abid.handlebarlink.ui.settings.SettingsScreen
+import com.abid.handlebarlink.ui.settings.SettingsViewModel
+
+/**
+ * The app's frame: the background, the pages (one Navigation 3 back stack per tab) and the floating tab
+ * bar, shown on the tabs' pages and hidden on full pages such as Settings.
+ */
+@Composable
+fun AppRoot() {
+    val state = rememberNavigationState(TOP_LEVEL_DESTINATIONS)
+    val navigator = remember(state) { Navigator(state) }
+    val spacing = HlTheme.spacing
+    // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
+    val barSpace =
+        PaddingValues(
+            bottom =
+                HlTheme.sizes.tabBar + spacing.s20 * 2 +
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
+        )
+    val entries =
+        entryProvider {
+            entry<HomeRoute> {
+                val viewModel: HomeViewModel = hiltViewModel()
+                val home by viewModel.uiState.collectAsStateWithLifecycle()
+                HomeScreen(home, onSettings = { navigator.navigate(SettingsRoute) }, contentPadding = barSpace)
+            }
+            entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
+            entry<CarPlayRoute> { LaterScreen(HlIcons.CarPlay, R.string.tab_carplay, R.string.later_carplay, barSpace) }
+            entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
+            entry<IntercomRoute> {
+                LaterScreen(
+                    HlIcons.Intercom,
+                    R.string.tab_intercom,
+                    R.string.later_intercom,
+                    barSpace,
+                )
+            }
+            entry<SettingsRoute> {
+                val viewModel: SettingsViewModel = hiltViewModel()
+                val theme by viewModel.theme.collectAsStateWithLifecycle()
+                SettingsScreen(theme, onTheme = viewModel::choose, onBack = navigator::goBack)
+            }
+        }
+    HlBackground(Modifier.fillMaxSize()) {
+        NavDisplay(entries = state.toDecoratedEntries(entries), onBack = navigator::goBack)
+        if (state.current in TOP_LEVEL_DESTINATIONS.map { it.route }) {
+            HlTabBar(
+                tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
+                selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
+                onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
+                modifier =
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20),
+            )
+        }
+    }
+}
