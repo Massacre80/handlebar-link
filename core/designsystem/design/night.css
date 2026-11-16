@@ -34,6 +34,7 @@
   --color-danger: #FF6B4A;
 
   --color-screen: #0A0B08;
+  --color-pill: rgb(255 255 255 / 7%);           /* status pill #FFFFFF12 */
   --color-glow-inner: #3B4A14;                   /* radial gradient, 0% */
   --color-glow-mid: #1A2009;                     /* radial gradient, 45% (ground at 80%) */
   --color-signal: var(--color-brand);            /* "Connected" dot */
@@ -43,4 +44,8 @@
   --color-gauge: #E9EDE0;                        /* "To next service" ring */
   --color-shadow: rgb(0 0 0 / 35%);              /* tab bar #00000059 */
   --color-surface-inverse-edge: rgb(200 240 60 / 28%); /* CarPlay card edge #C8F03C47 */
+
+  --shadow-bar: 0 12px 32px;      /* tab bar */
+  --shadow-chip: 0 0 0;           /* selected tab: no shadow */
+  --shadow-floating: 0 18px 40px; /* CarPlay card */
 }

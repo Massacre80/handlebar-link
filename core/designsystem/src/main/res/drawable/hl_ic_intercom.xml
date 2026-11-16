@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Path data verbatim from the design file "CB350RS" (Paper). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group android:translateX="1.998" android:translateY="2.05">
+        <path android:pathData="M3.462 16.44V13.52C3.462 12.55 4.222 11.68 5.302 11.68C6.272 11.68 7.142 12.44 7.142 13.52V16.33C7.142 18.28 5.522 19.9 3.572 19.9C1.622 19.9 0.002 18.27 0.002 16.33V10.17C-0.108 4.55 4.332 0 9.952 0C15.572 0 20.002 4.55 20.002 10.06V16.22C20.002 18.17 18.382 19.79 16.432 19.79C14.482 19.79 12.862 18.17 12.862 16.22V13.41C12.862 12.44 13.622 11.57 14.702 11.57C15.672 11.57 16.542 12.33 16.542 13.41V16.44" android:strokeColor="#FF000000" android:strokeWidth="1.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    </group>
+</vector>

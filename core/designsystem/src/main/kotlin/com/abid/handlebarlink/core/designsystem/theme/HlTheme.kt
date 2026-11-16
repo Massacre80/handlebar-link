@@ -20,6 +20,8 @@ private val LocalTypography = staticCompositionLocalOf { HlTypographyDefault }
 private val LocalSpacing = staticCompositionLocalOf { HlSpacing() }
 private val LocalSizes = staticCompositionLocalOf { HlSizes() }
 private val LocalRadii = staticCompositionLocalOf { HlRadii() }
+private val LocalStrokes = staticCompositionLocalOf { HlStrokes() }
+private val LocalShadows = staticCompositionLocalOf { NightShadows }
 
 /**
  * The app's design system: a fully custom theme (Android "Custom design systems in Compose"), not
@@ -37,6 +39,8 @@ public fun HlTheme(
         LocalSpacing provides HlSpacing(),
         LocalSizes provides HlSizes(),
         LocalRadii provides HlRadii(),
+        LocalStrokes provides HlStrokes(),
+        LocalShadows provides shadowsFor(variant),
         content = content,
     )
 }
@@ -46,6 +50,13 @@ public fun colorsFor(variant: HlThemeVariant): HlColors =
     when (variant) {
         HlThemeVariant.NIGHT -> NightColors
         HlThemeVariant.BENTO -> BentoColors
+    }
+
+/** The shadows of [variant]. */
+public fun shadowsFor(variant: HlThemeVariant): HlShadows =
+    when (variant) {
+        HlThemeVariant.NIGHT -> NightShadows
+        HlThemeVariant.BENTO -> BentoShadows
     }
 
 /** Reads the current theme's tokens. */
@@ -79,4 +90,14 @@ public object HlTheme {
     public val radii: HlRadii
         @Composable @ReadOnlyComposable
         get() = LocalRadii.current
+
+    /** Stroke widths. */
+    public val strokes: HlStrokes
+        @Composable @ReadOnlyComposable
+        get() = LocalStrokes.current
+
+    /** Drop shadows. */
+    public val shadows: HlShadows
+        @Composable @ReadOnlyComposable
+        get() = LocalShadows.current
 }

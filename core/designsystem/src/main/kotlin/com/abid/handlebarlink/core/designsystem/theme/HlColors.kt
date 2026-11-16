@@ -69,6 +69,8 @@ public data class HlColors(
     val onGlassMuted: Color,
     /** Screen background. */
     val screen: Color,
+    /** The status pill. */
+    val pill: Color,
     /** The background glow's centre (equal to [screen] when there is no glow). */
     val glowInner: Color,
     /** The background glow's middle stop. */
@@ -120,6 +122,7 @@ public val BentoColors: HlColors =
         onGlass = Color(0xFF0D0F0B),
         onGlassMuted = Color(0x9E0D0F0B),
         screen = Color(0xFFF2F3EE),
+        pill = Color(0xCFFFFFFF),
         glowInner = Color(0xFFF2F3EE),
         glowMid = Color(0xFFF2F3EE),
         signal = Color(0xFF7FA80F),
@@ -163,6 +166,7 @@ public val NightColors: HlColors =
         onGlass = Color(0xFFFFFFFF),
         onGlassMuted = Color(0x8CFFFFFF),
         screen = Color(0xFF0A0B08),
+        pill = Color(0x12FFFFFF),
         glowInner = Color(0xFF3B4A14),
         glowMid = Color(0xFF1A2009),
         signal = Color(0xFFC8F03C),
