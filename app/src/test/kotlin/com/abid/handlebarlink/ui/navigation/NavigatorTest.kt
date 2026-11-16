@@ -65,4 +65,41 @@ class NavigatorTest {
 
         assertThat(state.current).isEqualTo(SettingsRoute)
     }
+
+    @Test
+    fun `tabs slide by their order, pages open forward and close back`() {
+        navigator.navigate(GarageRoute)
+        assertThat(state.lastMove).isEqualTo(Move.TAB_FORWARD)
+        navigator.navigate(RidesRoute)
+        assertThat(state.lastMove).isEqualTo(Move.TAB_BACKWARD)
+        navigator.goBack()
+        assertThat(state.lastMove).isEqualTo(Move.TAB_BACKWARD)
+
+        navigator.navigate(SettingsRoute)
+        assertThat(state.lastMove).isEqualTo(Move.PUSH)
+        navigator.goBack()
+        assertThat(state.lastMove).isEqualTo(Move.POP)
+    }
+
+    @Test
+    fun `the back gesture previews the same move Back makes, without changing anything`() {
+        navigator.navigate(SettingsRoute)
+        assertThat(navigator.backMove()).isEqualTo(Move.POP)
+        assertThat(state.current).isEqualTo(SettingsRoute)
+
+        navigator.goBack()
+        navigator.navigate(IntercomRoute)
+
+        assertThat(navigator.backMove()).isEqualTo(Move.TAB_BACKWARD)
+        assertThat(state.current).isEqualTo(IntercomRoute)
+    }
+
+    @Test
+    fun `tapping the selected tab moves nothing`() {
+        navigator.navigate(GarageRoute)
+        navigator.navigate(GarageRoute)
+
+        assertThat(state.routesInUse).containsExactly(HomeRoute, GarageRoute)
+        assertThat(state.lastMove).isEqualTo(Move.TAB_FORWARD)
+    }
 }

@@ -264,4 +264,26 @@ class TokenDriftTest {
             "size-handle-height" to z.handleHeight,
         )
     }
+
+    @Test
+    fun `motion uses the motion tokens`() {
+        val css = tokens("bento.css")
+
+        fun number(name: String) = css.getValue(name).removeSuffix("ms").toFloat()
+        val m = HlMotion()
+        val expected =
+            mapOf(
+                "motion-damping" to m.damping,
+                "motion-stiffness" to m.stiffness,
+                "motion-stiffness-press" to m.pressStiffness,
+                "motion-press-scale" to m.pressScale,
+                "motion-tab-shift" to m.tabShift,
+                "motion-fade" to m.fadeMillis.toFloat(),
+                "motion-pulse" to m.pulseMillis.toFloat(),
+                "motion-pulse-alpha" to m.pulseAlpha,
+            )
+
+        assertThat(expected.keys.sorted()).isEqualTo(css.keys.filter { it.startsWith("motion-") }.sorted())
+        expected.forEach { (name, value) -> assertThat(value, name).isEqualTo(number(name)) }
+    }
 }

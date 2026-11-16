@@ -55,5 +55,8 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: reports
-          path: "**/build/reports/"
+          # Reports, plus the screenshot suites' rendered and diff images (the HTML report links none).
+          path: |
+            **/build/reports/
+            **/build/intermediates/debug/test*ScreenshotTest*TestSuite/results/
           retention-days: 7

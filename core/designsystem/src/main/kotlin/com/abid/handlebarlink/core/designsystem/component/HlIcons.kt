@@ -11,14 +11,18 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -89,6 +93,51 @@ public fun HlText(
         style = style.merge(color = color, textAlign = textAlign),
         overflow = TextOverflow.Ellipsis,
         maxLines = maxLines,
+    )
+}
+
+/**
+ * A design icon whose tint changes over time: [tint] is read while drawing (an animated colour never
+ * recomposes; Compose performance skill, "phase deferral").
+ */
+@Composable
+public fun HlIcon(
+    @DrawableRes icon: Int,
+    tint: () -> Color,
+    modifier: Modifier = Modifier,
+    size: Dp = HlTheme.sizes.icon,
+    contentDescription: String? = null,
+) {
+    Image(
+        painter = painterResource(icon),
+        contentDescription = contentDescription,
+        modifier =
+            modifier
+                .size(size)
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                .drawWithContent {
+                    drawContent()
+                    drawRect(tint(), blendMode = BlendMode.SrcIn)
+                },
+    )
+}
+
+/** Text whose colour changes over time: [color] is read while drawing. */
+@Composable
+public fun HlText(
+    text: String,
+    style: TextStyle,
+    color: () -> Color,
+    modifier: Modifier = Modifier,
+    maxLines: Int = Int.MAX_VALUE,
+) {
+    BasicText(
+        text = text,
+        modifier = modifier,
+        style = style,
+        overflow = TextOverflow.Ellipsis,
+        maxLines = maxLines,
+        color = { color() },
     )
 }
 

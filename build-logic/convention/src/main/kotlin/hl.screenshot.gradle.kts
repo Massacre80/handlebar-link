@@ -5,6 +5,14 @@
 import com.android.build.api.dsl.ApplicationExtension
 import com.android.build.api.dsl.LibraryExtension
 
+/**
+ * Pixels that may differ before a screenshot fails, as a fraction (0.0003 = 0.03 %). Measured 2026-11-17:
+ * Linux CI and macOS render the same preview up to 0.02 % apart (anti-aliasing, image scaling), while the
+ * smallest real change tried (cards' corner radius 28 → 24 dp) changed 0.04 % or more.
+ * Declared before the blocks below: `withPlugin` runs them at once if AGP is already applied.
+ */
+val screenshotTolerance = 0.0003f
+
 pluginManager.withPlugin("com.android.application") {
     configure<ApplicationExtension> {
         testOptions {
@@ -13,6 +21,7 @@ pluginManager.withPlugin("com.android.application") {
             screenshotTests.create("screenshotTest") {
                 // The engine is released together with the validation API, under the same version.
                 engineVersion = libs.versions.screenshotValidationApi.get()
+                imageDifferenceThreshold = screenshotTolerance
                 targetVariants.add("debug")
                 dependencies {
                     implementation(project.dependencies.platform(libs.androidx.compose.bom))
@@ -30,6 +39,7 @@ pluginManager.withPlugin("com.android.library") {
             unitTests.isIncludeAndroidResources = true
             screenshotTests.create("screenshotTest") {
                 engineVersion = libs.versions.screenshotValidationApi.get()
+                imageDifferenceThreshold = screenshotTolerance
                 targetVariants.add("debug")
                 dependencies {
                     implementation(project.dependencies.platform(libs.androidx.compose.bom))

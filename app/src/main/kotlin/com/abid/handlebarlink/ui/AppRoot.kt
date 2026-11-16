@@ -1,6 +1,13 @@
 package com.abid.handlebarlink.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -15,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.entryProvider
@@ -32,10 +40,12 @@ import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
+import com.abid.handlebarlink.ui.navigation.NavigationState
 import com.abid.handlebarlink.ui.navigation.Navigator
 import com.abid.handlebarlink.ui.navigation.RidesRoute
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.navigation.rememberNavigationState
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
 import com.abid.handlebarlink.ui.settings.SettingsScreen
@@ -82,19 +92,42 @@ fun AppRoot() {
             }
         }
     HlBackground(Modifier.fillMaxSize()) {
-        NavDisplay(entries = state.toDecoratedEntries(entries), onBack = navigator::goBack)
-        if (state.current in TOP_LEVEL_DESTINATIONS.map { it.route }) {
-            HlTabBar(
-                tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
-                selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
-                onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
-                        .widthIn(max = HlTheme.sizes.contentMax),
-            )
-        }
+        val motion = HlTheme.motion
+        NavDisplay(
+            entries = state.toDecoratedEntries(entries),
+            onBack = navigator::goBack,
+            transitionSpec = { pageTransition(state.lastMove, motion) },
+            popTransitionSpec = { pageTransition(state.lastMove, motion) },
+            // The back gesture previews what Back will do, following the finger (Android 15+ by default).
+            predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
+        )
+        FloatingTabBar(state, navigator)
+    }
+}
+
+/** The tab bar floating over the pages; it slides away on full pages (Settings) and back on tab pages. */
+@Composable
+private fun BoxScope.FloatingTabBar(
+    state: NavigationState,
+    navigator: Navigator,
+) {
+    val spacing = HlTheme.spacing
+    val motion = HlTheme.motion
+    AnimatedVisibility(
+        visible = state.current in TOP_LEVEL_DESTINATIONS.map { it.route },
+        modifier = Modifier.align(Alignment.BottomCenter),
+        enter = slideInVertically(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeIn(motion.fade()),
+        exit = slideOutVertically(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeOut(motion.fade()),
+    ) {
+        HlTabBar(
+            tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
+            selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
+            onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
+            modifier =
+                Modifier
+                    .navigationBarsPadding()
+                    .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
+                    .widthIn(max = HlTheme.sizes.contentMax),
+        )
     }
 }

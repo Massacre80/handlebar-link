@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -54,6 +55,8 @@ import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.component.StatusPill
 import com.abid.handlebarlink.core.designsystem.component.TickBar
 import com.abid.handlebarlink.core.designsystem.component.TickRing
+import com.abid.handlebarlink.core.designsystem.component.groundShadow
+import com.abid.handlebarlink.core.designsystem.theme.BikeGroundShadow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
@@ -118,12 +121,23 @@ private fun BentoBikeCard() {
     val colors = HlTheme.colors
     val type = HlTheme.typography
     HlCard(Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard)) {
-        Image(
-            painterResource(R.drawable.bike_cb350rs),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier = Modifier.align(Alignment.BottomEnd).fillMaxWidth(BENTO_BIKE_WIDTH),
-        )
+        // The bike stands on the design's ground shadow ("Home 2 — Minimal"): tyre contact shadows and a
+        // soft ambient one, scaled with the render and lifted off the card's edge so they stay visible.
+        Box(
+            Modifier
+                .align(Alignment.BottomEnd)
+                .padding(bottom = spacing.s12)
+                .fillMaxWidth(BENTO_BIKE_WIDTH)
+                .aspectRatio(BikeGroundShadow.boxWidth / BikeGroundShadow.boxHeight)
+                .groundShadow(BikeGroundShadow, colors.ink),
+        ) {
+            Image(
+                painterResource(R.drawable.bike_cb350rs),
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
         Column(Modifier.padding(spacing.s16), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
             HlText(stringResource(R.string.bike_full_name), type.lead, colors.ink)
             HlText(stringResource(R.string.bike_details), type.label, colors.inkMuted)

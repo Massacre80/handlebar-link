@@ -1,9 +1,11 @@
 package com.abid.handlebarlink.core.designsystem.theme
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
+import com.abid.handlebarlink.core.designsystem.component.HlIndication
 
 /** The two looks of the design; the rider picks one in settings. */
 public enum class HlThemeVariant {
@@ -22,6 +24,7 @@ private val LocalSizes = staticCompositionLocalOf { HlSizes() }
 private val LocalRadii = staticCompositionLocalOf { HlRadii() }
 private val LocalStrokes = staticCompositionLocalOf { HlStrokes() }
 private val LocalShadows = staticCompositionLocalOf { NightShadows }
+private val LocalMotion = staticCompositionLocalOf { HlMotion() }
 
 /**
  * The app's design system: a fully custom theme (Android "Custom design systems in Compose"), not
@@ -32,6 +35,7 @@ public fun HlTheme(
     variant: HlThemeVariant,
     content: @Composable () -> Unit,
 ) {
+    val motion = HlMotion()
     CompositionLocalProvider(
         LocalVariant provides variant,
         LocalColors provides colorsFor(variant),
@@ -41,6 +45,10 @@ public fun HlTheme(
         LocalRadii provides HlRadii(),
         LocalStrokes provides HlStrokes(),
         LocalShadows provides shadowsFor(variant),
+        LocalMotion provides motion,
+        // Press feedback for every clickable: a small spring scale, and a ring for keyboard focus.
+        LocalIndication provides
+            HlIndication(motion.pressScale, motion.press(), colorsFor(variant).ink.copy(alpha = FOCUS_ALPHA)),
         content = content,
     )
 }
@@ -100,4 +108,11 @@ public object HlTheme {
     public val shadows: HlShadows
         @Composable @ReadOnlyComposable
         get() = LocalShadows.current
+
+    /** Motion. */
+    public val motion: HlMotion
+        @Composable @ReadOnlyComposable
+        get() = LocalMotion.current
 }
+
+private const val FOCUS_ALPHA = 0.4f
