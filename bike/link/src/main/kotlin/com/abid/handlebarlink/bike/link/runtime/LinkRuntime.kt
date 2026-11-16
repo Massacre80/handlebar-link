@@ -6,10 +6,14 @@ import com.abid.handlebarlink.bike.link.ButtonEvent
 import com.abid.handlebarlink.bike.link.LinkProblem
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.bike.link.machine.Event
+import com.abid.handlebarlink.bike.link.machine.Facts
 import com.abid.handlebarlink.bike.link.machine.Machine
 import com.abid.handlebarlink.bike.link.machine.MachineConfig
 import com.abid.handlebarlink.bike.link.machine.reduce
 import com.abid.handlebarlink.bike.link.machine.toLinkState
+import com.abid.handlebarlink.bike.link.spi.LinkPorts
+import com.abid.handlebarlink.bike.link.spi.SystemChange
+import com.abid.handlebarlink.bike.link.spi.SystemFacts
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
 import kotlinx.coroutines.CoroutineDispatcher
@@ -84,7 +88,7 @@ internal class LinkRuntime(
     private suspend fun loop(scope: CoroutineScope) {
         val outputs = EffectRunner.Outputs(keepAliveFlow, problemFlow, buttonFlow)
         val runner = EffectRunner(scope, ports, { inbox.trySend(it) }, outputs, RuntimeEnv(time, random, log))
-        var machine = Machine(facts = ports.signals.current(), nextGen = nextGen)
+        var machine = Machine(facts = ports.signals.current().toFacts(), nextGen = nextGen)
         scope.launch { ports.signals.changes.collect { inbox.send(it.toEvent()) } }
         log.info("link.run.start", "facts" to machine.facts)
         try {
@@ -116,6 +120,8 @@ internal class LinkRuntime(
         stateFlow.value = transition.machine.mode.toLinkState(now, time.clock.instant())
         return transition.machine
     }
+
+    private fun SystemFacts.toFacts(): Facts = Facts(bluetoothOn, bonded, permissionGranted)
 
     private fun SystemChange.toEvent(): Event =
         when (this) {

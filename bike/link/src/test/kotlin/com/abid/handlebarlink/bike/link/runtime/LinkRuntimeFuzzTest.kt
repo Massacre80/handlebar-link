@@ -9,6 +9,7 @@ import assertk.fail
 import com.abid.handlebarlink.bike.link.BikeLinkConfig
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.bike.link.spi.SystemChange
 import com.abid.handlebarlink.bike.protocol.FunctionId
 import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider

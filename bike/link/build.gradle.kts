@@ -1,9 +1,8 @@
+// The bike link engine: pure Kotlin, so it cannot use Android APIs. Its `spi` package declares what
+// the platform must provide; `:bike:link-android` (M2.5) implements it (Android modularization guide,
+// "API and implementation" pattern).
 plugins {
-    id("hl.android.library")
-}
-
-android {
-    namespace = "com.abid.handlebarlink.bike.link"
+    id("hl.jvm.library")
 }
 
 coverage {
@@ -16,7 +15,6 @@ dependencies {
     api(projects.core.common)
     api(projects.bike.protocol)
     api(libs.kotlinx.coroutines.core)
-    implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(projects.core.testing)
 }

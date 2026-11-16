@@ -9,6 +9,9 @@ import com.abid.handlebarlink.bike.link.machine.Event
 import com.abid.handlebarlink.bike.link.machine.Timeouts
 import com.abid.handlebarlink.bike.link.machine.Timer
 import com.abid.handlebarlink.bike.link.session.MeterSession
+import com.abid.handlebarlink.bike.link.spi.ConnectionChange
+import com.abid.handlebarlink.bike.link.spi.GattConnection
+import com.abid.handlebarlink.bike.link.spi.LinkPorts
 import com.abid.handlebarlink.bike.protocol.FunctionEvent
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope

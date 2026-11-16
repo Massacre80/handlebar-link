@@ -19,7 +19,9 @@ Requires JDK 21 and the Android SDK (platform 37).
 |---|---|
 | `:core` | pure Kotlin: logging, time, shared types |
 | `:bike:protocol` | pure Kotlin: the meter's BLE protocol (`docs/protocol/SAB_PROTOCOL.md`) |
-| `:bike:link` | Bluetooth link to the meter: GATT, state machine |
+| `:bike:link` | pure Kotlin link engine: `BikeLink` API, state machine, setup session, runtime, `spi` |
+| `:bike:link-android` | (M2.5) Android implementation of the engine's `spi`: Bluetooth, clock server, signals |
+| `:bike:link-test` | test-only `FakeBikeLink` |
 | `:core:designsystem` | our Compose tokens and components |
 | `:app` | ride service, auto-start, pairing, screens |
 | `build-logic/` | convention plugins (`hl.*`) shared by every module |

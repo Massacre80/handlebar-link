@@ -1,8 +1,8 @@
 package com.abid.handlebarlink.bike.link.session
 
 import com.abid.handlebarlink.bike.link.GattOp
-import com.abid.handlebarlink.bike.link.gatt.GattLink
 import com.abid.handlebarlink.bike.link.machine.Timeouts
+import com.abid.handlebarlink.bike.link.spi.GattLink
 import com.abid.handlebarlink.bike.protocol.ReplyMatch
 import com.abid.handlebarlink.bike.protocol.SabFrame
 import com.abid.handlebarlink.bike.protocol.SabSafety

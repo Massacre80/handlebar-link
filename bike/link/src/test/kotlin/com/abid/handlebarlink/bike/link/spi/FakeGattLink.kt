@@ -1,4 +1,4 @@
-package com.abid.handlebarlink.bike.link.gatt
+package com.abid.handlebarlink.bike.link.spi
 
 import com.abid.handlebarlink.bike.link.GattOp
 import com.abid.handlebarlink.bike.link.LinkError

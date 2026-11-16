@@ -5,9 +5,9 @@ import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkException
 import com.abid.handlebarlink.bike.link.MeterInfo
 import com.abid.handlebarlink.bike.link.SetupStep
-import com.abid.handlebarlink.bike.link.gatt.BondState
-import com.abid.handlebarlink.bike.link.gatt.GattLink
 import com.abid.handlebarlink.bike.link.machine.Timeouts
+import com.abid.handlebarlink.bike.link.spi.BondState
+import com.abid.handlebarlink.bike.link.spi.GattLink
 import com.abid.handlebarlink.bike.protocol.AssignmentRequestIds
 import com.abid.handlebarlink.bike.protocol.Assignments
 import com.abid.handlebarlink.bike.protocol.CommandRequestIds

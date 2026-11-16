@@ -52,7 +52,7 @@ hard-coded `Dispatchers.*` and new `CoroutineScope(...)` (both allowed only in `
 |---|---|---|
 | `:core` | 90 % | 95.0 % (M2.1) |
 | `:bike:protocol` | 90 % | 98.9 % (M1) |
-| `:bike:link` | 90 % | 97.3 % (M2.4) |
+| `:bike:link` | 90 % | 97.0 % (pure Kotlin since the split) |
 
 JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). A module
 sets its minimum with `coverage { minimumLines = "0.90".toBigDecimal() }`; zero means no gate.

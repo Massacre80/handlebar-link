@@ -18,6 +18,7 @@ import com.abid.handlebarlink.bike.link.ButtonEvent
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkProblem
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.bike.link.spi.SystemChange
 import com.abid.handlebarlink.bike.protocol.FunctionId
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.bike.protocol.SabUuids

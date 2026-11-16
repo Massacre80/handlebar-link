@@ -2,9 +2,17 @@ package com.abid.handlebarlink.bike.link.runtime
 
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkException
-import com.abid.handlebarlink.bike.link.gatt.FakeGattLink
-import com.abid.handlebarlink.bike.link.gatt.GattLink
-import com.abid.handlebarlink.bike.link.machine.Facts
+import com.abid.handlebarlink.bike.link.spi.ClockServer
+import com.abid.handlebarlink.bike.link.spi.ConnectionChange
+import com.abid.handlebarlink.bike.link.spi.FakeGattLink
+import com.abid.handlebarlink.bike.link.spi.GattConnection
+import com.abid.handlebarlink.bike.link.spi.GattLink
+import com.abid.handlebarlink.bike.link.spi.GattRadio
+import com.abid.handlebarlink.bike.link.spi.LinkPorts
+import com.abid.handlebarlink.bike.link.spi.SystemChange
+import com.abid.handlebarlink.bike.link.spi.SystemFacts
+import com.abid.handlebarlink.bike.link.spi.SystemSignals
+import com.abid.handlebarlink.bike.link.spi.WakeLockPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -153,12 +161,12 @@ internal class FakeBike(
     }
 
     class Signals : SystemSignals {
-        var facts = Facts(bluetoothOn = true, bonded = true, permissionGranted = true)
+        var facts = SystemFacts(bluetoothOn = true, bonded = true, permissionGranted = true)
             private set
         private val flow = MutableSharedFlow<SystemChange>(extraBufferCapacity = 16)
         override val changes: Flow<SystemChange> = flow
 
-        override fun current(): Facts = facts
+        override fun current(): SystemFacts = facts
 
         fun report(change: SystemChange) {
             facts =
