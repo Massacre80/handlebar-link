@@ -22,6 +22,7 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
+    implementation(libs.androidx.lifecycle.service)
 
     testImplementation(projects.core.testing)
     testImplementation(projects.bike.linkTest)

@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.currentTime
 import kotlinx.coroutines.test.runCurrent
@@ -161,6 +162,27 @@ class LinkRuntimeTest {
             assertThat(
                 first.error,
             ).isEqualTo(LinkError.TimedOut(com.abid.handlebarlink.bike.link.GattOp.ASSIGNMENT_REPLY))
+        }
+
+    @Test
+    fun `keepAlive is already up to date when a state change arrives`() =
+        runTest {
+            val bike = FakeBike(backgroundScope).apply { ignition(true) }
+            val (link, _) = running(bike)
+            // Unconfined: the collector runs inside the state update itself, before anything after it.
+            val seen = mutableListOf<Pair<LinkState, Boolean>>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+                link.state.collect { seen += it to link.keepAlive.value }
+            }
+
+            link.start(presentHint = true)
+            advanceTimeBy(5_000)
+            bike.signals.report(SystemChange.Permission(granted = false))
+            runCurrent()
+
+            val active = seen.filter { (state, _) -> state != LinkState.Stopped && state !is LinkState.Blocked }
+            assertThat(active.map { it.second }.distinct()).containsExactly(true)
+            assertThat(seen.last()).isEqualTo(LinkState.Blocked(LinkError.PermissionMissing) to false)
         }
 
     @Test

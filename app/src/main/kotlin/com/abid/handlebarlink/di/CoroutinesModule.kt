@@ -21,6 +21,10 @@ object CoroutinesModule {
     @BikeLinkDispatcher
     fun bikeLinkDispatcher(): CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1, "bike-link")
 
+    @Provides
+    @IoDispatcher
+    fun ioDispatcher(): CoroutineDispatcher = Dispatchers.IO
+
     /** Failures of one child never cancel the others; uncaught errors are logged, never swallowed silently. */
     @Provides
     @Singleton

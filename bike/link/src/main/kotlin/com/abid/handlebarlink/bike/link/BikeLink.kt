@@ -14,7 +14,10 @@ public interface BikeLink {
     /** What the link is doing. */
     public val state: StateFlow<LinkState>
 
-    /** Whether the app must keep its foreground service running for the link. */
+    /**
+     * Whether the app must keep its foreground service running for the link. Updated before [state]
+     * reports the change that caused it, so a collector of [state] can read `keepAlive.value`.
+     */
     public val keepAlive: StateFlow<Boolean>
 
     /** A problem the rider has to act on, for a notification; null when there is none. */

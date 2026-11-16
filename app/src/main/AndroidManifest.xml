@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- The ride service (ride/RideService): a connectedDevice foreground service (FGS-TYPES).
+         BLUETOOTH_CONNECT comes from :bike:link-android. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <!-- The ride and problem notifications; a runtime permission from Android 13 (request flow: M3.3). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
     <!-- No backup: the app stores only the paired bike and settings, and a restored bond would be stale. -->
     <application
         android:name=".HandlebarLinkApp"
@@ -20,6 +27,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Only this app starts it, with explicit intents (android-intent-security). -->
+        <service
+            android:name=".ride.RideService"
+            android:exported="false"
+            android:foregroundServiceType="connectedDevice" />
 
         <!-- Interim: lets the app reach CarLink's CarPlay media session (controls/). The system binds it
              only with BIND_NOTIFICATION_LISTENER_SERVICE; the user grants notification access. -->

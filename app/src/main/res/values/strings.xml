@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Handlebar Link</string>
+
+    <!-- Ride notification -->
+    <string name="channel_ride">Ride</string>
+    <string name="channel_problems">Problems</string>
+    <string name="ride_notification_title">Ride</string>
+    <string name="ride_stop">Stop</string>
+    <string name="status_stopped">Stopped</string>
+    <string name="status_waiting">Waiting for the bike (turn the ignition on)</string>
+    <string name="status_connecting">Connecting to the bike…</string>
+    <string name="status_ready">Handlebar controls CarPlay</string>
+    <string name="status_recovering">Setup failed, trying again…</string>
+    <string name="status_bluetooth_off">Bluetooth is off</string>
+
+    <!-- Problems the rider has to act on -->
+    <string name="problem_title">The ride stopped</string>
+    <string name="problem_permission">Allow Nearby devices for Handlebar Link</string>
+    <string name="problem_repair">The pairing with the bike is gone: pair it again</string>
+    <string name="problem_bluetooth_stuck">The bike keeps failing to connect: turn Bluetooth off and on</string>
 </resources>

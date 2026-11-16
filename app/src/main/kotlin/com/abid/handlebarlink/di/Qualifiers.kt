@@ -7,6 +7,11 @@ import javax.inject.Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class BikeLinkDispatcher
 
+/** For blocking calls (binder IPC to media sessions), never on the main thread (anr-audit-and-fix). */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class IoDispatcher
+
 /** A scope that lives as long as the app process (Now in Android's `@ApplicationScope`). */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
