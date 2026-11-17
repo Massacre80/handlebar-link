@@ -104,7 +104,7 @@ internal fun Devices() {
     }
     // Add device's rows.
     HlGroup {
-        HlNavRow(HlIcons.Intercom, "EJEAS V6 Pro+", "Connected", onClick = {}, live = true)
+        HlNavRow(HlIcons.Intercom, "EJEAS V6 Pro+", "Connected", onClick = {}, detailColor = HlTheme.colors.success)
         HlGroupDivider()
         HlNavRow(HlIcons.Plus, "Pair a new device", "In Android's Bluetooth settings", onClick = {})
     }

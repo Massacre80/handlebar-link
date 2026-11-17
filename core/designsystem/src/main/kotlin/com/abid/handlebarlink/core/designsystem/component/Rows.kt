@@ -19,14 +19,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
 /**
  * A row that opens something (a device on Add device, "Pair a new device"): the icon block of
- * [HlOptionRow], a [title] and a [detail] line, a chevron. [live] colours the detail as a live state
- * ("Connected"). Square inside an [HlGroup], like every grouped row.
+ * [HlOptionRow], a [title] and a [detail] line, a chevron. [detailColor] marks a live or failed state
+ * ("Connected" in success, "Couldn't pair" in danger); muted otherwise. Square inside an [HlGroup], like
+ * every grouped row.
  */
 @Composable
 public fun HlNavRow(
@@ -35,7 +37,7 @@ public fun HlNavRow(
     detail: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    live: Boolean = false,
+    detailColor: Color = Color.Unspecified,
     container: Color = Color.Transparent,
 ) {
     val colors = HlTheme.colors
@@ -70,7 +72,7 @@ public fun HlNavRow(
                 HlText(
                     it,
                     HlTheme.typography.meta,
-                    if (live) colors.success else colors.inkMuted,
+                    detailColor.takeOrElse { colors.inkMuted },
                     maxLines = 1,
                 )
             }

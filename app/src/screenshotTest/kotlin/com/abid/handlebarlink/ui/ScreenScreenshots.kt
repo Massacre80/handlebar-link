@@ -21,11 +21,15 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.devices.NearbyDevice
 import com.abid.handlebarlink.ui.devices.AddDeviceActions
 import com.abid.handlebarlink.ui.devices.AddDeviceScreen
 import com.abid.handlebarlink.ui.devices.AddDeviceUiState
 import com.abid.handlebarlink.ui.devices.DeviceChoice
 import com.abid.handlebarlink.ui.devices.DeviceSheet
+import com.abid.handlebarlink.ui.devices.PairDeviceActions
+import com.abid.handlebarlink.ui.devices.PairDeviceScreen
+import com.abid.handlebarlink.ui.devices.PairDeviceUiState
 import com.abid.handlebarlink.ui.devices.SheetDevice
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
@@ -237,3 +241,31 @@ fun WhatIsItNight() = WhatIsIt(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun WhatIsItBento() = WhatIsIt(HlThemeVariant.BENTO)
+
+private val PreviewNearby =
+    PairDeviceUiState.Nearby(
+        audio = listOf(NearbyDevice("AA", "EJEAS V6 Pro+", audio = true, suggested = DeviceKind.INTERCOM)),
+        other = listOf(NearbyDevice("CC", "Living room TV", audio = false, suggested = DeviceKind.OTHER)),
+        searching = false,
+        attempt = null,
+    )
+
+@Composable
+private fun PairDevice(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        HlBackground(Modifier.fillMaxSize()) {
+            PairDeviceScreen(PreviewNearby, Access.GRANTED, PairDeviceActions({}, {}, {}, {}, {}, {}))
+        }
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun PairDeviceNight() = PairDevice(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun PairDeviceBento() = PairDevice(HlThemeVariant.BENTO)

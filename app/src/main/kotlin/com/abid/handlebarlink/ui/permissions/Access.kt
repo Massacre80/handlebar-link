@@ -109,7 +109,10 @@ fun rememberRuntimeAccess(
 @Composable
 fun rememberRuntimeAccess(permission: String): AccessState = rememberRuntimeAccess(listOf(permission))
 
-/** Searching for and pairing the meter during setup: scan and connect (both Nearby devices). */
+/**
+ * Searching for and pairing Bluetooth devices, scan and connect (both Nearby devices, one dialog): the meter
+ * during setup, a new device on Pair a new device.
+ */
 @Composable
 fun rememberSetupAccess(onResult: (Boolean) -> Unit): AccessState =
     rememberRuntimeAccess(listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), onResult)

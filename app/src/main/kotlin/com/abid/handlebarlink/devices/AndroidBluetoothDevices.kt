@@ -164,19 +164,6 @@ class AndroidBluetoothDevices
             }
         }
 
-        /** What a device looks like by its class: hands-free and wearable headsets are what intercoms announce. */
-        private fun suggestedKind(
-            deviceClass: Int?,
-            audio: Boolean,
-        ): DeviceKind =
-            when (deviceClass) {
-                BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE,
-                BluetoothClass.Device.AUDIO_VIDEO_WEARABLE_HEADSET,
-                -> DeviceKind.INTERCOM
-
-                else -> if (audio) DeviceKind.HEADSET else DeviceKind.OTHER
-            }
-
         private fun allowed() =
             ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
                 PackageManager.PERMISSION_GRANTED
@@ -222,3 +209,16 @@ private const val IPHONEACCEV = "+IPHONEACCEV"
 private const val BATTERY_KEY = 1
 private const val BATTERY_MAX_LEVEL = 9
 private const val BATTERY_STEP = 10
+
+/** What a device looks like by its class: hands-free and wearable headsets are what intercoms announce. */
+internal fun suggestedKind(
+    deviceClass: Int?,
+    audio: Boolean,
+): DeviceKind =
+    when (deviceClass) {
+        BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE,
+        BluetoothClass.Device.AUDIO_VIDEO_WEARABLE_HEADSET,
+        -> DeviceKind.INTERCOM
+
+        else -> if (audio) DeviceKind.HEADSET else DeviceKind.OTHER
+    }

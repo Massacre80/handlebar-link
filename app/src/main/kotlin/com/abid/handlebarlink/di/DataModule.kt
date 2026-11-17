@@ -8,7 +8,9 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.DataStoreBikeSettings
 import com.abid.handlebarlink.devices.AndroidBluetoothDevices
+import com.abid.handlebarlink.devices.AndroidBluetoothPairing
 import com.abid.handlebarlink.devices.BluetoothDevices
+import com.abid.handlebarlink.devices.BluetoothPairing
 import com.abid.handlebarlink.devices.DataStoreDeviceSettings
 import com.abid.handlebarlink.devices.DeviceSettings
 import dagger.Binds
@@ -31,6 +33,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bluetoothDevices(devices: AndroidBluetoothDevices): BluetoothDevices
+
+    @Binds
+    abstract fun bluetoothPairing(pairing: AndroidBluetoothPairing): BluetoothPairing
 
     companion object {
         @Provides

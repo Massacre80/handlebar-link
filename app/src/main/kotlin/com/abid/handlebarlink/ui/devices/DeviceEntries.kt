@@ -10,6 +10,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -24,11 +25,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
+import com.abid.handlebarlink.devices.PairState
 import com.abid.handlebarlink.devices.SavedDevice
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.DeviceSheetRoute
 import com.abid.handlebarlink.ui.navigation.Navigator
+import com.abid.handlebarlink.ui.navigation.PairDeviceRoute
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
+import com.abid.handlebarlink.ui.permissions.rememberSetupAccess
 
 /**
  * Add device and its "What is it?" sheet. The sheet is a Navigation 3 dialog destination
@@ -63,11 +67,12 @@ fun EntryProviderScope<NavKey>.deviceEntries(navigator: Navigator) {
                     }
                 },
                 onPick = { navigator.navigate(it.toSheet()) },
-                onPair = { openBluetoothSettings(context) },
+                onPair = { navigator.navigate(PairDeviceRoute) },
                 onBack = navigator::goBack,
             ),
         )
     }
+    entry<PairDeviceRoute> { PairDeviceEntry(navigator) }
     entry<DeviceSheetRoute>(metadata = DialogSceneStrategy.dialog(SHEET)) { route ->
         val viewModel: DeviceSheetViewModel = hiltViewModel()
         val saved by viewModel.saved.collectAsStateWithLifecycle()
@@ -83,6 +88,52 @@ fun EntryProviderScope<NavKey>.deviceEntries(navigator: Navigator) {
             onCancel = navigator::goBack,
         )
     }
+}
+
+/** Pair a new device: searches while shown; a paired device goes straight to "What is it?". */
+@Composable
+private fun PairDeviceEntry(navigator: Navigator) {
+    val viewModel: PairDeviceViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val access = rememberSetupAccess { granted -> if (granted) viewModel.searchAgain() }
+    val enable =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { viewModel.searchAgain() }
+    // Back from the app's settings or Bluetooth settings with nothing to show yet: try again. Not while a list
+    // is up: Android's pairing prompt pauses the page, and a new search would cut into the pairing.
+    LifecycleResumeEffect(state is PairDeviceUiState.Nearby) {
+        if (state !is PairDeviceUiState.Nearby) viewModel.searchAgain()
+        onPauseOrDispose {}
+    }
+    val paired = (state as? PairDeviceUiState.Nearby)?.attempt?.takeIf { it.state == PairState.PAIRED }?.device
+    LaunchedEffect(paired) {
+        if (paired != null) {
+            viewModel.handedOver()
+            navigator.navigate(
+                DeviceSheetRoute(paired.address, paired.name, null, paired.suggested, paired.audio, connected = false),
+            )
+        }
+    }
+    PairDeviceScreen(
+        state,
+        access.status,
+        PairDeviceActions(
+            onAllow = access::act,
+            onTurnOn = {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+                    PackageManager.PERMISSION_GRANTED
+                ) {
+                    enable.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                } else {
+                    access.act()
+                }
+            },
+            onPair = viewModel::pair,
+            onSearchAgain = viewModel::searchAgain,
+            onNotListed = { openBluetoothSettings(context) },
+            onBack = navigator::goBack,
+        ),
+    )
 }
 
 private fun DeviceChoice.toSheet() =

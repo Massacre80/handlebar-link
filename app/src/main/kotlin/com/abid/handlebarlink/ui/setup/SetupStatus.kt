@@ -234,7 +234,7 @@ private fun SearchText(state: SearchState) {
  * The turn is read in the layer, so spinning never recomposes.
  */
 @Composable
-private fun SearchSpinner(state: SearchState) {
+internal fun SearchSpinner(state: SearchState) {
     val colors = HlTheme.colors
     val motion = HlTheme.motion
     val tone by animateColorAsState(

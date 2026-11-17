@@ -48,6 +48,10 @@ data object PermissionsRoute : NavKey
 @Serializable
 data object AddDeviceRoute : NavKey
 
+/** Pair a new device: searches for devices in pairing mode and pairs inside the app; over Add device. */
+@Serializable
+data object PairDeviceRoute : NavKey
+
 /**
  * "What is it?" (Paper "Flow · Add device"): a sheet over Add device for one paired device, with what the
  * list knew of it, so it survives process death without reading Bluetooth again.
