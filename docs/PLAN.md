@@ -91,6 +91,38 @@ through it (Back from another tab's root goes to Home); switching tabs replaces 
 each page gets saved UI state and its own ViewModel scope (entry decorators). Settings opens on Home's
 stack as a full page without the tab bar. Tabs without a feature show an empty page.
 
+### First-time setup (M4.1, started 2026-11-17 at the owner's request)
+
+Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the official docs (research
+2026-11-17, checked against the sources) or the protocol spec; nothing is assumed.
+
+- **Gate, not a start destination** (Navigation principles; Navigation 3 conditional recipe): while no bike
+  is linked the app shows setup instead of the tabs; Home stays the start destination.
+- **Meter steps** are RoadSync's for the CB350 (SAB_PROTOCOL.md "Putting the meter into pairing mode"):
+  hold both left meter buttons until ECO flashes, select switch right to "Bluetooth reset", down to Yes,
+  right; the Bluetooth mark flashes.
+- **Permissions**: `BLUETOOTH_SCAN` with `usesPermissionFlags="neverForLocation"` (bt-permissions: some
+  beacons are filtered; irrelevant for the meter) for our own scan; `BLUETOOTH_CONNECT` to bond and read
+  names. Asked from "Find my bike", after the screen that explains why (permissions skill §6: rationale
+  first, never loop, settings page on permanent denial; never cache, catch `SecurityException`).
+  Companion pairing needs Location Services on (companion-device-pairing).
+- **Our scan** (find-ble-devices; ScanSettings): hardware `ScanFilter` on the Vehicle Information service
+  `4d87b1ea-…` (SAB_PROTOCOL.md §1, as RoadSync), `SCAN_MODE_LOW_LATENCY` only while on screen, a time
+  limit, names post-filtered with `SabUuids.DEVICE_NAME_PATTERN`, RSSI shown; stop the scan before
+  associating (`associate()` doc).
+- **Association** (CompanionDeviceManager): the tapped meter only (`setNamePattern` on its exact name, the
+  service filter, `setSingleDevice(true)`; no address filter: its handling is not documented). One branch:
+  API 33+ `associate(request, Executor, Callback)` with `EXTRA_ASSOCIATION`; API 31–32
+  `associate(request, Callback, Handler)` with `onDeviceFound` and `EXTRA_DEVICE` (a BLE `ScanResult`).
+  Android 16+: a discovery timeout comes back as user-rejected.
+- **Bond** within 10 minutes of consent (the system may skip its confirmation): `createBond()` (`createBond
+  (TRANSPORT_LE)` from API 37), `ACTION_BOND_STATE_CHANGED` receiver registered `RECEIVER_EXPORTED` (sent by
+  a privileged app, not the system), filtered to our address, 30 s limit as RoadSync; skip when bonded.
+- **Store** the meter's address (and the association id); read the device back with `getRemoteDevice`,
+  never `AssociationInfo.getAssociatedDevice()` (not persisted).
+- **Later (M4.2)**: presence observing (`ObservingDevicePresenceRequest` API 36, older variants below),
+  `CompanionDeviceService`, `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND`.
+
 Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
 Kotlin 2.4.21 (latest stable; 2.5.0 is still RC), compile/target SDK 37, minSdk 31, JDK 21

@@ -56,6 +56,11 @@ class SettingsViewModel
             viewModelScope.launch { bikes.select(bike) }
         }
 
+        /** "Set up a different bike": forgets this one, so the app shows setup again. */
+        fun setUpAgain() {
+            viewModelScope.launch { bikes.forget() }
+        }
+
         /** Reads the paired meters again (after Nearby devices was allowed or a meter was paired). */
         fun refreshMeters() {
             viewModelScope.launch { meters.value = withContext(io) { paired.list() } }

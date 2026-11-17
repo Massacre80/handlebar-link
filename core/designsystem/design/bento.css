@@ -141,6 +141,9 @@
   --shadow-chip: 0 4px 12px;   /* selected tab */
   --shadow-floating: 0 10px 28px;
 
+  --text-headline: 34px;          /* setup screens' titles (Paper "Setup") */
+  --leading-headline: 38px;
+
   /* Motion (both looks; not in the design file, set with the owner on 2026-11-17: Motion-style springs). */
   --motion-damping: 0.85;          /* springs settle without a visible bounce */
   --motion-stiffness: 400;         /* layout moves: pages, the tab chip (Compose StiffnessMediumLow) */

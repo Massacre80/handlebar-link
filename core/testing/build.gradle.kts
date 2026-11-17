@@ -7,4 +7,5 @@ plugins {
 dependencies {
     api(projects.core.common)
     api(libs.kotlinx.coroutines.test)
+    api(libs.junit)
 }

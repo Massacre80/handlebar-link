@@ -1,8 +1,10 @@
 package com.abid.handlebarlink.core.designsystem.component
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,6 +16,7 @@ import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -184,11 +187,13 @@ private fun SignalButton(
     val style =
         if (night) HlTheme.typography.value else HlTheme.typography.label.copy(fontWeight = FontWeight.SemiBold)
     // The visual pill can be 36 dp (Bento); the touch target stays at least 48 dp.
+    val press = remember { MutableInteractionSource() }
     Box(
         Modifier
+            .pressScale(press, HlTheme.motion)
             .sizeIn(minHeight = HlTheme.sizes.touchTarget)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = action.onClick),
+            .clickable(press, LocalIndication.current, role = Role.Button, onClick = action.onClick),
         contentAlignment = Alignment.Center,
     ) {
         Row(

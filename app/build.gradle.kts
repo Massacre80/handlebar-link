@@ -36,6 +36,7 @@ dependencies {
 
     testImplementation(projects.core.testing)
     testImplementation(projects.bike.linkTest)
+    testImplementation(libs.robolectric)
 
     androidTestImplementation(libs.androidx.test.runner)
 }

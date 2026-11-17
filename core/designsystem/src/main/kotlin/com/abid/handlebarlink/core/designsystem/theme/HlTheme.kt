@@ -46,9 +46,14 @@ public fun HlTheme(
         LocalStrokes provides HlStrokes(),
         LocalShadows provides shadowsFor(variant),
         LocalMotion provides motion,
-        // Press feedback for every clickable: a small spring scale, and a ring for keyboard focus.
+        // Press feedback for every clickable: a state layer of ink, and a ring for keyboard focus (the
+        // component's spring is pressScale).
         LocalIndication provides
-            HlIndication(motion.pressScale, motion.press(), colorsFor(variant).ink.copy(alpha = FOCUS_ALPHA)),
+            HlIndication(
+                colorsFor(variant).ink.copy(alpha = PRESSED_ALPHA),
+                motion.press(),
+                colorsFor(variant).ink.copy(alpha = FOCUS_ALPHA),
+            ),
         content = content,
     )
 }
@@ -116,3 +121,6 @@ public object HlTheme {
 }
 
 private const val FOCUS_ALPHA = 0.4f
+
+/** The pressed state layer: enough to see under a thumb on both grounds and on the lime pill. */
+private const val PRESSED_ALPHA = 0.12f

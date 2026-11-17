@@ -1,8 +1,10 @@
 package com.abid.handlebarlink.core.designsystem.component
 
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -47,12 +50,22 @@ public fun HlCard(
         } else {
             Modifier
         }
+    val press = remember { MutableInteractionSource() }
     Box(
         modifier
+            .pressScale(press, HlTheme.motion)
             .clip(shape)
             .background(colors.panel)
             .then(edged)
-            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier),
+            .then(
+                if (onClick !=
+                    null
+                ) {
+                    Modifier.clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            ),
         content = content,
     )
 }
@@ -157,11 +170,21 @@ public fun AddDeviceSlot(
     val radii = HlTheme.radii
     val strokes = HlTheme.strokes
     val night = HlTheme.variant == HlThemeVariant.NIGHT
+    val press = remember { MutableInteractionSource() }
     val outline =
         modifier
+            .pressScale(press, HlTheme.motion)
             .clip(RoundedCornerShape(radii.hero))
             .dashedOutline(colors.lineStrong, strokes.outline, radii.hero, strokes.dashOn, strokes.dashOff)
-            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .then(
+                if (onClick !=
+                    null
+                ) {
+                    Modifier.clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            )
     if (night) {
         Column(
             outline.heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),

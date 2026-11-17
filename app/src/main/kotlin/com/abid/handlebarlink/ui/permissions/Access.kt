@@ -53,39 +53,42 @@ class AccessState internal constructor(
 }
 
 /**
- * A runtime permission. Asking twice after a refusal shows nothing, so once the system says no rationale
+ * Runtime permissions asked together (one system dialog when they share a group, as Nearby devices does).
+ * Granted only when all are. Asking twice after a refusal shows nothing, so once the system says no rationale
  * can be shown after the rider was asked, the state is BLOCKED and the action opens the app's settings.
+ * [onResult] reports each answer (true: all granted).
  */
 @Composable
-fun rememberRuntimeAccess(permission: String): AccessState {
+fun rememberRuntimeAccess(
+    permissions: List<String>,
+    onResult: (Boolean) -> Unit = {},
+): AccessState {
     val context = LocalContext.current
     val activity = LocalActivity.current
-    var asked by rememberSaveable(permission) { mutableStateOf(false) }
+    var asked by rememberSaveable(permissions) { mutableStateOf(false) }
 
-    fun read(): Access =
-        when {
-            granted(context, permission) -> {
-                Access.GRANTED
-            }
-
-            asked && activity != null && !ActivityCompat.shouldShowRequestPermissionRationale(activity, permission) -> {
-                Access.BLOCKED
-            }
-
-            else -> {
-                Access.ASK
-            }
+    fun read(): Access {
+        val missing = permissions.filterNot { granted(context, it) }
+        val blocked =
+            asked && activity != null &&
+                missing.none { ActivityCompat.shouldShowRequestPermissionRationale(activity, it) }
+        return when {
+            missing.isEmpty() -> Access.GRANTED
+            blocked -> Access.BLOCKED
+            else -> Access.ASK
         }
-    val state = remember(permission) { AccessState(read()) }
+    }
+    val state = remember(permissions) { AccessState(read()) }
     val launcher =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { answers ->
             asked = true
             state.status = read()
+            onResult(answers.values.all { it } && answers.keys.containsAll(permissions))
         }
     state.onAct = {
         when (state.status) {
             Access.ASK -> {
-                launcher.launch(permission)
+                launcher.launch(permissions.toTypedArray())
             }
 
             Access.BLOCKED -> {
@@ -95,12 +98,21 @@ fun rememberRuntimeAccess(permission: String): AccessState {
             Access.GRANTED -> {}
         }
     }
-    LifecycleResumeEffect(permission) {
+    LifecycleResumeEffect(permissions) {
         state.status = read()
         onPauseOrDispose {}
     }
     return state
 }
+
+/** One runtime permission ([rememberRuntimeAccess] for a list). */
+@Composable
+fun rememberRuntimeAccess(permission: String): AccessState = rememberRuntimeAccess(listOf(permission))
+
+/** Searching for and pairing the meter during setup: scan and connect (both Nearby devices). */
+@Composable
+fun rememberSetupAccess(onResult: (Boolean) -> Unit): AccessState =
+    rememberRuntimeAccess(listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), onResult)
 
 /** Bluetooth to the meter. */
 @Composable

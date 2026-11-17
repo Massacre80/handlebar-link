@@ -152,8 +152,10 @@ class TokenDriftTest {
                 "lead" to Triple(t.lead, "text-lead" to "leading-lead", "tracking-tighter"),
                 "title" to Triple(t.title, "text-title" to "leading-title", "tracking-heading"),
                 "display" to Triple(t.display, "text-display" to "leading-display", "tracking-hero"),
+                "headline" to Triple(t.headline, "text-headline" to "leading-headline", "tracking-hero"),
                 "tab" to Triple(t.tab, "text-tab" to "leading-tab", "tracking-tight"),
                 "caps" to Triple(t.caps, "text-tab" to "leading-tab", "tracking-caps"),
+                "overline" to Triple(t.overline, "text-tab" to "leading-tab", "tracking-wide"),
             )
         expected.forEach { (name, spec) ->
             val (style, sizes, tracking) = spec

@@ -53,3 +53,15 @@ public val BikeGroundShadow: HlGroundShadow =
                 ShadowEllipse(x = 256f, y = 360f, width = 150f, height = 14f, blur = 7f, alpha = 0.12f),
             ),
     )
+
+/**
+ * The same ground shadow for Night's dark ground (Paper "Setup", "You're set"): the geometry of
+ * [BikeGroundShadow] with darker ellipses so they register on near-black.
+ */
+public val BikeGroundShadowNight: HlGroundShadow =
+    BikeGroundShadow.copy(
+        ellipses =
+            BikeGroundShadow.ellipses.zip(listOf(0.55f, 0.70f, 0.90f, 0.70f, 0.90f, 0.95f, 0.45f)) { e, alpha ->
+                e.copy(alpha = alpha)
+            },
+    )

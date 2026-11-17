@@ -31,10 +31,14 @@ public data class HlTypography(
     val title: TextStyle,
     /** 46/46, hero numbers. */
     val display: TextStyle,
+    /** 34/38, setup screens' titles. */
+    val headline: TextStyle,
     /** 11/12, tab labels. */
     val tab: TextStyle,
     /** 11/12 with caps tracking: overlines; the text itself is upper-cased by the component. */
     val caps: TextStyle,
+    /** 11/12 with wide tracking: setup's overlines ("STEP 1 OF 3"); upper-cased by the component. */
+    val overline: TextStyle,
     /** 22/26, the odometer. */
     val figureSmall: TextStyle,
     /** 24/30, gauge values. */
@@ -95,8 +99,10 @@ public val HlTypographyDefault: HlTypography =
         lead = style(17.sp, 22.sp, FontWeight.SemiBold, Tracking.tighter),
         title = style(20.sp, 26.sp, FontWeight.SemiBold, Tracking.heading),
         display = style(46.sp, 46.sp, FontWeight.SemiBold, Tracking.hero),
+        headline = style(34.sp, 38.sp, FontWeight.SemiBold, Tracking.hero),
         tab = style(11.sp, 12.sp, FontWeight.Medium, Tracking.tight),
         caps = style(11.sp, 12.sp, FontWeight.Medium, Tracking.caps),
+        overline = style(11.sp, 12.sp, FontWeight.Medium, Tracking.wide),
         figureSmall = style(22.sp, 26.sp, FontWeight.SemiBold, Tracking.heading),
         figure = style(24.sp, 30.sp, FontWeight.SemiBold, Tracking.heading),
         figureLarge = style(32.sp, 34.sp, FontWeight.SemiBold, Tracking.figure),

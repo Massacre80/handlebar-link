@@ -1,8 +1,7 @@
 package com.abid.handlebarlink.ui
 
-import android.content.Intent
-import android.provider.Settings
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -62,13 +61,40 @@ import com.abid.handlebarlink.ui.settings.SettingsAccess
 import com.abid.handlebarlink.ui.settings.SettingsActions
 import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.abid.handlebarlink.ui.settings.SettingsViewModel
+import com.abid.handlebarlink.ui.setup.SetupRoute
 
 /**
- * The app's frame: the background, the pages (one Navigation 3 back stack per tab) and the floating tab
- * bar, shown on the tabs' pages and hidden on full pages such as Settings.
+ * The app's frame: the background, then first-time setup until a bike is saved (docs/PLAN.md "First-time
+ * setup"), and the tabs after that. While the setting loads (a few milliseconds) only the background shows.
  */
 @Composable
 fun AppRoot() {
+    val main: MainViewModel = hiltViewModel()
+    val bikeChosen by main.bikeChosen.collectAsStateWithLifecycle()
+    HlBackground(Modifier.fillMaxSize()) {
+        Crossfade(bikeChosen, animationSpec = HlTheme.motion.fade(), label = "setup or tabs") { chosen ->
+            when (chosen) {
+                null -> {}
+
+                false -> {
+                    SetupRoute()
+                }
+
+                true -> {
+                    RideAutoStart(main)
+                    Tabs()
+                }
+            }
+        }
+    }
+}
+
+/**
+ * The tabs: the pages (one Navigation 3 back stack per tab) and the floating tab bar, shown on the tabs'
+ * pages and hidden on full pages such as Settings.
+ */
+@Composable
+private fun BoxScope.Tabs() {
     val state = rememberNavigationState(TOP_LEVEL_DESTINATIONS)
     val navigator = remember(state) { Navigator(state) }
     val spacing = HlTheme.spacing
@@ -99,19 +125,16 @@ fun AppRoot() {
             }
             entry<SettingsRoute> { SettingsEntry(onBack = navigator::goBack) }
         }
-    RideAutoStart()
-    HlBackground(Modifier.fillMaxSize()) {
-        val motion = HlTheme.motion
-        NavDisplay(
-            entries = state.toDecoratedEntries(entries),
-            onBack = navigator::goBack,
-            transitionSpec = { pageTransition(state.lastMove, motion) },
-            popTransitionSpec = { pageTransition(state.lastMove, motion) },
-            // The back gesture previews what Back will do, following the finger (Android 15+ by default).
-            predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
-        )
-        FloatingTabBar(state, navigator)
-    }
+    val motion = HlTheme.motion
+    NavDisplay(
+        entries = state.toDecoratedEntries(entries),
+        onBack = navigator::goBack,
+        transitionSpec = { pageTransition(state.lastMove, motion) },
+        popTransitionSpec = { pageTransition(state.lastMove, motion) },
+        // The back gesture previews what Back will do, following the finger (Android 15+ by default).
+        predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
+    )
+    FloatingTabBar(state, navigator)
 }
 
 /** The tab bar floating over the pages; it slides away on full pages (Settings) and back on tab pages. */
@@ -162,26 +185,25 @@ private fun SettingsEntry(onBack: () -> Unit) {
             onTheme = viewModel::choose,
             onBike = viewModel::choose,
             onAccess = { listOf(nearby, notifications, media)[it].act() },
-            onPair = { context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS)) },
+            onSetup = viewModel::setUpAgain,
             onBack = onBack,
         ),
     )
 }
 
 /**
- * Starts the ride while the app is on screen (a foreground service may only start then), once a bike is
- * chosen and Nearby devices is allowed; a running ride ignores the second start. Each resume also re-reads
- * the permission for the link (Android sends no broadcast when it changes). Waking on ignition is M4.
+ * Starts the ride while the app is on screen (a foreground service may only start then): it is shown once a
+ * bike is set up, and starts when Nearby devices is allowed; a running ride ignores the second start. Each
+ * resume also re-reads the permission for the link (Android sends no broadcast when it changes). Waking on
+ * ignition is M4.
  */
 @Composable
-private fun RideAutoStart() {
+private fun RideAutoStart(viewModel: MainViewModel) {
     val context = LocalContext.current
-    val viewModel: MainViewModel = hiltViewModel()
-    val bikeChosen by viewModel.bikeChosen.collectAsStateWithLifecycle()
     val nearby = rememberNearbyAccess()
-    LifecycleResumeEffect(bikeChosen, nearby.status) {
+    LifecycleResumeEffect(nearby.status) {
         viewModel.onResumed()
-        if (bikeChosen && nearby.status == Access.GRANTED) RideService.start(context)
+        if (nearby.status == Access.GRANTED) RideService.start(context)
         onPauseOrDispose {}
     }
 }

@@ -1,9 +1,11 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,23 +38,72 @@ public fun HlButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    brand: Boolean = false,
+    chevron: Boolean = false,
 ) {
     val colors = HlTheme.colors
-    // Bento's artboard: inverse fill. Night has no sheet artboard: a dark fill would vanish on its ground,
-    // so it uses Night's action colours (white), as its CarPlay buttons do.
+    // [brand]: the setup screens' one main action (lime pill, "Start"). Otherwise Bento's artboard: inverse
+    // fill; Night has no sheet artboard: a dark fill would vanish on its ground, so it uses Night's action
+    // colours (white), as its CarPlay buttons do.
     val night = HlTheme.variant == HlThemeVariant.NIGHT
-    val fill = if (night) colors.action else colors.surfaceInverse
-    val ink = if (night) colors.onAction else colors.inkInverse
-    Box(
+    val fill =
+        when {
+            brand -> colors.brand
+            night -> colors.action
+            else -> colors.surfaceInverse
+        }
+    val ink =
+        when {
+            brand -> colors.brandInk
+            night -> colors.onAction
+            else -> colors.inkInverse
+        }
+    val shape = if (brand) CircleShape else RoundedCornerShape(HlTheme.radii.control)
+    val press = remember { MutableInteractionSource() }
+    Row(
         modifier
+            .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .height(HlTheme.sizes.controlLarge)
-            .clip(RoundedCornerShape(HlTheme.radii.control))
+            .clip(shape)
             .background(if (enabled) fill else colors.raisedLo)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
+            .clickable(press, LocalIndication.current, enabled, role = Role.Button, onClick = onClick),
+        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8, Alignment.CenterHorizontally),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        HlText(label, HlTheme.typography.value, if (enabled) ink else colors.inkMuted, maxLines = 1)
+        val style = if (brand) HlTheme.typography.lead else HlTheme.typography.value
+        HlText(label, style, if (enabled) ink else colors.inkMuted, maxLines = 1)
+        if (chevron) HlIcon(HlIcons.ChevronRight, if (enabled) ink else colors.inkMuted, size = HlTheme.sizes.iconTiny)
+    }
+}
+
+/** A numbered instruction ("1 Turn the ignition on"), as on the setup screens: a glass card in Night. */
+@Composable
+public fun HlStepRow(
+    number: Int,
+    title: String,
+    detail: String,
+    modifier: Modifier = Modifier,
+) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    HlCard(modifier.fillMaxWidth(), radius = HlTheme.radii.card) {
+        Row(
+            Modifier.padding(spacing.s16),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.s14),
+        ) {
+            Box(
+                Modifier.size(HlTheme.sizes.chip).background(colors.raisedLo, RoundedCornerShape(HlTheme.radii.nested)),
+                contentAlignment = Alignment.Center,
+            ) {
+                HlText(number.toString(), HlTheme.typography.value, colors.ink, maxLines = 1)
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                HlText(title, HlTheme.typography.value, colors.ink)
+                HlText(detail, HlTheme.typography.meta, colors.inkMuted)
+            }
+        }
     }
 }
 
@@ -62,12 +114,14 @@ public fun HlQuietButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val press = remember { MutableInteractionSource() }
     Box(
         modifier
+            .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .sizeIn(minHeight = HlTheme.sizes.touchTarget)
             .clip(RoundedCornerShape(HlTheme.radii.control))
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         HlText(label, HlTheme.typography.value, HlTheme.colors.inkMuted, maxLines = 1)
@@ -84,11 +138,13 @@ public fun HlIconButton(
 ) {
     val colors = HlTheme.colors
     val night = HlTheme.variant == HlThemeVariant.NIGHT
+    val press = remember { MutableInteractionSource() }
     Box(
         modifier
+            .pressScale(press, HlTheme.motion)
             .size(HlTheme.sizes.touchTarget)
             .clip(CircleShape)
-            .clickable(role = Role.Button, onClick = onClick),
+            .clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         if (night) {
@@ -195,13 +251,15 @@ public fun HlOptionRow(
     val spacing = HlTheme.spacing
     val night = HlTheme.variant == HlThemeVariant.NIGHT
     val shape = RoundedCornerShape(HlTheme.radii.control)
+    val press = remember { MutableInteractionSource() }
     Row(
         modifier
+            .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .clip(shape)
             .background(if (selected) colors.raisedHi else container)
             .then(if (selected) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected, press, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
@@ -254,14 +312,23 @@ public fun HlValueRow(
     container: Color = HlTheme.colors.raisedLo,
 ) {
     val colors = HlTheme.colors
+    val press = remember { MutableInteractionSource() }
     Row(
         modifier
+            .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .sizeIn(minHeight = HlTheme.sizes.controlLarge)
             .clip(RoundedCornerShape(HlTheme.radii.control))
             .background(container)
-            .then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
+            .then(
+                if (onClick !=
+                    null
+                ) {
+                    Modifier.clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick)
+                } else {
+                    Modifier
+                },
+            ).padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
     ) {

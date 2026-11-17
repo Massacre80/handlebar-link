@@ -7,6 +7,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <!-- The ride and problem notifications; a runtime permission from Android 13 (request flow: M3.3). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- First-time setup (docs/PLAN.md): our own scan for the meter; the app never derives a location from
+         it, so neverForLocation (bt-permissions: some beacons are then filtered, never the meter). -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- Linking the meter through Android's companion-device consent (companion-device-pairing). -->
+    <uses-feature android:name="android.software.companion_device_setup" />
 
     <!-- No backup: the app stores only the paired bike and settings, and a restored bond would be stale. -->
     <application

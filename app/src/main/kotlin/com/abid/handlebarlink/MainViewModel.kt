@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** App-wide UI state: the theme, and whether the ride can start. */
+/** App-wide UI state: the theme, and whether a bike is set up (setup or the tabs). */
 @HiltViewModel
 class MainViewModel
     @Inject
@@ -26,11 +26,11 @@ class MainViewModel
         val theme: StateFlow<AppTheme> =
             appearance.theme.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), AppTheme.NIGHT)
 
-        /** Whether a bike is chosen (the ride can start). */
-        val bikeChosen: StateFlow<Boolean> =
+        /** Whether a bike is chosen: null while the setting loads, false shows setup, true the tabs. */
+        val bikeChosen: StateFlow<Boolean?> =
             bikes.bike
                 .map { it != null }
-                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
         /** The app came to the foreground: the Bluetooth permission may have changed meanwhile. */
         fun onResumed() {

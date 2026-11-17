@@ -54,8 +54,8 @@ data class SettingsActions(
     val onBike: (SelectedBike) -> Unit,
     /** Act on a permission: 0 Nearby devices, 1 notifications, 2 notification access. */
     val onAccess: (Int) -> Unit,
-    /** Open Android's Bluetooth settings to pair a meter. */
-    val onPair: () -> Unit,
+    /** Forget the bike and run setup again (pairs a meter in the app). */
+    val onSetup: () -> Unit,
     /** Back. */
     val onBack: () -> Unit,
 )
@@ -107,7 +107,7 @@ private fun BikeSection(
     nearby: Access,
     actions: SettingsActions,
 ) {
-    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
+    Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
         HlSectionLabel(stringResource(R.string.settings_bike))
         val meters = state.meters
         when {
@@ -119,23 +119,33 @@ private fun BikeSection(
                 HlValueRow(
                     stringResource(R.string.bike_none_paired),
                     hint = stringResource(R.string.bike_pair_hint),
-                    onClick = actions.onPair,
+                    onClick = actions.onSetup,
                     container = HlTheme.colors.panel,
                 )
             }
 
             else -> {
-                meters.forEach { meter ->
-                    HlOptionRow(
-                        icon = HlIcons.Bluetooth,
-                        title = meter.name,
-                        subtitle = meter.address,
-                        selected = meter.address == state.bike?.address,
-                        onClick = { actions.onBike(meter) },
-                        container = HlTheme.colors.panel,
-                    )
+                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
+                    meters.forEach { meter ->
+                        HlOptionRow(
+                            icon = HlIcons.Bluetooth,
+                            title = meter.name,
+                            subtitle = meter.address,
+                            selected = meter.address == state.bike?.address,
+                            onClick = { actions.onBike(meter) },
+                            container = HlTheme.colors.panel,
+                        )
+                    }
                 }
             }
+        }
+        if (nearby == Access.GRANTED && !meters.isNullOrEmpty()) {
+            HlValueRow(
+                stringResource(R.string.settings_setup_again),
+                hint = null,
+                onClick = actions.onSetup,
+                container = HlTheme.colors.panel,
+            )
         }
     }
 }

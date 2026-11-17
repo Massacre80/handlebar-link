@@ -5,8 +5,10 @@ import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.animateBounds
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -25,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -141,11 +144,13 @@ private fun RowScope.TabItem(
         } else {
             Modifier.weight(1f).animateBounds(lookahead, Modifier.height(sizes.tab), bounds)
         }
+    val press = remember { MutableInteractionSource() }
     Column(
         size
+            .pressScale(press, motion)
             // A pill clip would shave long labels at large text; the press area stays rounded.
             .clip(RoundedCornerShape(HlTheme.radii.control))
-            .selectable(selected = active, role = Role.Tab, onClick = onClick),
+            .selectable(active, press, LocalIndication.current, role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
         // One 2 dp gap between icon and label on every tab (owner, 2026-11-17: the artboard's 4 dp on inactive
         // tabs made the label jump when a tab became active, and sat low in the chip).
