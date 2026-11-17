@@ -71,6 +71,16 @@
             </intent-filter>
         </service>
 
+        <!-- After an update the ride starts again (autostart/AppUpdated). MY_PACKAGE_REPLACED is sent by the
+             system to this app only, so the receiver is not exported. -->
+        <receiver
+            android:name=".autostart.AppUpdatedReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Interim: lets the app reach CarLink's CarPlay media session (controls/). The system binds it
              only with BIND_NOTIFICATION_LISTENER_SERVICE; the user grants notification access. -->
         <service

@@ -59,7 +59,24 @@ class RideService : LifecycleService() {
         startId: Int,
     ): Int {
         super.onStartCommand(intent, flags, startId)
-        when (intent?.action) {
+        if (intent == null) {
+            // Restarted by the system after the process was killed during a ride (START_STICKY, edge case 6).
+            // The bike may have gone meanwhile: no presence hint, so a presence-driven link lingers out.
+            log.info("service.restarted")
+            startRide(presentHint = false, foregroundStart = false)
+        } else {
+            handle(intent)
+        }
+        if (ride == null) stopSelf()
+        // Restarted by the system after the process is killed mid-ride (am kill, low memory). The restart may
+        // become a foreground service from the background thanks to the companion-device exemption; without
+        // an association it is refused (promote) and the service stops, so the system does not restart it
+        // again. A service stopped with stopSelf (ride over) is never restarted.
+        return START_STICKY
+    }
+
+    private fun handle(intent: Intent) {
+        when (intent.action) {
             ACTION_START -> {
                 startRide(
                     presentHint = intent.getBooleanExtra(EXTRA_PRESENT_HINT, true),
@@ -76,13 +93,9 @@ class RideService : LifecycleService() {
             }
 
             else -> {
-                log.warn("service.unknown_action", "action" to intent?.action)
+                log.warn("service.unknown_action", "action" to intent.action)
             }
         }
-        if (ride == null) stopSelf()
-        // Never restarted by the system: a restart from the background may not start a foreground
-        // service (FGS-LAUNCH); waking on ignition is the companion-device presence of M4.
-        return START_NOT_STICKY
     }
 
     private fun startRide(

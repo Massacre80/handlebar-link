@@ -88,9 +88,11 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
   stable (it also fixes type resolution, docs/LESSONS.md 1–2).
 - `versionCatalogUpdate`/`versionCatalogFormat` (version-catalog-update 1.1.2) are declared
   `notCompatibleWithConfigurationCache`: they run without the cache; every other task uses it.
-- `RideService` and `RideNotifications` have no automated test yet: Robolectric service tests come in
-  M4 (PLAN). Until then they are covered by the on-bike checklist; `RideCoordinator` (the logic) is
-  unit-tested, including a planted "end the ride on any Blocked" bug.
+- `RideService`, `RideNotifications`, `BikePresenceService`, `AppUpdatedReceiver` and
+  `AndroidCompanionPresence` have no automated test yet (Robolectric service tests were planned for M4 and
+  are still open). They stay thin: the decisions are pure and unit-tested (`RideCoordinator`, `planPresence`,
+  `presenceCallbacks`, `presenceOf`, `LinkPolicy`, `PresenceArming`, `PresenceEvents`, `AppUpdated`, each with
+  planted bugs caught); the rest is covered by the M4 on-bike check in docs/PLAN.md.
 - Each `AndroidBikeLink` starts a `HandlerThread` that is never quit. `RideCoordinator` creates one
   link per selected address, so this only leaks when the rider switches bikes; fix when bike
   switching exists (M5 settings).
