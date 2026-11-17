@@ -67,7 +67,7 @@ fun IntercomScreen(
         verticalArrangement = Arrangement.spacedBy(spacing.s24),
     ) {
         HlText(
-            stringResource(R.string.tab_intercom),
+            stringResource(R.string.tab_devices),
             HlTheme.typography.title,
             HlTheme.colors.ink,
             Modifier.semantics { heading() },
@@ -162,13 +162,14 @@ private fun Audio(
     device: IntercomDevice,
     actions: IntercomActions,
 ) {
+    // Calls and Music name where audio goes the same way: the device as the rider named it, or this phone.
     val music =
         when (val on = state.music) {
-            Music.Primary -> stringResource(R.string.intercom_music_primary)
-            is Music.Other -> stringResource(R.string.intercom_music_other, on.name)
-            Music.OtherBluetooth -> stringResource(R.string.intercom_music_other_bluetooth)
-            Music.Phone -> stringResource(R.string.intercom_music_phone)
-            Music.Unknown -> stringResource(if (device.music) R.string.device_connected else R.string.intercom_off)
+            Music.Primary -> device.name
+            is Music.Other -> on.name
+            Music.OtherBluetooth -> stringResource(R.string.intercom_other_bluetooth)
+            Music.Phone -> stringResource(R.string.intercom_phone)
+            Music.Unknown -> if (device.music) device.name else stringResource(R.string.intercom_off)
         }
     val calls =
         when (val to = state.calls) {

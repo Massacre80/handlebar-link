@@ -68,12 +68,9 @@
     <string name="intercom_music">Music</string>
     <string name="intercom_music_detail">Choose where music and CarPlay audio play</string>
     <string name="intercom_output_playing">Playing now</string>
-    <string name="intercom_output_bluetooth">Bluetooth</string>
-    <string name="intercom_output_phone">On this phone</string>
-    <string name="intercom_music_primary">On this intercom</string>
-    <string name="intercom_music_other">On %1$s</string>
-    <string name="intercom_music_other_bluetooth">On another Bluetooth device</string>
-    <string name="intercom_music_phone">On the phone</string>
+    <string name="intercom_output_connected">Connected</string>
+    <string name="intercom_output_speaker">Speaker</string>
+    <string name="intercom_other_bluetooth">Another Bluetooth device</string>
     <string name="intercom_buttons">Buttons</string>
     <string name="intercom_buttons_media">Play, pause, skip</string>
     <string name="intercom_buttons_carlink">Control CarPlay</string>
@@ -140,7 +137,7 @@
     <string name="tab_rides">Rides</string>
     <string name="tab_carplay">CarPlay</string>
     <string name="tab_garage">Garage</string>
-    <string name="tab_intercom">Intercom</string>
+    <string name="tab_devices">Devices</string>
     <string name="later_rides">Your rides appear here once ride logging exists.</string>
     <string name="later_carplay">CarPlay runs in CarLink until our own receiver is ready.</string>
     <string name="later_garage">Odometer, service and bike details will live here.</string>

@@ -106,5 +106,5 @@ val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> =
         TopLevelDestination(RidesRoute, HlIcons.Rides, R.string.tab_rides),
         TopLevelDestination(CarPlayRoute, HlIcons.CarPlay, R.string.tab_carplay),
         TopLevelDestination(GarageRoute, HlIcons.Garage, R.string.tab_garage),
-        TopLevelDestination(IntercomRoute, HlIcons.Intercom, R.string.tab_intercom),
+        TopLevelDestination(IntercomRoute, HlIcons.Intercom, R.string.tab_devices),
     )

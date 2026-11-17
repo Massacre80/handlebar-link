@@ -158,11 +158,15 @@ class SheetScene<T : Any>(
                         .fillMaxWidth()
                         .layout { measurable, constraints ->
                             val sheet = measurable.measure(constraints)
+                            // Keep the target while the height changes (the window's insets arrive
+                            // mid-rise): by default the state re-targets the anchor nearest the offset,
+                            // Hidden early in the rise, and the sheet dropped back (seen on the phone).
                             state.updateAnchors(
                                 DraggableAnchors {
                                     SheetValue.Shown at 0f
                                     SheetValue.Hidden at sheet.height.toFloat()
                                 },
+                                state.targetValue,
                             )
                             layout(sheet.width, sheet.height) {
                                 // Read while placing only: dragging never recomposes. Below the screen until shown.

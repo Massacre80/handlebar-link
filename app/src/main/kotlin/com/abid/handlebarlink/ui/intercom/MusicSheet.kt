@@ -50,12 +50,13 @@ fun MusicSheet(
                             output.bluetooth -> HlIcons.Bluetooth
                             else -> HlIcons.Phone
                         },
-                        output.name,
+                        // The phone is "This phone" here as in Calls; a device carries the rider's name for it.
+                        if (output.bluetooth) output.name else stringResource(R.string.intercom_phone),
                         stringResource(
                             when {
                                 output.selected -> R.string.intercom_output_playing
-                                output.bluetooth -> R.string.intercom_output_bluetooth
-                                else -> R.string.intercom_output_phone
+                                output.bluetooth -> R.string.intercom_output_connected
+                                else -> R.string.intercom_output_speaker
                             },
                         ),
                         selected = output.selected,
