@@ -72,7 +72,7 @@ class RideCoordinatorTest {
             settings.bike.value = bike
             val coordinator = coordinator()
 
-            backgroundScope.async { coordinator.ride() }
+            backgroundScope.async { coordinator.ride(presentHint = true) }
             runCurrent()
 
             assertThat(created).containsExactly(bike.address)
@@ -85,7 +85,7 @@ class RideCoordinatorTest {
         runTest {
             settings.bike.value = bike
             val coordinator = coordinator()
-            backgroundScope.async { coordinator.ride() }
+            backgroundScope.async { coordinator.ride(presentHint = true) }
             runCurrent()
 
             listOf(HandlebarSwitch.UP, HandlebarSwitch.LEFT, HandlebarSwitch.RIGHT).forEach {
@@ -101,7 +101,7 @@ class RideCoordinatorTest {
         runTest {
             settings.bike.value = bike
             val coordinator = coordinator()
-            val ride = backgroundScope.async { coordinator.ride() }
+            val ride = backgroundScope.async { coordinator.ride(presentHint = true) }
             runCurrent()
             link.arm()
             runCurrent()
@@ -121,7 +121,7 @@ class RideCoordinatorTest {
         runTest {
             settings.bike.value = bike
             val coordinator = coordinator()
-            val ride = backgroundScope.async { coordinator.ride() }
+            val ride = backgroundScope.async { coordinator.ride(presentHint = true) }
             runCurrent()
             link.arm()
             runCurrent()
@@ -137,7 +137,7 @@ class RideCoordinatorTest {
         runTest {
             settings.bike.value = bike
             val coordinator = coordinator()
-            val ride = backgroundScope.async { coordinator.ride() }
+            val ride = backgroundScope.async { coordinator.ride(presentHint = true) }
             runCurrent()
             link.arm()
             runCurrent()
@@ -156,7 +156,7 @@ class RideCoordinatorTest {
         runTest {
             val coordinator = coordinator()
 
-            assertThat(coordinator.ride()).isNull()
+            assertThat(coordinator.ride(presentHint = true)).isNull()
             coordinator.stop()
 
             assertThat(created).isEmpty()
@@ -169,7 +169,7 @@ class RideCoordinatorTest {
             settings.bike.value = bike
             val coordinator = coordinator()
             repeat(2) {
-                val ride = backgroundScope.async { coordinator.ride() }
+                val ride = backgroundScope.async { coordinator.ride(presentHint = true) }
                 runCurrent()
                 link.arm()
                 runCurrent()
@@ -179,6 +179,44 @@ class RideCoordinatorTest {
             }
 
             assertThat(created).containsExactly(bike.address)
+        }
+
+    @Test
+    fun `a ride started without a hint waits for the bike`() =
+        runTest {
+            settings.bike.value = bike
+            val coordinator = coordinator()
+
+            backgroundScope.async { coordinator.ride(presentHint = false) }
+            runCurrent()
+
+            assertThat(link.commands).containsExactly(Command.Start(presentHint = false))
+        }
+
+    @Test
+    fun `presence reports for the selected bike go to its link, matched ignoring case`() =
+        runTest {
+            settings.bike.value = bike
+            val coordinator = coordinator()
+
+            // Lower case, as MacAddress prints it.
+            val appeared = coordinator.onPresence(bike.address.lowercase(), present = true)
+            val gone = coordinator.onPresence(bike.address, present = false)
+
+            assertThat(listOf(appeared, gone)).containsExactly(true, true)
+            assertThat(link.commands).containsExactly(Command.Presence(true), Command.Presence(false))
+        }
+
+    @Test
+    fun `presence reports for another device or without a bike are not for the ride`() =
+        runTest {
+            val coordinator = coordinator()
+            val noBike = coordinator.onPresence(bike.address, present = true)
+            settings.bike.value = bike
+            val other = coordinator.onPresence("00:11:22:33:44:55", present = true)
+
+            assertThat(listOf(noBike, other)).containsExactly(false, false)
+            assertThat(link.commands).isEmpty()
         }
 
     @Test

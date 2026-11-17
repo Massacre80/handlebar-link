@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.ride
 
 import android.content.Context
+import com.abid.handlebarlink.autostart.LinkPolicy
 import com.abid.handlebarlink.bike.link.BikeLink
 import com.abid.handlebarlink.bike.link.android.AndroidBikeLink
 import com.abid.handlebarlink.core.common.log.Logger
@@ -21,10 +22,10 @@ class RideLink(
 /** Creates the link for a bike; tests replace it with one that returns a FakeBikeLink. */
 fun interface BikeLinkProvider {
     /** A link to the meter at [address]. */
-    fun create(address: String): RideLink
+    suspend fun create(address: String): RideLink
 }
 
-/** The Android link from `:bike:link-android`, on the confined bike-link dispatcher. */
+/** The Android link from `:bike:link-android`, on the confined bike-link dispatcher, with the bike's [LinkPolicy]. */
 class AndroidBikeLinkProvider
     @Inject
     constructor(
@@ -32,9 +33,11 @@ class AndroidBikeLinkProvider
         @BikeLinkDispatcher private val dispatcher: CoroutineDispatcher,
         private val time: TimeProvider,
         private val logger: Logger,
+        private val policy: LinkPolicy,
     ) : BikeLinkProvider {
-        override fun create(address: String): RideLink {
-            val link = AndroidBikeLink.create(context, address, dispatcher, time, logger.child("bike"))
+        override suspend fun create(address: String): RideLink {
+            val config = policy.configFor(address)
+            val link = AndroidBikeLink.create(context, address, dispatcher, time, logger.child("bike"), config)
             return RideLink(link, link::recheckPermission)
         }
     }

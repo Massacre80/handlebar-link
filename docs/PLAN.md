@@ -2,7 +2,8 @@
 
 Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2 (engine, runtime, Android adapters), M3.1–M3.2 (app wiring, ride service), UI.1
 (design tokens, Night and Bento themes) and the structure fixes of the
-architecture review (`docs/reviews/2026-11-16-architecture-review.md`). Mistakes and their rules:
+architecture review (`docs/reviews/2026-11-16-architecture-review.md`). M4: M4.1 (setup), M4.2
+(presence observing and service) and M4.3 (update and restart recovery) built; the on-bike check is open. Mistakes and their rules:
 `docs/LESSONS.md`.
 
 ## Goal
@@ -123,8 +124,91 @@ Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the 
   a privileged app, not the system), filtered to our address, 30 s limit as RoadSync; skip when bonded.
 - **Store** the meter's address (and the association id); read the device back with `getRemoteDevice`,
   never `AssociationInfo.getAssociatedDevice()` (not persisted).
-- **Later (M4.2)**: presence observing (`ObservingDevicePresenceRequest` API 36, older variants below),
-  `CompanionDeviceService`, `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND`.
+- **Then (M4.2)**: presence observing and the presence service, below.
+
+### Auto-start on ignition (M4.2–M4.3, 2026-11-18)
+
+Sources: the official docs (companion-device-pairing "Keep companion apps awake"; BLE "Communicate in the
+background"; FGS "Restrictions on starting from the background"; the CompanionDeviceManager,
+CompanionDeviceService and DevicePresenceEvent references) and 02 §3. Code: `app/.../autostart/`.
+
+- **Observing** (`PresenceArming`, at every process start and whenever the selected bike changes): the
+  selected bike's association is observed, every other association of the app is released (`planPresence`).
+  One version branch (`AndroidCompanionPresence`): API 36+ `startObservingDevicePresence(
+  ObservingDevicePresenceRequest.Builder().setAssociationId(id))`, which deprecates the address overload;
+  API 31–35 `startObservingDevicePresence(address)`. Associations are listed with `getMyAssociations()` (33+)
+  or `getAssociations()` (Android 12, addresses only). FEATURE_COMPANION_DEVICE_SETUP is checked first, as the
+  reference requires. "Forgotten" here means the selection is cleared: observation stops; the association
+  itself is kept (disassociating is part of "Forget this bike", not built yet; 02 §4.2).
+- **Presence service** (`BikePresenceService`, a `CompanionDeviceService`, exported and guarded by
+  `BIND_COMPANION_DEVICE_SERVICE`): only the callback family of the running release is trusted
+  (`presenceCallbacks`: `onDevicePresenceEvent` on 36+, `onDeviceAppeared/Disappeared(AssociationInfo)` on
+  33–35, the address overloads on 31–32), because on 36+ the system also calls the deprecated ones. BLE
+  appeared / BT connected = present; BLE disappeared / BT disconnected = gone; other events are ignored.
+- **Appeared** (`PresenceEvents`): the selected bike's link gets `onPresence(true)` and the ride service is
+  started with `startForegroundService` from the background, allowed for a CDM app holding
+  `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND` (FGS exemptions). Without Nearby devices the
+  start is skipped: a `connectedDevice` service could not call `startForeground`, which that start requires.
+  A running ride re-posts its foreground notification for the duplicate start. **Gone**: only
+  `onPresence(false)`; the service is never stopped by a disappear event (02 §3.2: the meter stops
+  advertising while connected).
+- **Policy per bike** (`LinkPolicy`): a bike Android watches is **presence-driven** (10 min linger, 02 §2.5,
+  then the ride service ends until the next appearance); a bike without an association stays **always
+  armed** (as before M4), because nothing would start it again. A bike chosen from "Paired with this phone"
+  in setup has no association (that path skips Android's consent): it does not auto-start; logged as
+  `presence.not_linked`. See the open question below.
+- Also requested: `REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE` (required by the observe calls) and
+  `REQUEST_COMPANION_RUN_IN_BACKGROUND` (the BLE background guide's way to stay connected while present).
+- **Presence-driven vs always armed (decision pending D4/D5):** presence-driven is the default for watched
+  bikes, as the research recommends; the on-bike timing below decides whether it stays. If CDM presence is
+  slow or unreliable with the screen off, the default becomes always armed (`linkConfig`, one place).
+- **Open question:** should setup also link (associate) a meter picked from "Paired with this phone"? Today
+  such a meter is connected and not advertising, which is why that path skips the consent sheet; Android's
+  consent needs it advertising (ignition on, link to the app closed).
+- **M4.3, after an update** (`AppUpdated`, a non-exported `MY_PACKAGE_REPLACED` receiver): the update kills
+  the process and a running ride, and Android does not report a bike that stays present, so with a bike
+  selected the ride starts again without a presence hint (it reconnects if the bike is there; presence-driven
+  lingers out if not). `MY_PACKAGE_REPLACED` is an FGS background-start exemption. Observation is re-asserted
+  by the process start itself (`PresenceArming` in `Application.onCreate`), so the receiver adds nothing there.
+- **M4.3, process killed mid-ride**: `RideService` is now `START_STICKY`; the system's restart becomes a
+  foreground service through the companion-device exemption and resumes without a hint (02 §3.4, edge case 6).
+  Without an association the restart is refused and the service stops, so it is not restarted again.
+- **M4.3, no boot receiver**: the CDM reference says the app "doesn't need to remain running" to receive
+  presence callbacks, and nothing in the docs says observation must be renewed after a reboot (the research
+  found it persisted by the system, 02 §3.4 "Reboot"). Presence-driven mode starts nothing at boot by design.
+  So no `BOOT_COMPLETED` receiver (and no `RECEIVE_BOOT_COMPLETED`) until D8 shows otherwise; if it fails, the
+  fix is a non-exported receiver whose process start runs `PresenceArming` (and, for always armed, starts the
+  ride: `connectedDevice` is allowed from `BOOT_COMPLETED` on Android 15+).
+
+#### On-bike check for M4 (owner; release build, logs captured to a file from the start, lessons 36, 40)
+
+Log tags: `autostart` (`presence.observe`, `presence.event`/`presence.device`, `presence.appeared`/`gone`,
+`presence.ride_start`, `presence.policy`, `presence.not_linked`, `update.ride_start`), `service`
+(`service.restarted`, `service.background_refused`, `service.background_no_permission`), `ride`, `bike`.
+`adb shell dumpsys companiondevice` shows the association and whether it is observed and present.
+
+1. **Setup through the consent sheet** (not "Paired with this phone"), then open the app once.
+   `dumpsys companiondevice`: our association, observing on; log `presence.observe` and
+   `presence.policy watched=true`.
+2. **D3 (no bike needed):** `am kill com.abid.handlebarlink`, screen off, then
+   `adb shell cmd companiondevice simulate-device-appeared <id>` (or `simulate-device-event <id> 0`): the ride
+   notification appears, no `ForegroundServiceStartNotAllowedException`; `presence.ride_start started=true`.
+3. **D4, 20 ignition cycles:** app not open, process dead, phone idle ≥ 30 min, screen off. Note the time of
+   ignition on; read `presence.appeared` and the link's `Ready` from the log. Record ignition→appeared and
+   appeared→Ready, median and p95. Target: Ready within the 02 §3.4 target (under 5 s after the event).
+4. **Ignition off:** the link drops, `presence.gone`; after 10 min without the bike the ride notification
+   goes (presence-driven linger). Ignition on within 10 min reconnects without a new start (D6).
+5. **D5, always armed:** the same timing with the link always armed and CDM observation stopped. This needs a
+   build with `linkConfig` returning always armed for watched bikes and `PresenceArming` not started (one
+   place each); record the same numbers.
+6. **D8:** reboot with the ignition on, and reboot then ignition on: Ready without opening the app (note
+   whether an unlock was needed). If not, add the boot receiver described above.
+7. **D9:** `adb install -r` of the release build with the ignition on: `update.ride_start started=true`, then
+   Ready. **D10:** `am kill` while Ready: `service.restarted`, Ready within about 10 s.
+8. **D16:** `dumpsys companiondevice` mid-ride: the association counts as present while connected.
+
+**Decision after 3 and 5:** keep presence-driven as the default for watched bikes if D4's p95 is acceptable
+and every cycle connected; otherwise switch `linkConfig` to always armed and record the numbers here.
 
 Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
@@ -161,7 +245,7 @@ No milestone starts before the previous one is done.
 | **M1** ✅ | `:bike:protocol`: the meter codec, written from `SAB_PROTOCOL.md`. | Unit tests cover every frame, reply and code verified on the CB350. |
 | **M2** | `:bike:link` (pure Kotlin engine): GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests; `:bike:link-android`: the real Android transport and CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
-| **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
+| **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. Steps: M4.1 setup ✅, M4.2 presence observing and service ✅, M4.3 update and restart recovery ✅ (built; the on-bike check in "Auto-start on ignition" is open). | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
 | **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components ✅, UI.3 pages and navigation ✅, UI.4 screenshot tests ✅. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
 | **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
 
@@ -170,7 +254,7 @@ No milestone starts before the previous one is done.
 Each one is a named test in the research docs; we run them in the milestone that needs them:
 
 - How fast Android notices the meter with the screen off (02 §6.5 D4/D5): decides "presence-driven"
-  vs "always armed" as the default.
+  vs "always armed" as the default (checklist under "Auto-start on ignition").
 - Whether the meter uses a fixed address (02 D2), and what force-stop does (02 D11).
 - Volume changes from a background service on Android 17 (01 §4.4).
 - The Poco's real screen density, glove use and sunlight readability (03 §9).

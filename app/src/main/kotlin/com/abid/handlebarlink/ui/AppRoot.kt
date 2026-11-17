@@ -291,7 +291,7 @@ private fun rememberAllAccess() =
  * Starts the ride while the app is on screen (a foreground service may only start then): it is shown once a
  * bike is set up, and starts when Nearby devices is allowed; a running ride ignores the second start. Each
  * resume also re-reads the permission for the link (Android sends no broadcast when it changes). Waking on
- * ignition is M4.
+ * ignition, with the app closed, is Android's companion-device presence (autostart/).
  */
 @Composable
 private fun RideAutoStart(viewModel: MainViewModel) {
