@@ -10,11 +10,13 @@ import com.abid.handlebarlink.data.DataStoreBikeSettings
 import com.abid.handlebarlink.devices.AndroidAudioRouting
 import com.abid.handlebarlink.devices.AndroidBluetoothDevices
 import com.abid.handlebarlink.devices.AndroidBluetoothPairing
+import com.abid.handlebarlink.devices.AndroidHeadsetLink
 import com.abid.handlebarlink.devices.AudioRouting
 import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.BluetoothPairing
 import com.abid.handlebarlink.devices.DataStoreDeviceSettings
 import com.abid.handlebarlink.devices.DeviceSettings
+import com.abid.handlebarlink.devices.HeadsetLink
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -41,6 +43,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun audioRouting(routing: AndroidAudioRouting): AudioRouting
+
+    @Binds
+    abstract fun headsetLink(link: AndroidHeadsetLink): HeadsetLink
 
     companion object {
         @Provides

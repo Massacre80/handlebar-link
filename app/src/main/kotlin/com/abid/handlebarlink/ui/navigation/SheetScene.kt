@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshotFlow
@@ -32,8 +33,12 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.scene.OverlayScene
 import androidx.navigation3.scene.Scene
@@ -110,54 +115,64 @@ class SheetScene<T : Any>(
                 .first()
             onBack()
         }
-        // Back belongs to the sheet: NavDisplay's own handler would pop every entry the sheet covers (the
-        // page under it too), as its scene is the page's. A back swipe draws the sheet down with the finger
-        // (predictive back, "Access progress manually"); released, the entry pops and onRemove finishes the
-        // slide; cancelled, the sheet springs back up.
-        val reset = rememberCoroutineScope()
-        PredictiveBackHandler { progress ->
-            try {
-                progress.collect { event ->
-                    val below = state.anchors.positionOf(SheetValue.Hidden)
-                    if (!below.isNaN()) state.dispatchRawDelta(event.progress * below * BACK_SHARE - state.offset)
-                }
-                onBack()
-            } catch (cancelled: CancellationException) {
-                reset.launch { state.animateTo(SheetValue.Shown, spec) }
-                throw cancelled
+        // Its own window above the app, as Material's sheet has: the page under it does not change while
+        // the sheet moves (nothing re-recorded or re-blurred, the tab bar included), and Back reaches the
+        // sheet first. No window dim or animation: the scrim and the spring are drawn here.
+        Dialog(onDismissRequest = onBack, properties = WINDOW) {
+            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+            SideEffect {
+                window?.setDimAmount(0f)
+                window?.setWindowAnimations(0)
             }
-        }
-        Box(Modifier.fillMaxSize()) {
-            Spacer(
-                Modifier
-                    .fillMaxSize()
-                    // The scrim follows the sheet: full when shown, none when below the screen.
-                    .drawBehind { drawRect(scrim, alpha = shown(state)) }
-                    .clickable(interactionSource = null, indication = null, role = Role.Button, onClick = onBack),
-            )
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    // A sheet taller than the screen stops below the status bar (it scrolls instead).
-                    .windowInsetsPadding(WindowInsets.statusBars)
-                    .widthIn(max = HlTheme.sizes.contentMax)
-                    .fillMaxWidth()
-                    .layout { measurable, constraints ->
-                        val sheet = measurable.measure(constraints)
-                        state.updateAnchors(
-                            DraggableAnchors {
-                                SheetValue.Shown at 0f
-                                SheetValue.Hidden at sheet.height.toFloat()
-                            },
-                        )
-                        layout(sheet.width, sheet.height) {
-                            // Read while placing only: dragging never recomposes. Below the screen until shown.
-                            val y = state.offset.takeUnless { it.isNaN() } ?: sheet.height.toFloat()
-                            sheet.place(0, y.roundToInt())
-                        }
-                    }.nestedScroll(remember(state) { HandOver(state, fling) })
-                    .anchoredDraggable(state, Orientation.Vertical, flingBehavior = fling),
-            ) { entry.Content() }
+            // Back belongs to the sheet: NavDisplay's own handler would pop every entry the sheet covers (the
+            // page under it too), as its scene is the page's. A back swipe draws the sheet down with the finger
+            // (predictive back, "Access progress manually"); released, the entry pops and onRemove finishes the
+            // slide; cancelled, the sheet springs back up.
+            val reset = rememberCoroutineScope()
+            PredictiveBackHandler { progress ->
+                try {
+                    progress.collect { event ->
+                        val below = state.anchors.positionOf(SheetValue.Hidden)
+                        if (!below.isNaN()) state.dispatchRawDelta(event.progress * below * BACK_SHARE - state.offset)
+                    }
+                    onBack()
+                } catch (cancelled: CancellationException) {
+                    reset.launch { state.animateTo(SheetValue.Shown, spec) }
+                    throw cancelled
+                }
+            }
+            Box(Modifier.fillMaxSize()) {
+                Spacer(
+                    Modifier
+                        .fillMaxSize()
+                        // The scrim follows the sheet: full when shown, none when below the screen.
+                        .drawBehind { drawRect(scrim, alpha = shown(state)) }
+                        .clickable(interactionSource = null, indication = null, role = Role.Button, onClick = onBack),
+                )
+                Box(
+                    Modifier
+                        .align(Alignment.BottomCenter)
+                        // A sheet taller than the screen stops below the status bar (it scrolls instead).
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .widthIn(max = HlTheme.sizes.contentMax)
+                        .fillMaxWidth()
+                        .layout { measurable, constraints ->
+                            val sheet = measurable.measure(constraints)
+                            state.updateAnchors(
+                                DraggableAnchors {
+                                    SheetValue.Shown at 0f
+                                    SheetValue.Hidden at sheet.height.toFloat()
+                                },
+                            )
+                            layout(sheet.width, sheet.height) {
+                                // Read while placing only: dragging never recomposes. Below the screen until shown.
+                                val y = state.offset.takeUnless { it.isNaN() } ?: sheet.height.toFloat()
+                                sheet.place(0, y.roundToInt())
+                            }
+                        }.nestedScroll(remember(state) { HandOver(state, fling) })
+                        .anchoredDraggable(state, Orientation.Vertical, flingBehavior = fling),
+                ) { entry.Content() }
+            }
         }
     }
 
@@ -247,6 +262,15 @@ private class HandOver(
 }
 
 private const val SHEET = "hl.sheet"
+
+/** Full screen and edge to edge; the sheet handles Back and taps outside itself. */
+private val WINDOW =
+    DialogProperties(
+        dismissOnBackPress = false,
+        dismissOnClickOutside = false,
+        usePlatformDefaultWidth = false,
+        decorFitsSystemWindows = false,
+    )
 
 /** How far a back swipe draws the sheet down, as a share of its height, before it is released. */
 private const val BACK_SHARE = 0.33f

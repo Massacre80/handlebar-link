@@ -194,7 +194,8 @@ private fun BoxScope.FloatingTabBar(
     val spacing = HlTheme.spacing
     val motion = HlTheme.motion
     AnimatedVisibility(
-        visible = state.current in TOP_LEVEL_DESTINATIONS.map { it.route },
+        // A sheet or dialog covers the page; the bar stays with the page under it.
+        visible = state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route },
         modifier = Modifier.align(Alignment.BottomCenter),
         enter = slideInVertically(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeIn(motion.fade()),
         exit = slideOutVertically(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeOut(motion.fade()),

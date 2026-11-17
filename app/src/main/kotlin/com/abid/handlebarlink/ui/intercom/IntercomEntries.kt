@@ -1,7 +1,11 @@
 package com.abid.handlebarlink.ui.intercom
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
@@ -90,6 +94,13 @@ private fun IntercomEntry(
     val viewModel: IntercomViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    // Android's companion-link consent, once per device, before the first reconnect.
+    val consent =
+        rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
+            viewModel.linked(result.resultCode, result.data)
+        }
+    val linking = state.reconnect as? Reconnecting.Linking
+    LaunchedEffect(linking) { linking?.let { consent.launch(IntentSenderRequest.Builder(it.consent).build()) } }
     IntercomScreen(
         state,
         IntercomActions(
@@ -109,6 +120,7 @@ private fun IntercomEntry(
             onChoosePrimary = viewModel::choosePrimary,
             onCalls = { navigator.navigate(CallsRoute) },
             onMusic = { navigator.navigate(MusicRoute) },
+            onReconnect = viewModel::reconnect,
             onVendorApp = { viewModel.vendorApp()?.let(context::startActivity) },
             onRemove = { device -> navigator.navigate(RemoveDeviceRoute(device.address, device.name)) },
         ),

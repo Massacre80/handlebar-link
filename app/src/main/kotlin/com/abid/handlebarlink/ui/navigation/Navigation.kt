@@ -40,6 +40,9 @@ class NavigationState(
     /** The screen on top. */
     val current: NavKey get() = stack(topLevelRoute).last()
 
+    /** The page shown: the current route, or the page under it when that is a sheet or dialog. */
+    val currentPage: NavKey get() = stack(topLevelRoute).last { it !is OverlayRoute }
+
     /** The tabs whose entries are shown: Home, and the selected tab on top of it. */
     val routesInUse: List<NavKey>
         get() = if (topLevelRoute == startRoute) listOf(startRoute) else listOf(startRoute, topLevelRoute)

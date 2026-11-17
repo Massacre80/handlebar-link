@@ -24,6 +24,8 @@ data class IntercomUiState(
     val outputs: List<Output> = emptyList(),
     /** The intercom maker's app is installed. */
     val vendorApp: Boolean = false,
+    /** Reconnecting a disconnected device from the app. */
+    val reconnect: Reconnecting = Reconnecting.Idle,
 ) {
     /** The device shown first: Home's tile, where calls go. */
     val primary: IntercomDevice? get() = devices.firstOrNull()
@@ -52,6 +54,29 @@ data class Output(
     val bluetooth: Boolean,
     val selected: Boolean,
 )
+
+/** Reconnecting a disconnected device from the page. */
+sealed interface Reconnecting {
+    /** Nothing asked. */
+    data object Idle : Reconnecting
+
+    /** Android's companion link is needed first: the consent to show for [address]. */
+    data class Linking(
+        val consent: android.content.IntentSender,
+        val address: String,
+    ) : Reconnecting
+
+    /** Android is connecting [address]. */
+    data class Connecting(
+        val address: String,
+    ) : Reconnecting
+
+    /** This phone's Android does not let apps reconnect. */
+    data object Unsupported : Reconnecting
+
+    /** It did not connect (off, out of range, refused). */
+    data object Failed : Reconnecting
+}
 
 /** Where call audio goes, as the rider chose (else the primary device). */
 sealed interface Calls {
@@ -170,6 +195,8 @@ data class IntercomActions(
     val onCalls: () -> Unit,
     /** Opens the chooser for where music plays (Android 14+). */
     val onMusic: () -> Unit,
+    /** Reconnects the device at the address. */
+    val onReconnect: (String) -> Unit,
     val onVendorApp: () -> Unit,
     val onRemove: (IntercomDevice) -> Unit,
 )

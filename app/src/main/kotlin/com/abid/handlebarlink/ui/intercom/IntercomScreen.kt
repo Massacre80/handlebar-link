@@ -22,11 +22,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlActionRow
-import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlBatteryLevel
 import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
@@ -38,8 +36,6 @@ import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
-import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
-import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
@@ -81,6 +77,7 @@ fun IntercomScreen(
             Empty(actions.onAdd)
         } else {
             PrimaryCard(primary)
+            if (!primary.connected) Reconnect(primary, state.reconnect, actions.onReconnect)
             Audio(state, primary, actions)
             Buttons(state.buttons)
             if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
@@ -122,6 +119,41 @@ private fun PrimaryCard(device: IntercomDevice) {
         battery = device.battery?.let { HlBatteryLevel(it, stringResource(R.string.device_battery, it)) },
         icon = kindIcon(device.kind),
     )
+}
+
+/**
+ * Reconnecting from the app (Android 17's connect, after one companion-link consent): the action, then
+ * "Connecting…", or why it cannot.
+ */
+@Composable
+private fun Reconnect(
+    device: IntercomDevice,
+    reconnect: Reconnecting,
+    onReconnect: (String) -> Unit,
+) {
+    val connecting = reconnect is Reconnecting.Connecting || reconnect is Reconnecting.Linking
+    val problem =
+        when (reconnect) {
+            Reconnecting.Unsupported -> R.string.intercom_reconnect_unsupported
+            Reconnecting.Failed -> R.string.intercom_reconnect_failed
+            else -> null
+        }
+    HlGroup {
+        HlActionRow(
+            HlIcons.Bluetooth,
+            stringResource(if (connecting) R.string.intercom_reconnecting else R.string.intercom_reconnect),
+            onClick = { if (!connecting) onReconnect(device.address) },
+        )
+        problem?.let {
+            HlGroupDivider()
+            HlText(
+                stringResource(it),
+                HlTheme.typography.meta,
+                HlTheme.colors.danger,
+                Modifier.padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
+            )
+        }
+    }
 }
 
 @Composable
@@ -258,62 +290,5 @@ private fun Details(
             { actions.onRemove(device) },
             destructive = true,
         )
-    }
-}
-
-private val PreviewDevice =
-    IntercomDevice(
-        address = "AA",
-        name = "V6 Pro+",
-        model = "V6 Pro+",
-        kind = DeviceKind.INTERCOM,
-        connected = true,
-        calls = true,
-        music = true,
-        battery = PREVIEW_BATTERY,
-    )
-
-/** One intercom connected, its battery known, buttons reaching CarLink; a second, passenger's intercom. */
-internal val PreviewIntercom =
-    IntercomUiState(
-        devices = listOf(PreviewDevice, PreviewDevice.copy(address = "BB", name = "Passenger", connected = false)),
-        music = Music.Primary,
-        buttons = Buttons.CARLINK,
-        calls = Calls.Device("AA", "V6 Pro+"),
-        outputs =
-            listOf(
-                Output("bt", "V6 Pro+", DeviceKind.INTERCOM, bluetooth = true, selected = true),
-                Output("phone", "Phone speaker", null, bluetooth = false, selected = false),
-            ),
-        vendorApp = true,
-    )
-
-internal val NoIntercomActions = IntercomActions({}, {}, {}, {}, {}, {}, {})
-
-private const val PREVIEW_BATTERY = 50
-
-@Preview(name = "Intercom · Night", widthDp = 411, heightDp = 1400)
-@Composable
-private fun IntercomNightPreview() {
-    HlTheme(HlThemeVariant.NIGHT) {
-        HlBackground(Modifier.fillMaxSize()) { IntercomScreen(PreviewIntercom, NoIntercomActions, PaddingValues()) }
-    }
-}
-
-@Preview(name = "Intercom · Bento", widthDp = 411, heightDp = 1400)
-@Composable
-private fun IntercomBentoPreview() {
-    HlTheme(HlThemeVariant.BENTO) {
-        HlBackground(Modifier.fillMaxSize()) {
-            IntercomScreen(PreviewIntercom.copy(buttons = Buttons.OTHER_APP), NoIntercomActions, PaddingValues())
-        }
-    }
-}
-
-@Preview(name = "Intercom · none", widthDp = 411, heightDp = 600)
-@Composable
-private fun IntercomEmptyPreview() {
-    HlTheme(HlThemeVariant.NIGHT) {
-        HlBackground(Modifier.fillMaxSize()) { IntercomScreen(IntercomUiState(), NoIntercomActions, PaddingValues()) }
     }
 }

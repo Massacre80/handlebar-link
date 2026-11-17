@@ -8,6 +8,12 @@ import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.devices.DeviceKind
 import kotlinx.serialization.Serializable
 
+/**
+ * A sheet or dialog over the page under it: it covers that page instead of replacing it, so the tab bar
+ * stays where the page has it.
+ */
+interface OverlayRoute : NavKey
+
 /** Home: the start destination (Navigation principles, "fixed start destination"). */
 @Serializable
 data object HomeRoute : NavKey
@@ -66,22 +72,22 @@ data class DeviceSheetRoute(
     val kind: DeviceKind,
     val audio: Boolean,
     val connected: Boolean,
-) : NavKey
+) : OverlayRoute
 
 /** "Calls": a sheet over the Intercom page choosing where call audio goes. */
 @Serializable
-data object CallsRoute : NavKey
+data object CallsRoute : OverlayRoute
 
 /** "Music": a sheet over the Intercom page choosing where media plays (Android 14+). */
 @Serializable
-data object MusicRoute : NavKey
+data object MusicRoute : OverlayRoute
 
 /** "Remove …?": a dialog over the Intercom page confirming a device's removal from the app. */
 @Serializable
 data class RemoveDeviceRoute(
     val address: String,
     val name: String,
-) : NavKey
+) : OverlayRoute
 
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(
