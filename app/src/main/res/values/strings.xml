@@ -71,7 +71,7 @@
     <string name="later_intercom">Pairing and audio for your helmet intercom will live here.</string>
 
     <!-- Settings -->
-    <string name="settings_look">Look</string>
+    <string name="settings_appearance">Appearance</string>
     <string name="theme_night">Night</string>
     <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
     <string name="theme_bento">Bento</string>

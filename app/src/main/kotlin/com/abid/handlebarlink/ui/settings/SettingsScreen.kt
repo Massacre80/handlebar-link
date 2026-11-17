@@ -50,8 +50,8 @@ data class SettingsAccess(
 
 /** Settings' actions. */
 data class SettingsActions(
-    /** Choose a look. */
-    val onTheme: (AppTheme) -> Unit,
+    /** Open the Appearance page. */
+    val onAppearance: () -> Unit,
     /** Choose a bike. */
     val onBike: (SelectedBike) -> Unit,
     /** Act on a permission: 0 Nearby devices, 1 notifications, 2 notification access, 3 location. */
@@ -72,34 +72,15 @@ fun SettingsScreen(
     access: SettingsAccess,
     actions: SettingsActions,
 ) {
-    val spacing = HlTheme.spacing
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .wrapContentWidth()
-            .widthIn(max = HlTheme.sizes.contentMax)
-            .padding(horizontal = spacing.s16, vertical = spacing.s8),
-        verticalArrangement = Arrangement.spacedBy(spacing.s20),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
-            HlIconButton(
-                HlIcons.ChevronRight,
-                stringResource(R.string.back),
-                actions.onBack,
-                Modifier.rotate(HALF_TURN),
-            )
-            HlText(
-                stringResource(R.string.settings),
-                HlTheme.typography.title,
-                HlTheme.colors.ink,
-                Modifier.semantics { heading() },
-            )
-        }
+    SubPage(stringResource(R.string.settings), actions.onBack) {
         BikeSection(state, access.nearby, actions)
         PermissionsSection(access, actions.onAccess)
-        LookSection(state.theme, actions.onTheme)
+        HlValueRow(
+            value = stringResource(R.string.settings_appearance),
+            hint = stringResource(themeName(state.theme)),
+            onClick = actions.onAppearance,
+            container = HlTheme.colors.panel,
+        )
     }
 }
 
@@ -176,32 +157,6 @@ private fun PermissionsSection(
     }
 }
 
-@Composable
-private fun LookSection(
-    theme: AppTheme,
-    onTheme: (AppTheme) -> Unit,
-) {
-    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
-        HlSectionLabel(stringResource(R.string.settings_look))
-        HlOptionRow(
-            icon = null,
-            title = stringResource(R.string.theme_night),
-            subtitle = stringResource(R.string.theme_night_detail),
-            selected = theme == AppTheme.NIGHT,
-            onClick = { onTheme(AppTheme.NIGHT) },
-            container = HlTheme.colors.panel,
-        )
-        HlOptionRow(
-            icon = null,
-            title = stringResource(R.string.theme_bento),
-            subtitle = stringResource(R.string.theme_bento_detail),
-            selected = theme == AppTheme.BENTO,
-            onClick = { onTheme(AppTheme.BENTO) },
-            container = HlTheme.colors.panel,
-        )
-    }
-}
-
 /** The status word shown on a permission row. */
 @StringRes
 internal fun accessText(status: Access): Int =
@@ -210,8 +165,6 @@ internal fun accessText(status: Access): Int =
         Access.ASK -> R.string.access_ask
         Access.BLOCKED -> R.string.access_blocked
     }
-
-private const val HALF_TURN = 180f
 
 /** Sample state for previews and screenshot tests. */
 internal val PreviewSettings =

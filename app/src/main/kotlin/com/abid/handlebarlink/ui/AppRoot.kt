@@ -41,6 +41,7 @@ import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.later.LaterScreen
+import com.abid.handlebarlink.ui.navigation.AppearanceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
@@ -58,6 +59,7 @@ import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
+import com.abid.handlebarlink.ui.settings.AppearanceScreen
 import com.abid.handlebarlink.ui.settings.SettingsAccess
 import com.abid.handlebarlink.ui.settings.SettingsActions
 import com.abid.handlebarlink.ui.settings.SettingsScreen
@@ -127,7 +129,14 @@ private fun BoxScope.Tabs() {
                     barSpace,
                 )
             }
-            entry<SettingsRoute> { SettingsEntry(onBack = navigator::goBack) }
+            entry<SettingsRoute> {
+                SettingsEntry(onAppearance = { navigator.navigate(AppearanceRoute) }, onBack = navigator::goBack)
+            }
+            entry<AppearanceRoute> {
+                val viewModel: SettingsViewModel = hiltViewModel()
+                val settings by viewModel.uiState.collectAsStateWithLifecycle()
+                AppearanceScreen(settings.theme, viewModel::choose, onBack = navigator::goBack)
+            }
         }
     val motion = HlTheme.motion
     NavDisplay(
@@ -170,7 +179,10 @@ private fun BoxScope.FloatingTabBar(
 
 /** Settings with its view model and the three permissions (re-read on every resume). */
 @Composable
-private fun SettingsEntry(onBack: () -> Unit) {
+private fun SettingsEntry(
+    onAppearance: () -> Unit,
+    onBack: () -> Unit,
+) {
     val context = LocalContext.current
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -187,7 +199,7 @@ private fun SettingsEntry(onBack: () -> Unit) {
         state,
         SettingsAccess(nearby.status, notifications.status, media.status, location.status),
         SettingsActions(
-            onTheme = viewModel::choose,
+            onAppearance = onAppearance,
             onBike = viewModel::choose,
             onAccess = { listOf(nearby, notifications, media, location)[it].act() },
             onSetup = viewModel::setUpAgain,

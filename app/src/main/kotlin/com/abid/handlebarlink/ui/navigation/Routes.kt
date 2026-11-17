@@ -31,6 +31,10 @@ data object IntercomRoute : NavKey
 @Serializable
 data object SettingsRoute : NavKey
 
+/** Settings › Appearance: the theme, pushed over Settings on Home's back stack. */
+@Serializable
+data object AppearanceRoute : NavKey
+
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(
     /** The tab's root route; each tab keeps its own back stack. */

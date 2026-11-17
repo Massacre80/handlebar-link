@@ -258,7 +258,9 @@ public fun HlOptionRow(
             .fillMaxWidth()
             .clip(shape)
             .background(if (selected) colors.raisedHi else container)
-            .then(if (selected) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
+            // Bento's artboard outlines the chosen row in ink. On Night that was a white ring, removed at the
+            // owner's request (2026-11-17).
+            .then(if (selected && !night) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
             .selectable(selected, press, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
         verticalAlignment = Alignment.CenterVertically,

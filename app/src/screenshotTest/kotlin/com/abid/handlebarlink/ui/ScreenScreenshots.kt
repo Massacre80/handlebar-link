@@ -24,6 +24,7 @@ import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.settings.AppearanceScreen
 import com.abid.handlebarlink.ui.settings.NoActions
 import com.abid.handlebarlink.ui.settings.PreviewAccess
 import com.abid.handlebarlink.ui.settings.PreviewSettings
@@ -115,3 +116,23 @@ fun SettingsNight() = Settings(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun SettingsBento() = Settings(HlThemeVariant.BENTO)
+
+@Composable
+private fun Appearance(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        HlBackground(Modifier.fillMaxSize()) {
+            AppearanceScreen(if (variant == HlThemeVariant.NIGHT) AppTheme.NIGHT else AppTheme.BENTO, {}, {})
+        }
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun AppearanceNight() = Appearance(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun AppearanceBento() = Appearance(HlThemeVariant.BENTO)
