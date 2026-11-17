@@ -1,3 +1,6 @@
+// Virtual-time controls of kotlinx-coroutines-test (advanceTimeBy, runCurrent), as in MeterSessionTest.
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package com.abid.handlebarlink.bike.link.session
 
 import assertk.assertThat
@@ -12,6 +15,8 @@ import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.core.common.log.LogEntry
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.testing.RecordingLogSink
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.time.Clock
@@ -117,6 +122,55 @@ class GattProbeTest {
         }
 
     @Test
+    fun `listening turns on exactly the vendor notifications, writes nothing else, and logs what they send`() =
+        runTest {
+            val vendorA = UUID.fromString("cc036c66-e0c9-42ce-b11f-257c546c5ac2")
+            val vendorB = UUID.fromString("146a0176-b46f-48e7-ab74-70a7ce1a5341")
+            val vendorC = UUID.fromString("e95a363a-5a67-437a-88a4-153dbe498bf1")
+            val notifyA1 = UUID.fromString("85569fa7-6645-415d-8439-fb32f08e2133")
+            val commandA = UUID.fromString("3bda2a5b-8267-4db0-8064-d0242117d473")
+            val notifyA2 = UUID.fromString("3030ac98-582b-4c15-8ef2-e80ef8d303c8")
+            val bothB1 = UUID.fromString("2573cb1a-7a02-45cd-957e-ebe6ab066539")
+            val bothB2 = UUID.fromString("f7b4d188-ad35-424f-a473-000dcdcfd8fb")
+            val readB = UUID.fromString("fe7964e8-a8cc-4fbf-bd1d-14f6e9262bc5")
+            val commandC = UUID.fromString("96f6a339-60dc-4983-9789-8da520b7b5f7")
+            meter.services =
+                FakeGattLink.CB350_TABLE +
+                mapOf(
+                    vendorA to setOf(notifyA1, commandA, notifyA2),
+                    vendorB to setOf(bothB1, bothB2, readB),
+                    vendorC to setOf(commandC),
+                )
+            meter.properties =
+                mapOf(
+                    notifyA1 to NOTIFY,
+                    commandA to WRITE,
+                    notifyA2 to NOTIFY,
+                    bothB1 to WRITE_NOTIFY,
+                    bothB2 to WRITE_NOTIFY,
+                    readB to READ_WRITE,
+                    commandC to WRITE,
+                    SabUuids.FUNCTION_SOURCE to NOTIFY,
+                    SabUuids.ASSIGNMENT_CONTROL to WRITE_NOTIFY,
+                    SabUuids.DATA_CONTROL_POINT to WRITE_NOTIFY,
+                )
+
+            // backgroundScope work runs on time advances (advanceUntilIdle skips it).
+            val listening = backgroundScope.launch { probe.listen() }
+            testScheduler.advanceTimeBy(SETTLE_MS)
+            testScheduler.runCurrent()
+            meter.send(notifyA1, byteArrayOf(0x12, 0x34))
+            meter.send(SabUuids.FUNCTION_SOURCE, byteArrayOf(3))
+            testScheduler.runCurrent()
+
+            assertThat(meter.subscribed).containsExactlyInAnyOrder(notifyA1, notifyA2, bothB1, bothB2)
+            assertThat(meter.writes).isEmpty()
+            assertThat(meter.reads).isEmpty()
+            assertThat(logged("probe.notify").map { it.field("hex") }).containsExactlyInAnyOrder("12 34")
+            listening.cancel()
+        }
+
+    @Test
     fun `values print as text when they are text`() {
         assertThat(GattProbe.printable("HONDA BTU 2040".toByteArray() + byteArrayOf(0, 0))).isEqualTo("HONDA BTU 2040")
         assertThat(GattProbe.printable(byteArrayOf(0xF5.toByte(), 0x03))).isNull()
@@ -126,5 +180,8 @@ class GattProbeTest {
     private companion object {
         const val WRITE_NOTIFY = 0x04 or 0x08 or 0x10
         const val NOTIFY = 0x10
+        const val WRITE = 0x08
+        const val READ_WRITE = 0x02 or 0x04
+        const val SETTLE_MS = 1_000L
     }
 }

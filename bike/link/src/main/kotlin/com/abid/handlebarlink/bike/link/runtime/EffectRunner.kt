@@ -172,10 +172,12 @@ internal class EffectRunner(
             scope.launch {
                 val result = setUp(gen, session)
                 post(result)
-                // Once per run, after the meter is set up (BikeLinkConfig.probeGatt).
-                if (result is Event.SetupDone && env.probeGatt && !probed) {
+                // After the meter is set up (BikeLinkConfig.probeGatt): the reads once per run, then the
+                // vendor services' notifications on every connection, until it closes (this job is cancelled).
+                if (result is Event.SetupDone && env.probeGatt) {
+                    val readsDue = !probed
                     probed = true
-                    probe(gen, generation.connection)
+                    probe(gen, generation.connection, readsDue)
                 }
             }
     }
@@ -185,9 +187,12 @@ internal class EffectRunner(
     private suspend fun probe(
         gen: Int,
         link: GattLink,
+        reads: Boolean,
     ) {
         try {
-            GattProbe(link, log).run()
+            val probe = GattProbe(link, log)
+            if (reads) probe.run()
+            probe.listen()
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

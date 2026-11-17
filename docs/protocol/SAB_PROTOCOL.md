@@ -158,6 +158,8 @@ Standard 16-bit UUIDs use base `0000xxxx-0000-1000-8000-00805F9B34FB` (`B/model/
 | **Unknown `146a0176-b46f-48e7-ab74-70a7ce1a5341`** | `2573cb1a-7a02-45cd-957e-ebe6ab066539` write-no-response, notify; `f7b4d188-ad35-424f-a473-000dcdcfd8fb` write, notify; `fe7964e8-a8cc-4fbf-bd1d-14f6e9262bc5` read, write-no-response | | not in RoadSync |
 | **Unknown `e95a363a-5a67-437a-88a4-153dbe498bf1`** | `96f6a339-60dc-4983-9789-8da520b7b5f7` write-no-response | | not in RoadSync |
 
+**Listening to the vendor services (owner's approval, 2026-11-17).** None of the three unknown services' UUIDs occurs in RoadSync 23.10.20's code (a byte search of its `classes*.dex` finds the four known SAB service UUIDs and none of these), so they are probably Visteon's. After every setup the probe turns on notifications (CCCD `01 00`, the only write it makes) on exactly `85569fa7`, `3030ac98` (service `cc036c66`), `2573cb1a`, `f7b4d188` (service `146a0176`) and logs every value as `probe.notify`. Nothing is ever written to their command characteristics (`3bda2a5b`, `96f6a339`, or the write side of `2573cb1a`/`f7b4d188`).
+
 **Probe run 2, 2026-11-17** (HID skipped; every read succeeded):
 
 | Characteristic | Value | Meaning (§2.1) |

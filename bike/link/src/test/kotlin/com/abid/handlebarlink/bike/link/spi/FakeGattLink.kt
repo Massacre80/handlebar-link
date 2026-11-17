@@ -67,6 +67,12 @@ internal class FakeGattLink : GattLink {
     val operations = mutableListOf<GattOp>()
     private var inFlight = false
 
+    /** The meter sends [value] on [characteristic] (any notification). */
+    fun send(
+        characteristic: UUID,
+        value: ByteArray,
+    ) = notify(characteristic, value)
+
     /** The rider pressed the switch: the meter sends [code] on the function source. */
     fun press(code: Int) {
         notify(SabUuids.FUNCTION_SOURCE, byteArrayOf(code.toByte()))

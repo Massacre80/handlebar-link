@@ -8,6 +8,10 @@ import com.abid.handlebarlink.bike.link.spi.GattLink
 import com.abid.handlebarlink.bike.protocol.SabSafety
 import com.abid.handlebarlink.bike.protocol.toSabHex
 import com.abid.handlebarlink.core.common.log.Logger
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.launch
 import java.util.UUID
 
 /**
@@ -35,6 +39,49 @@ internal class GattProbe(
             }
         }
         log.info("probe.done")
+    }
+
+    /**
+     * Listens to the meter's vendor services that RoadSync never uses (SAB_PROTOCOL.md "Probe run 1"):
+     * turns on notifications (CCCD `01 00`) of exactly [VENDOR_NOTIFY] and logs every value they send
+     * (`probe.notify`) until cancelled with the connection. The owner allowed only this write
+     * (2026-11-17): nothing is ever written to these services' command characteristics.
+     */
+    suspend fun listen() {
+        val targets =
+            link.services().flatMap { service ->
+                service.characteristics
+                    .filter { (service.uuid to it.uuid) in VENDOR_NOTIFY && it.properties and PROPERTY_NOTIFY != 0 }
+                    .map { service.uuid to it.uuid }
+            }
+        coroutineScope {
+            // Collecting before subscribing: the first value may come at once.
+            val listening =
+                launch(start = CoroutineStart.UNDISPATCHED) {
+                    link.notifications
+                        .filter { notification -> VENDOR_NOTIFY.any { it.second == notification.characteristic } }
+                        .collect { notification ->
+                            log.info(
+                                "probe.notify",
+                                "characteristic" to notification.characteristic,
+                                "size" to notification.value.size,
+                                "hex" to notification.value.toSabHex(),
+                                "text" to printable(notification.value),
+                            )
+                        }
+                }
+            targets.forEach { (service, characteristic) ->
+                try {
+                    timed(GattOp.ENABLE_NOTIFICATIONS, Timeouts.OPERATION_MS) {
+                        link.enableNotifications(service, characteristic)
+                    }
+                    log.info("probe.listen", "characteristic" to characteristic)
+                } catch (e: LinkException) {
+                    log.warn("probe.listen.failed", "characteristic" to characteristic, "error" to e.error)
+                }
+            }
+            listening.join()
+        }
     }
 
     private fun describe(
@@ -106,6 +153,22 @@ internal class GattProbe(
     }
 
     internal companion object {
+        private const val PROPERTY_NOTIFY = 0x10
+
+        /** The vendor services' characteristics that can notify (probe run 1); nothing else is subscribed. */
+        val VENDOR_NOTIFY: Set<Pair<UUID, UUID>> =
+            setOf(
+                vendor("cc036c66-e0c9-42ce-b11f-257c546c5ac2", "85569fa7-6645-415d-8439-fb32f08e2133"),
+                vendor("cc036c66-e0c9-42ce-b11f-257c546c5ac2", "3030ac98-582b-4c15-8ef2-e80ef8d303c8"),
+                vendor("146a0176-b46f-48e7-ab74-70a7ce1a5341", "2573cb1a-7a02-45cd-957e-ebe6ab066539"),
+                vendor("146a0176-b46f-48e7-ab74-70a7ce1a5341", "f7b4d188-ad35-424f-a473-000dcdcfd8fb"),
+            )
+
+        private fun vendor(
+            service: String,
+            characteristic: String,
+        ) = UUID.fromString(service) to UUID.fromString(characteristic)
+
         /** Human Interface Device service (0x1812). */
         val HID_SERVICE: UUID = UUID.fromString("00001812-0000-1000-8000-00805f9b34fb")
 

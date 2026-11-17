@@ -51,8 +51,9 @@ public data class BikeLinkConfig(
     val lingerMillis: Long? = null,
     /**
      * After the first setup of each run, read every readable characteristic and descriptor the meter has
-     * and log them (the GATT probe: read-only, never the DFU service but its version). For finding what
-     * the meter offers beyond RoadSync's use.
+     * and log them (the GATT probe: never the DFU service but its version, never HID); after every setup,
+     * turn on the vendor services' notifications and log what they send (the one write the probe makes).
+     * For finding what the meter offers beyond RoadSync's use.
      */
     val probeGatt: Boolean = false,
 )
