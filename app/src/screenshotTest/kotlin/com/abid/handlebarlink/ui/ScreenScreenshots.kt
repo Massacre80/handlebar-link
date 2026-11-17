@@ -34,6 +34,11 @@ import com.abid.handlebarlink.ui.devices.SheetDevice
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
+import com.abid.handlebarlink.ui.intercom.Buttons
+import com.abid.handlebarlink.ui.intercom.IntercomScreen
+import com.abid.handlebarlink.ui.intercom.IntercomUiState
+import com.abid.handlebarlink.ui.intercom.NoIntercomActions
+import com.abid.handlebarlink.ui.intercom.PreviewIntercom
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.permissions.Access
@@ -294,3 +299,29 @@ fun PairDeviceNight() = PairDevice(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun PairDeviceBento() = PairDevice(HlThemeVariant.BENTO)
+
+@Composable
+private fun Intercom(
+    variant: HlThemeVariant,
+    state: IntercomUiState,
+) = HlTheme(variant) {
+    HlBackground(Modifier.fillMaxSize()) { IntercomScreen(state, NoIntercomActions, PaddingValues()) }
+}
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun IntercomNight() = Intercom(HlThemeVariant.NIGHT, PreviewIntercom)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun IntercomBento() = Intercom(HlThemeVariant.BENTO, PreviewIntercom.copy(buttons = Buttons.OTHER_APP))
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun IntercomNone() = Intercom(HlThemeVariant.NIGHT, IntercomUiState())

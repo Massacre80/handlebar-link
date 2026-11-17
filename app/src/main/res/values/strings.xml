@@ -54,6 +54,37 @@
     <string name="add_device">Add device</string>
     <string name="add_device_short">Add</string>
     <string name="add_device_detail">Intercom or earbuds</string>
+    <string name="intercom_empty_detail">Add your helmet intercom to see its battery, and where calls and music play.</string>
+    <string name="intercom_audio">Audio</string>
+    <string name="intercom_calls">Calls</string>
+    <string name="intercom_calls_detail">Choose where call audio plays</string>
+    <string name="intercom_phone">This phone</string>
+    <string name="intercom_phone_detail">Earpiece or speaker</string>
+    <string name="intercom_off">Not connected</string>
+    <string name="intercom_music">Music</string>
+    <string name="intercom_music_detail">Choose where music and CarPlay audio play</string>
+    <string name="intercom_output_playing">Playing now</string>
+    <string name="intercom_output_bluetooth">Bluetooth</string>
+    <string name="intercom_output_phone">On this phone</string>
+    <string name="intercom_music_primary">On this intercom</string>
+    <string name="intercom_music_other">On %1$s</string>
+    <string name="intercom_music_other_bluetooth">On another Bluetooth device</string>
+    <string name="intercom_music_phone">On the phone</string>
+    <string name="intercom_buttons">Buttons</string>
+    <string name="intercom_buttons_media">Play, pause, skip</string>
+    <string name="intercom_buttons_carlink">Control CarPlay</string>
+    <string name="intercom_buttons_other">Go to another app. Play something in CarLink once to take them back.</string>
+    <string name="intercom_buttons_unknown">Go to the app that last played audio</string>
+    <string name="intercom_primary">Primary</string>
+    <string name="intercom_primary_intro">Home shows it, and calls go to it.</string>
+    <string name="intercom_details">Details</string>
+    <string name="intercom_name">Name</string>
+    <string name="intercom_kind">Kind</string>
+    <string name="intercom_model">Model</string>
+    <string name="intercom_vendor_app">Open EJEAS app</string>
+    <string name="intercom_remove">Remove from app</string>
+    <string name="intercom_remove_title">Remove %1$s?</string>
+    <string name="intercom_remove_detail">It stays paired with this phone. Unpair it in Android\'s Bluetooth settings.</string>
     <string name="devices_intro">Pick your intercom or headset. Devices paired with this phone are listed here.</string>
     <string name="devices_audio">Audio devices</string>
     <string name="devices_other">Other devices</string>
@@ -109,7 +140,6 @@
     <string name="later_rides">Your rides appear here once ride logging exists.</string>
     <string name="later_carplay">CarPlay runs in CarLink until our own receiver is ready.</string>
     <string name="later_garage">Odometer, service and bike details will live here.</string>
-    <string name="later_intercom">Pairing and audio for your helmet intercom will live here.</string>
 
     <!-- Settings -->
     <string name="settings_appearance">Appearance</string>

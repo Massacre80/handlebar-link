@@ -114,7 +114,19 @@ internal fun Devices() {
         )
         HlGroupDivider()
         HlNavRow(HlIcons.Plus, "Pair a new device", "In Android's Bluetooth settings", onClick = {})
+        HlGroupDivider()
+        HlActionRow(HlIcons.Trash, "Remove from app", onClick = {}, destructive = true)
     }
+    HlDialog(
+        HlIcons.Trash,
+        "Remove V6 Pro+?",
+        "It stays paired with this phone.",
+        confirm = "Remove from app",
+        onConfirm = {},
+        dismiss = "Cancel",
+        onDismiss = {},
+        destructive = true,
+    )
 }
 
 @Composable

@@ -63,9 +63,7 @@ class MediaSessionControlTarget
                 ControlAction.NEXT -> KeyEvent.KEYCODE_MEDIA_NEXT
                 ControlAction.PREVIOUS -> KeyEvent.KEYCODE_MEDIA_PREVIOUS
             }
-
-        private companion object {
-            /** The official CarLink and its debug build. */
-            val CARLINK_PACKAGES = setOf("com.carlink.app", "com.carlink.app.hudtest")
-        }
     }
+
+/** The CarPlay receiver's packages: the official CarLink and its debug build. */
+val CARLINK_PACKAGES: Set<String> = setOf("com.carlink.app", "com.carlink.app.hudtest")

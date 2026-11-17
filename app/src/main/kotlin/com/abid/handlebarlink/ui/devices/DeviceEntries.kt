@@ -159,8 +159,8 @@ private fun DeviceChoice.toSheet() =
         connected = connected,
     )
 
-/** Android's Bluetooth settings, where a new device is paired (no permission needed). */
-private fun openBluetoothSettings(context: Context) {
+/** Android's Bluetooth settings: pairing, reconnecting, unpairing (no permission needed). */
+internal fun openBluetoothSettings(context: Context) {
     try {
         context.startActivity(Intent(Settings.ACTION_BLUETOOTH_SETTINGS))
     } catch (_: ActivityNotFoundException) {

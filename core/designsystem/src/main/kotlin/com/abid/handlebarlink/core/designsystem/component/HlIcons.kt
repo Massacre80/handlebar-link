@@ -62,6 +62,12 @@ public object HlIcons {
     /** Selected. */
     @DrawableRes public val Check: Int = R.drawable.hl_ic_check
 
+    /** Removing something (destructive actions). */
+    @DrawableRes public val Trash: Int = R.drawable.hl_ic_trash
+
+    /** This phone (as an audio choice). */
+    @DrawableRes public val Phone: Int = R.drawable.hl_ic_phone
+
     /** A Bluetooth device. */
     @DrawableRes public val Bluetooth: Int = R.drawable.hl_ic_bluetooth
 

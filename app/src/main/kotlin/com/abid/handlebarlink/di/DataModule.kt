@@ -7,8 +7,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.DataStoreBikeSettings
+import com.abid.handlebarlink.devices.AndroidAudioRouting
 import com.abid.handlebarlink.devices.AndroidBluetoothDevices
 import com.abid.handlebarlink.devices.AndroidBluetoothPairing
+import com.abid.handlebarlink.devices.AudioRouting
 import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.BluetoothPairing
 import com.abid.handlebarlink.devices.DataStoreDeviceSettings
@@ -36,6 +38,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bluetoothPairing(pairing: AndroidBluetoothPairing): BluetoothPairing
+
+    @Binds
+    abstract fun audioRouting(routing: AndroidAudioRouting): AudioRouting
 
     companion object {
         @Provides

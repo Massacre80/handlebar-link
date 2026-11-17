@@ -8,9 +8,13 @@ import androidx.core.telecom.CallControlResult
 import androidx.core.telecom.CallEndpointCompat
 import androidx.core.telecom.CallsManager
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.devices.DeviceSettings
+import com.abid.handlebarlink.devices.PHONE
+import com.abid.handlebarlink.devices.primary
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -26,10 +30,25 @@ class IntercomCallRoute
     constructor(
         @ApplicationContext context: Context,
         logger: Logger,
+        private val devices: DeviceSettings,
     ) {
         private val log = logger.child("callaudio")
         private val calls = CallsManager(context)
         private var registered = false
+
+        /**
+         * Where the rider sends calls (Intercom page): [PHONE], the chosen device or the primary device, by its
+         * Bluetooth name (Telecom's endpoints carry the name, not the address).
+         */
+        private suspend fun callTarget(): String? {
+            val saved = devices.devices.first()
+            val choice = devices.calls.first()
+            return if (choice == PHONE) {
+                PHONE
+            } else {
+                (saved.firstOrNull { it.address == choice } ?: saved.primary(devices.primary.first()))?.model
+            }
+        }
 
         /**
          * Holds one call until [until] returns, preferring a Bluetooth endpoint (the intercom) whenever one is
@@ -38,6 +57,7 @@ class IntercomCallRoute
         @Suppress("TooGenericExceptionCaught") // Telecom reports a refused call as any exception; logged, not fatal.
         suspend fun hold(until: suspend () -> Unit) {
             try {
+                val target = callTarget()
                 val done = CompletableDeferred<Unit>()
                 if (!registered) {
                     calls.registerAppWithTelecom(CallsManager.CAPABILITY_BASELINE)
@@ -60,8 +80,8 @@ class IntercomCallRoute
                     launch {
                         availableEndpoints.collect { endpoints ->
                             log.info("callaudio.endpoints", "available" to endpoints.map { "${it.name}:${it.type}" })
-                            val intercom = endpoints.firstOrNull { it.type == CallEndpointCompat.TYPE_BLUETOOTH }
-                            if (intercom != null && current?.type != CallEndpointCompat.TYPE_BLUETOOTH) {
+                            val intercom = callEndpoint(endpoints, target)
+                            if (intercom != null && current?.identifier != intercom.identifier) {
                                 val result = requestEndpointChange(intercom)
                                 log.info(
                                     "callaudio.route",
@@ -101,3 +121,19 @@ class IntercomCallRoute
                 )
         }
     }
+
+/**
+ * The endpoint for call audio: the phone's earpiece (else speaker) for [PHONE]; else the Bluetooth endpoint
+ * named [target] (Telecom endpoints carry the name, not the address), else any Bluetooth one.
+ */
+internal fun callEndpoint(
+    endpoints: List<CallEndpointCompat>,
+    target: String?,
+): CallEndpointCompat? {
+    if (target == PHONE) {
+        return endpoints.firstOrNull { it.type == CallEndpointCompat.TYPE_EARPIECE }
+            ?: endpoints.firstOrNull { it.type == CallEndpointCompat.TYPE_SPEAKER }
+    }
+    val bluetooth = endpoints.filter { it.type == CallEndpointCompat.TYPE_BLUETOOTH }
+    return bluetooth.firstOrNull { it.name.toString() == target } ?: bluetooth.firstOrNull()
+}

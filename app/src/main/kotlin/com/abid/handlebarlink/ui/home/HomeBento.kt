@@ -72,6 +72,7 @@ internal fun HomeBento(
     onSettings: () -> Unit,
     contentPadding: PaddingValues,
     onAddDevice: () -> Unit,
+    onDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     // The page scrolls full width; wide windows centre a column of at most HlSizes.contentMax.
@@ -108,6 +109,8 @@ internal fun HomeBento(
                     bentoDeviceDetail(device),
                     connected = device?.connected,
                     modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
+                    // The device's page; with none added, Add device.
+                    onClick = if (device != null) onDevice else onAddDevice,
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
                 // Grows into the Add device page; the slot keeps its own size inside (no stretching).

@@ -41,20 +41,24 @@ public fun HlButton(
     enabled: Boolean = true,
     brand: Boolean = false,
     chevron: Boolean = false,
+    destructive: Boolean = false,
 ) {
     val colors = HlTheme.colors
     // [brand]: the setup screens' one main action (lime pill, "Start"). Otherwise Bento's artboard: inverse
     // fill; Night has no sheet artboard: a dark fill would vanish on its ground, so it uses Night's action
     // colours (white), as its CarPlay buttons do.
     val night = HlTheme.variant == HlThemeVariant.NIGHT
+    // [destructive]: the confirm of an action that removes something, in the danger colour.
     val fill =
         when {
+            destructive -> colors.danger
             brand -> colors.brand
             night -> colors.action
             else -> colors.surfaceInverse
         }
     val ink =
         when {
+            destructive -> colors.inkInverse
             brand -> colors.brandInk
             night -> colors.onAction
             else -> colors.inkInverse

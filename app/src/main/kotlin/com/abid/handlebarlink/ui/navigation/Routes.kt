@@ -68,6 +68,21 @@ data class DeviceSheetRoute(
     val connected: Boolean,
 ) : NavKey
 
+/** "Calls": a sheet over the Intercom page choosing where call audio goes. */
+@Serializable
+data object CallsRoute : NavKey
+
+/** "Music": a sheet over the Intercom page choosing where media plays (Android 14+). */
+@Serializable
+data object MusicRoute : NavKey
+
+/** "Remove …?": a dialog over the Intercom page confirming a device's removal from the app. */
+@Serializable
+data class RemoveDeviceRoute(
+    val address: String,
+    val name: String,
+) : NavKey
+
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(
     /** The tab's root route; each tab keeps its own back stack. */

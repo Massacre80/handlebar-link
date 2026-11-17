@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -87,5 +88,37 @@ public fun HlNavRow(
         }
         trailing?.invoke()
         HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
+    }
+}
+
+/**
+ * A row that acts at once instead of opening something ("Remove from app"): the icon and label, no
+ * chevron. [destructive] paints both in the danger colour, so a removal reads as one before it is tapped.
+ */
+@Composable
+public fun HlActionRow(
+    @DrawableRes icon: Int,
+    title: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    destructive: Boolean = false,
+) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    val tint = if (destructive) colors.danger else colors.ink
+    val press = remember { MutableInteractionSource() }
+    Row(
+        modifier
+            .pressScale(press, HlTheme.motion)
+            .fillMaxWidth()
+            .sizeIn(minHeight = HlTheme.sizes.controlLarge)
+            .clip(rowShape(HlTheme.radii.control))
+            .clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick)
+            .padding(horizontal = spacing.s16, vertical = spacing.s12),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.s12),
+    ) {
+        HlIcon(icon, tint, size = HlTheme.sizes.iconSmall)
+        HlText(title, HlTheme.typography.value, tint, maxLines = 1)
     }
 }

@@ -82,6 +82,7 @@ internal fun HomeNight(
     onSettings: () -> Unit,
     contentPadding: PaddingValues,
     onAddDevice: () -> Unit,
+    onDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     val column = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
@@ -110,40 +111,59 @@ internal fun HomeNight(
             NightGauges(column)
             Box(column.height(heroHeight)) {
                 HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
-                CardRow(Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16)) {
-                    val device = state.device
-                    DeviceTile(
-                        stringResource(device?.let { kindName(it.kind) } ?: R.string.intercom),
-                        device?.name ?: stringResource(R.string.intercom_none),
-                        nightDeviceDetail(device),
-                        connected = device?.connected,
-                        modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
-                        battery =
-                            device?.battery?.let {
-                                HlBatteryLevel(
-                                    it,
-                                    stringResource(R.string.device_battery, it),
-                                )
-                            },
-                        backdrop = backdrop,
-                        icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
-                    )
-                    // Grows into the Add device page; the slot keeps its own size inside (no stretching).
-                    val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
-                    Box(Modifier.weight(1f).containerTransform(addDevice).fillMaxHeight()) {
-                        AddDeviceSlot(
-                            stringResource(R.string.add_device),
-                            stringResource(R.string.add_device_detail),
-                            Modifier.containerContent(addDevice).fillMaxSize(),
-                            onClick = onAddDevice,
-                            backdrop = backdrop,
-                        )
-                    }
-                }
+                NightDevices(
+                    state.device,
+                    backdrop,
+                    onAddDevice,
+                    onDevice,
+                    Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
+                )
             }
             // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.
             Spacer(Modifier.weight(1f))
             CarPlayCard(column.padding(spacing.s16))
+        }
+    }
+}
+
+/** The device tile (the device's page, or Add device when none) and the Add device slot. */
+@Composable
+private fun NightDevices(
+    device: HomeDevice?,
+    backdrop: Backdrop,
+    onAddDevice: () -> Unit,
+    onDevice: () -> Unit,
+    modifier: Modifier,
+) {
+    CardRow(modifier) {
+        DeviceTile(
+            stringResource(device?.let { kindName(it.kind) } ?: R.string.intercom),
+            device?.name ?: stringResource(R.string.intercom_none),
+            nightDeviceDetail(device),
+            connected = device?.connected,
+            modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
+            battery =
+                device?.battery?.let {
+                    HlBatteryLevel(
+                        it,
+                        stringResource(R.string.device_battery, it),
+                    )
+                },
+            backdrop = backdrop,
+            icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
+            // The device's page; with none added, Add device.
+            onClick = if (device != null) onDevice else onAddDevice,
+        )
+        // Grows into the Add device page; the slot keeps its own size inside (no stretching).
+        val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
+        Box(Modifier.weight(1f).containerTransform(addDevice).fillMaxHeight()) {
+            AddDeviceSlot(
+                stringResource(R.string.add_device),
+                stringResource(R.string.add_device_detail),
+                Modifier.containerContent(addDevice).fillMaxSize(),
+                onClick = onAddDevice,
+                backdrop = backdrop,
+            )
         }
     }
 }

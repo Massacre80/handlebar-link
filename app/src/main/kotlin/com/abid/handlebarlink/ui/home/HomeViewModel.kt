@@ -33,11 +33,11 @@ class HomeViewModel
             combine(
                 settings.bike,
                 coordinator.link.flatMapLatest { it?.state ?: flowOf(null) },
-                devices.devices,
+                combine(devices.devices, devices.primary, ::Pair),
                 bluetooth.statuses(),
-            ) { bike, state, saved, statuses ->
+            ) { bike, state, (saved, chosen), statuses ->
                 val device =
-                    saved.primary()?.let {
+                    saved.primary(chosen)?.let {
                         val status = statuses[it.address]
                         HomeDevice(it.name, it.model, it.kind, status?.connected == true, status?.battery)
                     }

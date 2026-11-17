@@ -38,6 +38,10 @@ data class PairedDevice(
 data class DeviceStatus(
     val connected: Boolean,
     val battery: Int? = null,
+    /** Connected for calls (the Headset profile). */
+    val calls: Boolean = false,
+    /** Connected for music (the A2DP profile). */
+    val music: Boolean = false,
 )
 
 /** The devices the rider added, in the app's settings DataStore. */
@@ -50,7 +54,22 @@ interface DeviceSettings {
 
     /** Removes the device at [address] from the app (Android's pairing stays). */
     suspend fun remove(address: String)
+
+    /** The device the rider chose as primary (Home's tile, calls), if any. */
+    val primary: Flow<String?>
+
+    /** Makes [address] the primary device. */
+    suspend fun choosePrimary(address: String)
+
+    /** Where the rider chose call audio to go: a device's address or [PHONE]; null: the primary device. */
+    val calls: Flow<String?>
+
+    /** Sends call audio to [route]: a device's address or [PHONE]. */
+    suspend fun chooseCalls(route: String)
 }
+
+/** The phone itself as the place for call audio (earpiece or speaker). */
+const val PHONE: String = "phone"
 
 /** Android's view of Bluetooth devices: what is paired, and what each is doing now. */
 interface BluetoothDevices {
@@ -67,5 +86,9 @@ interface BluetoothDevices {
     fun statuses(): Flow<Map<String, DeviceStatus>>
 }
 
-/** The device Home's tile shows: the intercom if there is one, else the first added. */
-fun List<SavedDevice>.primary(): SavedDevice? = firstOrNull { it.kind == DeviceKind.INTERCOM } ?: firstOrNull()
+/**
+ * The primary device (Home's tile, calls): the one the rider chose while it is still added, else the first
+ * intercom, else the first added.
+ */
+fun List<SavedDevice>.primary(chosen: String?): SavedDevice? =
+    firstOrNull { it.address == chosen } ?: firstOrNull { it.kind == DeviceKind.INTERCOM } ?: firstOrNull()

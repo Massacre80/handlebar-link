@@ -25,6 +25,11 @@
     <uses-feature android:name="android.software.companion_device_setup" />
 
     <!-- No backup: the app stores only the paired bike and settings, and a restored bond would be stale. -->
+    <!-- Package visibility: the intercom maker's app, opened from the Intercom page. -->
+    <queries>
+        <package android:name="com.ejeas.ejeasapp" />
+    </queries>
+
     <application
         android:name=".HandlebarLinkApp"
         android:allowBackup="false"

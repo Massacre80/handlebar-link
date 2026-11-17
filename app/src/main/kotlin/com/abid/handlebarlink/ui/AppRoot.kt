@@ -34,6 +34,7 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
+import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.R
@@ -49,6 +50,7 @@ import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.devices.deviceEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
+import com.abid.handlebarlink.ui.intercom.intercomEntries
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
@@ -139,19 +141,13 @@ private fun BoxScope.Tabs() {
                     onSettings = { navigator.navigate(SettingsRoute) },
                     contentPadding = barSpace,
                     onAddDevice = { navigator.navigate(AddDeviceRoute) },
+                    onDevice = { navigator.navigate(IntercomRoute) },
                 )
             }
             entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
             entry<CarPlayRoute> { LaterScreen(HlIcons.CarPlay, R.string.tab_carplay, R.string.later_carplay, barSpace) }
             entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
-            entry<IntercomRoute> {
-                LaterScreen(
-                    HlIcons.Intercom,
-                    R.string.tab_intercom,
-                    R.string.later_intercom,
-                    barSpace,
-                )
-            }
+            intercomEntries(navigator, barSpace)
             settingsEntries(navigator)
             deviceEntries(navigator, motion)
         }
@@ -178,8 +174,9 @@ private fun Pages(
     NavDisplay(
         entries = state.toDecoratedEntries(entries),
         onBack = navigator::goBack,
-        // "What is it?" and other sheets: overlay scenes over the page under them.
-        sceneStrategies = listOf(SheetSceneStrategy()),
+        // Sheets ("What is it?", "Calls") and dialogs ("Remove …?"): overlays over the page under them; the
+        // sheet strategy first, as the recipe asks of overlay strategies.
+        sceneStrategies = listOf(SheetSceneStrategy(), DialogSceneStrategy()),
         transitionSpec = { pageTransition(state.lastMove, motion) },
         popTransitionSpec = { pageTransition(state.lastMove, motion) },
         // The back gesture previews what Back will do, following the finger (Android 15+ by default).

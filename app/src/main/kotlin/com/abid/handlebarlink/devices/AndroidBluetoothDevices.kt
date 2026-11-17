@@ -61,16 +61,20 @@ class AndroidBluetoothDevices
         }
 
         override fun statuses(): Flow<Map<String, DeviceStatus>> =
-            combine(connections(), batteries.levels) { connected, levels ->
-                connected.associateWith { DeviceStatus(connected = true, battery = levels[it]) }
+            combine(connections(), batteries.levels) { profiles, levels ->
+                val calls = profiles[BluetoothProfile.HEADSET].orEmpty()
+                val music = profiles[BluetoothProfile.A2DP].orEmpty()
+                (calls + music).associateWith {
+                    DeviceStatus(connected = true, battery = levels[it], calls = it in calls, music = it in music)
+                }
             }.distinctUntilChanged()
 
-        /** The addresses connected now on the Headset or A2DP profile, while collected. */
-        private fun connections(): Flow<Set<String>> =
+        /** The addresses connected now per profile (Headset: calls, A2DP: music), while collected. */
+        private fun connections(): Flow<Map<Int, Set<String>>> =
             callbackFlow {
                 val adapter = adapter
                 if (adapter == null || !allowed()) {
-                    trySend(emptySet())
+                    trySend(emptyMap())
                     awaitClose {}
                     return@callbackFlow
                 }
@@ -82,7 +86,7 @@ class AndroidBluetoothDevices
                     )
                 val proxies = mutableMapOf<Int, BluetoothProfile>()
 
-                fun publish() = trySend(connected.values.flatten().toSet())
+                fun publish() = trySend(connected.toMap())
                 val listener =
                     object : BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(

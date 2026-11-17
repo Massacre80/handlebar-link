@@ -41,12 +41,26 @@ class DataStoreDeviceSettings
             }
         }
 
+        override val primary: Flow<String?> = store.data.map { it[PRIMARY] }
+
+        override suspend fun choosePrimary(address: String) {
+            store.edit { it[PRIMARY] = address }
+        }
+
+        override val calls: Flow<String?> = store.data.map { it[CALLS] }
+
+        override suspend fun chooseCalls(route: String) {
+            store.edit { it[CALLS] = route }
+        }
+
         override suspend fun remove(address: String) {
             store.edit { preferences ->
                 preferences[ORDER] = (addresses(preferences) - address).joinToString(SEPARATOR)
                 preferences.remove(nameKey(address))
                 preferences.remove(kindKey(address))
                 preferences.remove(modelKey(address))
+                if (preferences[PRIMARY] == address) preferences.remove(PRIMARY)
+                if (preferences[CALLS] == address) preferences.remove(CALLS)
             }
         }
 
@@ -57,6 +71,8 @@ class DataStoreDeviceSettings
             /** Bluetooth addresses never contain a space. */
             const val SEPARATOR = " "
             val ORDER = stringPreferencesKey("devices")
+            val PRIMARY = stringPreferencesKey("device_primary")
+            val CALLS = stringPreferencesKey("device_calls")
 
             fun nameKey(address: String) = stringPreferencesKey("device_name_$address")
 

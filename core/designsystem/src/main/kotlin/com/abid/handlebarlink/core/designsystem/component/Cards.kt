@@ -87,12 +87,13 @@ public fun DeviceTile(
     battery: HlBatteryLevel? = null,
     backdrop: Backdrop? = null,
     @DrawableRes icon: Int = HlIcons.Intercom,
+    onClick: (() -> Unit)? = null,
 ) {
     val colors = HlTheme.colors
     val type = HlTheme.typography
     val spacing = HlTheme.spacing
     // The design height is a minimum: with large text the tile grows instead of clipping.
-    HlCard(modifier, backdrop = backdrop) {
+    HlCard(modifier, onClick = onClick, backdrop = backdrop) {
         Column(
             Modifier.fillMaxHeight().heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
             verticalArrangement = Arrangement.spacedBy(spacing.s12, Alignment.Bottom),
@@ -136,10 +137,11 @@ public fun DeviceRow(
     detail: String,
     connected: Boolean?,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
-    HlCard(modifier) {
+    HlCard(modifier, onClick = onClick) {
         Row(
             Modifier.fillMaxHeight().padding(spacing.s12),
             verticalAlignment = Alignment.CenterVertically,
