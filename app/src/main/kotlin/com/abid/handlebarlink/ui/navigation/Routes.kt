@@ -31,9 +31,17 @@ data object IntercomRoute : NavKey
 @Serializable
 data object SettingsRoute : NavKey
 
-/** Settings › Appearance: the theme, pushed over Settings on Home's back stack. */
+/** Settings › Appearance › Theme, pushed over Settings on Home's back stack. */
 @Serializable
-data object AppearanceRoute : NavKey
+data object ThemeRoute : NavKey
+
+/** Settings › Appearance › Mode, pushed over Settings on Home's back stack. */
+@Serializable
+data object ModeRoute : NavKey
+
+/** Settings › Permissions: each permission and its call to action, pushed over Settings. */
+@Serializable
+data object PermissionsRoute : NavKey
 
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(

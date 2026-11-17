@@ -43,7 +43,8 @@ import com.abid.handlebarlink.setup.SetupProblem
 import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupUiState
 import com.abid.handlebarlink.ui.permissions.Access
-import com.abid.handlebarlink.ui.settings.accessText
+import com.abid.handlebarlink.ui.permissions.PermissionItem
+import com.abid.handlebarlink.ui.permissions.PermissionList
 
 /** "Link your CB350": the bike running off the left, the promise, Start. */
 @Composable
@@ -235,7 +236,7 @@ internal fun DonePage(
                 stringResource(R.string.setup_done_text, name),
                 Modifier.padding(horizontal = spacing.s8),
             )
-            PermissionCard(
+            PermissionList(
                 listOf(
                     PermissionItem(
                         R.string.permission_notifications,

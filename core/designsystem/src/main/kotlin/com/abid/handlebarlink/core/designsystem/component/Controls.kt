@@ -24,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
@@ -246,6 +247,7 @@ public fun HlOptionRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     container: Color = HlTheme.colors.raisedLo,
+    enabled: Boolean = true,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -255,13 +257,15 @@ public fun HlOptionRow(
     Row(
         modifier
             .pressScale(press, HlTheme.motion)
+            // A choice that is not available yet: dimmed and not selectable.
+            .then(if (enabled) Modifier else Modifier.alpha(DISABLED_ALPHA))
             .fillMaxWidth()
             .clip(shape)
             .background(if (selected) colors.raisedHi else container)
             // Bento's artboard outlines the chosen row in ink. On Night that was a white ring, removed at the
             // owner's request (2026-11-17).
             .then(if (selected && !night) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
-            .selectable(selected, press, LocalIndication.current, role = Role.RadioButton, onClick = onClick)
+            .selectable(selected, press, LocalIndication.current, enabled, Role.RadioButton, onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
@@ -303,7 +307,10 @@ public fun HlOptionRow(
     }
 }
 
-/** A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the right. */
+/**
+ * A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the
+ * right; [chevron] marks a row that opens another page.
+ */
 @Composable
 public fun HlValueRow(
     value: String,
@@ -312,6 +319,7 @@ public fun HlValueRow(
     detail: String? = null,
     onClick: (() -> Unit)? = null,
     container: Color = HlTheme.colors.raisedLo,
+    chevron: Boolean = false,
 ) {
     val colors = HlTheme.colors
     val press = remember { MutableInteractionSource() }
@@ -339,5 +347,9 @@ public fun HlValueRow(
             detail?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted) }
         }
         hint?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted, maxLines = 1) }
+        if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
     }
 }
+
+/** How far a choice that is not available yet is dimmed. */
+private const val DISABLED_ALPHA = 0.4f

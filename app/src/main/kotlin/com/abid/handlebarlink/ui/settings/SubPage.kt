@@ -47,7 +47,8 @@ internal fun SubPage(
             .wrapContentWidth()
             .widthIn(max = HlTheme.sizes.contentMax)
             .padding(horizontal = spacing.s16, vertical = spacing.s8),
-        verticalArrangement = Arrangement.spacedBy(spacing.s20),
+        // Sections stand apart (24 dp); a label sits 8 dp above its group (HlSection).
+        verticalArrangement = Arrangement.spacedBy(spacing.s24),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
             HlIconButton(HlIcons.ChevronRight, stringResource(R.string.back), onBack, Modifier.rotate(HALF_TURN))

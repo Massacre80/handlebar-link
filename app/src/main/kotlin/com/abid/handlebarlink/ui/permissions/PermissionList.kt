@@ -1,19 +1,17 @@
-package com.abid.handlebarlink.ui.setup
+package com.abid.handlebarlink.ui.permissions
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -22,36 +20,27 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import com.abid.handlebarlink.R
-import com.abid.handlebarlink.core.designsystem.component.HlCard
+import com.abid.handlebarlink.core.designsystem.component.HlActionPill
+import com.abid.handlebarlink.core.designsystem.component.HlGroup
+import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
-import com.abid.handlebarlink.ui.permissions.Access
-import com.abid.handlebarlink.ui.settings.accessText
 
 /**
- * The permissions on "You're set" (Paper "Setup 6"): one glass card, a row per permission with its title,
- * why it is needed and the white Allow pill; an allowed row shows a check instead. Rows are split by a
- * hairline; a row that still needs the rider is the button.
+ * Permissions as one group (Paper "Setup 6", reused by Settings › Permissions): a row per permission with its
+ * title and why it is needed; the call to action is the white pill ("Allow", or "Open settings" once
+ * refused for good), and an allowed one shows a check instead. A row that still needs the rider is the
+ * button.
  */
 @Composable
-internal fun PermissionCard(items: List<PermissionItem>) {
-    HlCard(Modifier.fillMaxWidth(), radius = HlTheme.radii.card) {
-        Column {
-            items.forEachIndexed { index, item ->
-                if (index > 0) {
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = HlTheme.spacing.s16)
-                            .height(HlTheme.strokes.hairline)
-                            .background(HlTheme.colors.lineSoft),
-                    )
-                }
-                PermissionRow(item)
-            }
+fun PermissionList(items: List<PermissionItem>) {
+    HlGroup {
+        items.forEachIndexed { index, item ->
+            if (index > 0) HlGroupDivider()
+            PermissionRow(item)
         }
     }
 }
@@ -105,8 +94,17 @@ private fun PermissionRow(item: PermissionItem) {
                     )
                 }
             } else {
-                ActionPill(stringResource(accessText(status)))
+                HlActionPill(stringResource(accessText(status)))
             }
         }
     }
 }
+
+/** The status word shown on a permission row. */
+@StringRes
+fun accessText(status: Access): Int =
+    when (status) {
+        Access.GRANTED -> R.string.access_granted
+        Access.ASK -> R.string.access_ask
+        Access.BLOCKED -> R.string.access_blocked
+    }

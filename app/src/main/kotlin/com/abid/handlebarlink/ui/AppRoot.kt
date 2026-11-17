@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
@@ -44,29 +46,34 @@ import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.later.LaterScreen
-import com.abid.handlebarlink.ui.navigation.AppearanceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
+import com.abid.handlebarlink.ui.navigation.ModeRoute
 import com.abid.handlebarlink.ui.navigation.NavigationState
 import com.abid.handlebarlink.ui.navigation.Navigator
+import com.abid.handlebarlink.ui.navigation.PermissionsRoute
 import com.abid.handlebarlink.ui.navigation.RidesRoute
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.navigation.ThemeRoute
 import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.navigation.rememberNavigationState
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
 import com.abid.handlebarlink.ui.permissions.Access
+import com.abid.handlebarlink.ui.permissions.AccessState
 import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
-import com.abid.handlebarlink.ui.settings.AppearanceScreen
+import com.abid.handlebarlink.ui.settings.ModeScreen
+import com.abid.handlebarlink.ui.settings.PermissionsScreen
 import com.abid.handlebarlink.ui.settings.SettingsAccess
 import com.abid.handlebarlink.ui.settings.SettingsActions
 import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.abid.handlebarlink.ui.settings.SettingsViewModel
+import com.abid.handlebarlink.ui.settings.ThemeScreen
 import com.abid.handlebarlink.ui.setup.SetupRoute
 
 /**
@@ -132,14 +139,7 @@ private fun BoxScope.Tabs() {
                     barSpace,
                 )
             }
-            entry<SettingsRoute> {
-                SettingsEntry(onAppearance = { navigator.navigate(AppearanceRoute) }, onBack = navigator::goBack)
-            }
-            entry<AppearanceRoute> {
-                val viewModel: SettingsViewModel = hiltViewModel()
-                val settings by viewModel.uiState.collectAsStateWithLifecycle()
-                AppearanceScreen(settings.theme, viewModel::choose, onBack = navigator::goBack)
-            }
+            settingsEntries(navigator)
         }
     val motion = HlTheme.motion
     // The pages are the tab bar's backdrop: recorded with their ground, frosted under the bar.
@@ -186,36 +186,79 @@ private fun BoxScope.FloatingTabBar(
     }
 }
 
+/** Settings and its pages (Permissions, Theme, Mode), pushed over Home's back stack. */
+private fun EntryProviderScope<NavKey>.settingsEntries(navigator: Navigator) {
+    entry<SettingsRoute> {
+        SettingsEntry(
+            onTheme = { navigator.navigate(ThemeRoute) },
+            onMode = { navigator.navigate(ModeRoute) },
+            onPermissions = { navigator.navigate(PermissionsRoute) },
+            onBack = navigator::goBack,
+        )
+    }
+    entry<PermissionsRoute> {
+        val access = rememberAllAccess()
+        PermissionsScreen(access.statuses(), onAct = { access.inOrder[it].act() }, onBack = navigator::goBack)
+    }
+    entry<ThemeRoute> {
+        val viewModel: SettingsViewModel = hiltViewModel()
+        val settings by viewModel.uiState.collectAsStateWithLifecycle()
+        ThemeScreen(settings.theme, viewModel::choose, onBack = navigator::goBack)
+    }
+    entry<ModeRoute> {
+        val viewModel: SettingsViewModel = hiltViewModel()
+        val settings by viewModel.uiState.collectAsStateWithLifecycle()
+        ModeScreen(settings.theme, onBack = navigator::goBack)
+    }
+}
+
 /** Settings with its view model and the three permissions (re-read on every resume). */
 @Composable
 private fun SettingsEntry(
-    onAppearance: () -> Unit,
+    onTheme: () -> Unit,
+    onMode: () -> Unit,
+    onPermissions: () -> Unit,
     onBack: () -> Unit,
 ) {
-    val context = LocalContext.current
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val nearby = rememberNearbyAccess()
-    val notifications = rememberNotificationAccess()
-    val media = rememberMediaAccess()
-    val location = rememberLocationAccess()
+    val access = rememberAllAccess()
+    val nearby = access.nearby.status
     // The meters can only be listed with Nearby devices; read them again whenever that or the page resumes.
-    LifecycleResumeEffect(nearby.status) {
+    LifecycleResumeEffect(nearby) {
         viewModel.refreshMeters()
         onPauseOrDispose {}
     }
     SettingsScreen(
         state,
-        SettingsAccess(nearby.status, notifications.status, media.status, location.status),
+        access.statuses(),
         SettingsActions(
-            onAppearance = onAppearance,
+            onTheme = onTheme,
+            onMode = onMode,
+            onPermissions = onPermissions,
             onBike = viewModel::choose,
-            onAccess = { listOf(nearby, notifications, media, location)[it].act() },
             onSetup = viewModel::setUpAgain,
             onBack = onBack,
         ),
     )
 }
+
+/** The four permissions Settings shows (each re-read on every resume). */
+private class AllAccess(
+    val nearby: AccessState,
+    val notifications: AccessState,
+    val media: AccessState,
+    val location: AccessState,
+) {
+    /** In Settings' order, the index [PermissionsScreen] acts on. */
+    val inOrder: List<AccessState> get() = listOf(nearby, notifications, media, location)
+
+    fun statuses() = SettingsAccess(nearby.status, notifications.status, media.status, location.status)
+}
+
+@Composable
+private fun rememberAllAccess() =
+    AllAccess(rememberNearbyAccess(), rememberNotificationAccess(), rememberMediaAccess(), rememberLocationAccess())
 
 /**
  * Starts the ride while the app is on screen (a foreground service may only start then): it is shown once a

@@ -18,15 +18,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
+import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
+import com.abid.handlebarlink.core.designsystem.component.HlSection
 import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
@@ -50,12 +53,14 @@ data class SettingsAccess(
 
 /** Settings' actions. */
 data class SettingsActions(
-    /** Open the Appearance page. */
-    val onAppearance: () -> Unit,
+    /** Open Appearance › Theme. */
+    val onTheme: () -> Unit,
+    /** Open Appearance › Mode. */
+    val onMode: () -> Unit,
+    /** Open the Permissions page. */
+    val onPermissions: () -> Unit,
     /** Choose a bike. */
     val onBike: (SelectedBike) -> Unit,
-    /** Act on a permission: 0 Nearby devices, 1 notifications, 2 notification access, 3 location. */
-    val onAccess: (Int) -> Unit,
     /** Forget the bike and run setup again (pairs a meter in the app). */
     val onSetup: () -> Unit,
     /** Back. */
@@ -63,8 +68,9 @@ data class SettingsActions(
 )
 
 /**
- * Settings (not in the design file; built from its components): the bike, the permissions it needs, and
- * the look. Rows sit on the screen colour, so they use the panel fill (the design's raisedLo is for sheets).
+ * Settings (not in the design file; built from its components), in three grouped sections (owner,
+ * 2026-11-17): the bike; the permissions, summarised, on their own page; and the appearance, its theme and
+ * mode each on their own page.
  */
 @Composable
 fun SettingsScreen(
@@ -74,13 +80,40 @@ fun SettingsScreen(
 ) {
     SubPage(stringResource(R.string.settings), actions.onBack) {
         BikeSection(state, access.nearby, actions)
-        PermissionsSection(access, actions.onAccess)
-        HlValueRow(
-            value = stringResource(R.string.settings_appearance),
-            hint = stringResource(themeName(state.theme)),
-            onClick = actions.onAppearance,
-            container = HlTheme.colors.panel,
-        )
+        HlSection(stringResource(R.string.settings_permissions)) {
+            val all = access.all()
+            val allowed = all.count { it == Access.GRANTED }
+            HlValueRow(
+                value =
+                    if (allowed == all.size) {
+                        stringResource(R.string.settings_permissions_all)
+                    } else {
+                        stringResource(R.string.settings_permissions_some, allowed, all.size)
+                    },
+                detail = stringResource(R.string.settings_permissions_detail),
+                hint = null,
+                onClick = actions.onPermissions,
+                container = Color.Transparent,
+                chevron = true,
+            )
+        }
+        HlSection(stringResource(R.string.settings_appearance)) {
+            HlValueRow(
+                value = stringResource(R.string.settings_theme),
+                hint = stringResource(themeName(state.theme)),
+                onClick = actions.onTheme,
+                container = Color.Transparent,
+                chevron = true,
+            )
+            HlGroupDivider()
+            HlValueRow(
+                value = stringResource(R.string.settings_mode),
+                hint = stringResource(modeName(state.theme)),
+                onClick = actions.onMode,
+                container = Color.Transparent,
+                chevron = true,
+            )
+        }
     }
 }
 
@@ -90,12 +123,11 @@ private fun BikeSection(
     nearby: Access,
     actions: SettingsActions,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
-        HlSectionLabel(stringResource(R.string.settings_bike))
+    HlSection(stringResource(R.string.settings_bike)) {
         val meters = state.meters
         when {
             nearby != Access.GRANTED -> {
-                HlValueRow(stringResource(R.string.bike_needs_nearby), hint = null, container = HlTheme.colors.panel)
+                HlValueRow(stringResource(R.string.bike_needs_nearby), hint = null, container = Color.Transparent)
             }
 
             meters.isNullOrEmpty() -> {
@@ -103,68 +135,40 @@ private fun BikeSection(
                     stringResource(R.string.bike_none_paired),
                     hint = stringResource(R.string.bike_pair_hint),
                     onClick = actions.onSetup,
-                    container = HlTheme.colors.panel,
+                    container = Color.Transparent,
+                    chevron = true,
                 )
             }
 
             else -> {
-                Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
-                    meters.forEach { meter ->
+                Column(Modifier.selectableGroup()) {
+                    meters.forEachIndexed { index, meter ->
+                        if (index > 0) HlGroupDivider()
                         HlOptionRow(
                             icon = HlIcons.Bluetooth,
                             title = meter.name,
                             subtitle = meter.address,
                             selected = meter.address == state.bike?.address,
                             onClick = { actions.onBike(meter) },
-                            container = HlTheme.colors.panel,
+                            container = Color.Transparent,
                         )
                     }
                 }
+                HlGroupDivider()
+                HlValueRow(
+                    stringResource(R.string.settings_setup_again),
+                    hint = null,
+                    onClick = actions.onSetup,
+                    container = Color.Transparent,
+                    chevron = true,
+                )
             }
         }
-        if (nearby == Access.GRANTED && !meters.isNullOrEmpty()) {
-            HlValueRow(
-                stringResource(R.string.settings_setup_again),
-                hint = null,
-                onClick = actions.onSetup,
-                container = HlTheme.colors.panel,
-            )
-        }
     }
 }
 
-@Composable
-private fun PermissionsSection(
-    access: SettingsAccess,
-    onAccess: (Int) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
-        HlSectionLabel(stringResource(R.string.settings_permissions))
-        listOf(
-            Triple(R.string.permission_nearby, R.string.permission_nearby_why, access.nearby),
-            Triple(R.string.permission_notifications, R.string.permission_notifications_why, access.notifications),
-            Triple(R.string.permission_media, R.string.permission_media_why, access.media),
-            Triple(R.string.permission_location, R.string.permission_location_why, access.location),
-        ).forEachIndexed { index, (title, why, status) ->
-            HlValueRow(
-                value = stringResource(title),
-                detail = stringResource(why),
-                hint = stringResource(accessText(status)),
-                onClick = if (status == Access.GRANTED) null else ({ onAccess(index) }),
-                container = HlTheme.colors.panel,
-            )
-        }
-    }
-}
-
-/** The status word shown on a permission row. */
-@StringRes
-internal fun accessText(status: Access): Int =
-    when (status) {
-        Access.GRANTED -> R.string.access_granted
-        Access.ASK -> R.string.access_ask
-        Access.BLOCKED -> R.string.access_blocked
-    }
+/** The four permissions in Settings' order. */
+internal fun SettingsAccess.all(): List<Access> = listOf(nearby, notifications, media, location)
 
 /** Sample state for previews and screenshot tests. */
 internal val PreviewSettings =
@@ -178,7 +182,7 @@ internal val PreviewSettings =
 internal val PreviewAccess = SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK)
 
 /** Actions that do nothing, for previews and screenshot tests. */
-internal val NoActions = SettingsActions({}, {}, {}, {}, {})
+internal val NoActions = SettingsActions({}, {}, {}, {}, {}, {})
 
 @Preview(name = "Settings · Night", widthDp = 411, heightDp = 900)
 @Composable

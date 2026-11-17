@@ -63,6 +63,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.core.designsystem.component.HlActionPill
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -128,26 +129,7 @@ private fun ProblemCard(
             HlText(stringResource(problemText(problem)), HlTheme.typography.value, colors.ink)
             HlText(stringResource(problemDetail(problem)), HlTheme.typography.meta, colors.inkMuted)
         }
-        ActionPill(stringResource(fixText(problem)))
-    }
-}
-
-/** A small pill naming a row's action (the row itself is the button): the design's "Allow". */
-@Composable
-internal fun ActionPill(text: String) {
-    Box(
-        Modifier
-            .height(HlTheme.sizes.chip)
-            .background(HlTheme.colors.action, CircleShape)
-            .padding(horizontal = HlTheme.spacing.s16),
-        contentAlignment = Alignment.Center,
-    ) {
-        HlText(
-            text,
-            HlTheme.typography.label.copy(fontWeight = FontWeight.SemiBold),
-            HlTheme.colors.onAction,
-            maxLines = 1,
-        )
+        HlActionPill(stringResource(fixText(problem)))
     }
 }
 
@@ -207,7 +189,7 @@ internal fun SearchRow(
         ) { shown ->
             SearchText(shown)
         }
-        if (!searching) ActionPill(stringResource(R.string.setup_search_again))
+        if (!searching) HlActionPill(stringResource(R.string.setup_search_again))
     }
 }
 

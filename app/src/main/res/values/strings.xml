@@ -72,6 +72,17 @@
 
     <!-- Settings -->
     <string name="settings_appearance">Appearance</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_mode">Mode</string>
+    <string name="mode_dark">Dark</string>
+    <string name="mode_light">Light</string>
+    <string name="mode_dark_detail">Dark ground, light text</string>
+    <string name="mode_light_detail">Light ground, dark text</string>
+    <string name="mode_not_designed">Not designed yet for %1$s</string>
+    <string name="settings_permissions_all">All allowed</string>
+    <string name="settings_permissions_some">Allowed: %1$d of %2$d</string>
+    <string name="settings_permissions_detail">Nearby devices, notifications, notification access, location</string>
+    <string name="permissions_intro">What the app may use, and why. Tap one that is not allowed yet.</string>
     <string name="theme_night">Night</string>
     <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
     <string name="theme_bento">Bento</string>

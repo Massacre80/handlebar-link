@@ -24,11 +24,13 @@ import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
-import com.abid.handlebarlink.ui.settings.AppearanceScreen
+import com.abid.handlebarlink.ui.settings.ModeScreen
 import com.abid.handlebarlink.ui.settings.NoActions
+import com.abid.handlebarlink.ui.settings.PermissionsScreen
 import com.abid.handlebarlink.ui.settings.PreviewAccess
 import com.abid.handlebarlink.ui.settings.PreviewSettings
 import com.abid.handlebarlink.ui.settings.SettingsScreen
+import com.abid.handlebarlink.ui.settings.ThemeScreen
 import com.android.tools.screenshot.PreviewTest
 
 // Every page in both looks at the nine sizes and with large text (testing-setup skill, Step 8). Pages are
@@ -117,22 +119,54 @@ fun SettingsNight() = Settings(HlThemeVariant.NIGHT)
 @Composable
 fun SettingsBento() = Settings(HlThemeVariant.BENTO)
 
+private fun themeOf(variant: HlThemeVariant) = if (variant == HlThemeVariant.NIGHT) AppTheme.NIGHT else AppTheme.BENTO
+
 @Composable
-private fun Appearance(variant: HlThemeVariant) =
+private fun Theme(variant: HlThemeVariant) =
+    HlTheme(variant) { HlBackground(Modifier.fillMaxSize()) { ThemeScreen(themeOf(variant), {}, {}) } }
+
+@Composable
+private fun Mode(variant: HlThemeVariant) =
+    HlTheme(variant) { HlBackground(Modifier.fillMaxSize()) { ModeScreen(themeOf(variant), {}) } }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun ThemeNight() = Theme(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun ThemeBento() = Theme(HlThemeVariant.BENTO)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun ModeNight() = Mode(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun ModeBento() = Mode(HlThemeVariant.BENTO)
+
+@Composable
+private fun Permissions(variant: HlThemeVariant) =
     HlTheme(variant) {
-        HlBackground(Modifier.fillMaxSize()) {
-            AppearanceScreen(if (variant == HlThemeVariant.NIGHT) AppTheme.NIGHT else AppTheme.BENTO, {}, {})
-        }
+        HlBackground(Modifier.fillMaxSize()) { PermissionsScreen(PreviewAccess, {}, {}) }
     }
 
 @PreviewTest
 @Artboard
 @LargeText
 @Composable
-fun AppearanceNight() = Appearance(HlThemeVariant.NIGHT)
+fun PermissionsNight() = Permissions(HlThemeVariant.NIGHT)
 
 @PreviewTest
 @Artboard
 @LargeText
 @Composable
-fun AppearanceBento() = Appearance(HlThemeVariant.BENTO)
+fun PermissionsBento() = Permissions(HlThemeVariant.BENTO)
