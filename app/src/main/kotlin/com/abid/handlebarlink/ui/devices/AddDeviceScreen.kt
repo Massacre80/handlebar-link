@@ -17,6 +17,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
+import com.abid.handlebarlink.core.designsystem.component.HlBattery
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -129,6 +130,10 @@ private fun Devices(
                 detail = stateText(device),
                 onClick = { onPick(device) },
                 detailColor = if (device.connected) HlTheme.colors.success else Color.Unspecified,
+                trailing =
+                    device.battery?.let { percent ->
+                        { HlBattery(percent, stringResource(R.string.device_battery, percent)) }
+                    },
             )
         }
     }
@@ -187,12 +192,37 @@ private val PreviewDevices =
     AddDeviceUiState.Ready(
         audio =
             listOf(
-                DeviceChoice("AA", "EJEAS V6 Pro+", "EJEAS V6 Pro+", true, false, DeviceKind.INTERCOM, audio = true),
-                DeviceChoice("BB", "Buds", "Galaxy Buds2", false, true, DeviceKind.HEADSET, audio = true),
+                DeviceChoice(
+                    "AA",
+                    "EJEAS V6 Pro+",
+                    "EJEAS V6 Pro+",
+                    connected = true,
+                    battery = 50,
+                    added = false,
+                    kind = DeviceKind.INTERCOM,
+                    audio = true,
+                ),
+                DeviceChoice(
+                    "BB",
+                    "Buds",
+                    "Galaxy Buds2",
+                    connected = false,
+                    added = true,
+                    kind = DeviceKind.HEADSET,
+                    audio = true,
+                ),
             ),
         other =
             listOf(
-                DeviceChoice("CC", "Galaxy Watch", "Galaxy Watch", false, false, DeviceKind.OTHER, audio = false),
+                DeviceChoice(
+                    "CC",
+                    "Galaxy Watch",
+                    "Galaxy Watch",
+                    connected = false,
+                    added = false,
+                    kind = DeviceKind.OTHER,
+                    audio = false,
+                ),
             ),
     )
 

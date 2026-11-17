@@ -84,7 +84,7 @@ public fun DeviceTile(
     detail: String,
     connected: Boolean?,
     modifier: Modifier = Modifier,
-    status: String? = null,
+    battery: HlBatteryLevel? = null,
     backdrop: Backdrop? = null,
     @DrawableRes icon: Int = HlIcons.Intercom,
 ) {
@@ -107,7 +107,7 @@ public fun DeviceTile(
                     HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
                 }
                 Spacer(Modifier.weight(1f))
-                status?.let { HlText(it, type.meta, colors.inkMuted, maxLines = 1) }
+                battery?.let { HlBattery(it.percent, it.label) }
             }
             Spacer(Modifier.weight(1f, fill = false))
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {

@@ -89,7 +89,7 @@ internal fun Devices() {
                 "EJEAS V6 Pro+",
                 connected = true,
                 Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
-                status = "72%",
+                battery = HlBatteryLevel(PREVIEW_BATTERY, "72%"),
             )
             AddDeviceSlot("Add device", "Intercom or headset", Modifier.weight(1f).fillMaxHeight(), onClick = {})
         } else {
@@ -104,7 +104,14 @@ internal fun Devices() {
     }
     // Add device's rows.
     HlGroup {
-        HlNavRow(HlIcons.Intercom, "EJEAS V6 Pro+", "Connected", onClick = {}, detailColor = HlTheme.colors.success)
+        HlNavRow(
+            HlIcons.Intercom,
+            "EJEAS V6 Pro+",
+            "Connected",
+            onClick = {},
+            detailColor = HlTheme.colors.success,
+            trailing = { HlBattery(PREVIEW_LOW_BATTERY, "15%") },
+        )
         HlGroupDivider()
         HlNavRow(HlIcons.Plus, "Pair a new device", "In Android's Bluetooth settings", onClick = {})
     }
@@ -169,3 +176,7 @@ private const val SAMPLE_STEP = 0.75f
 private const val NIGHT_TILE_WEIGHT = 1.1f
 private const val BENTO_DEVICE_WEIGHT = 1.25f
 private const val BENTO_ADD_WEIGHT = 0.75f
+
+/** The artboard's battery (72 %) and a low one (15 %, the danger fill). */
+private const val PREVIEW_BATTERY = 72
+private const val PREVIEW_LOW_BATTERY = 15

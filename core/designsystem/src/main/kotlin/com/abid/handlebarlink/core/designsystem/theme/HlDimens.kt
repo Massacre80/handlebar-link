@@ -84,6 +84,10 @@ public data class HlSizes(
     val iconTiny: Dp = 18.dp,
     /** Radios and checks. */
     val indicator: Dp = 24.dp,
+    /** The battery glyph's width (Paper "Home 3" tile: 20 × 10). */
+    val batteryWidth: Dp = 20.dp,
+    /** The battery glyph's height. */
+    val batteryHeight: Dp = 10.dp,
     /** A tick's height. */
     val tick: Dp = 12.dp,
     /** Night device tiles. */

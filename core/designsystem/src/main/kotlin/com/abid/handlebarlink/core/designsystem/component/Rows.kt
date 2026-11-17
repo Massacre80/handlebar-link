@@ -31,7 +31,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
  * A row that opens something (a device on Add device, "Pair a new device"): the icon block of
  * [HlOptionRow], a [title] and a [detail] line, a chevron. [detailColor] marks a live or failed state
  * ("Connected" in success, "Couldn't pair" in danger); muted otherwise. Square inside an [HlGroup], like
- * every grouped row.
+ * every grouped row. [trailing] sits before the chevron (a battery).
  */
 @Composable
 public fun HlNavRow(
@@ -42,6 +42,7 @@ public fun HlNavRow(
     modifier: Modifier = Modifier,
     detailColor: Color = Color.Unspecified,
     container: Color = Color.Transparent,
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -84,6 +85,7 @@ public fun HlNavRow(
                 )
             }
         }
+        trailing?.invoke()
         HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
     }
 }

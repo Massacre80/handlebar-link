@@ -188,12 +188,37 @@ private val PreviewDevices =
     AddDeviceUiState.Ready(
         audio =
             listOf(
-                DeviceChoice("AA", "EJEAS V6 Pro+", "EJEAS V6 Pro+", true, false, DeviceKind.INTERCOM, audio = true),
-                DeviceChoice("BB", "Buds", "Galaxy Buds2", false, true, DeviceKind.HEADSET, audio = true),
+                DeviceChoice(
+                    "AA",
+                    "EJEAS V6 Pro+",
+                    "EJEAS V6 Pro+",
+                    connected = true,
+                    battery = 50,
+                    added = false,
+                    kind = DeviceKind.INTERCOM,
+                    audio = true,
+                ),
+                DeviceChoice(
+                    "BB",
+                    "Buds",
+                    "Galaxy Buds2",
+                    connected = false,
+                    added = true,
+                    kind = DeviceKind.HEADSET,
+                    audio = true,
+                ),
             ),
         other =
             listOf(
-                DeviceChoice("CC", "Galaxy Watch", "Galaxy Watch", false, false, DeviceKind.OTHER, audio = false),
+                DeviceChoice(
+                    "CC",
+                    "Galaxy Watch",
+                    "Galaxy Watch",
+                    connected = false,
+                    added = false,
+                    kind = DeviceKind.OTHER,
+                    audio = false,
+                ),
             ),
     )
 

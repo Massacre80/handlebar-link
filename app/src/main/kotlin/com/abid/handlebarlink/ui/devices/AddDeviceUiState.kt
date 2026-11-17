@@ -33,6 +33,8 @@ data class DeviceChoice(
     val model: String,
     /** Connected to this phone now (Headset or A2DP). */
     val connected: Boolean,
+    /** Its battery in percent while connected, once it has reported one. */
+    val battery: Int? = null,
     /** Already added in the app. */
     val added: Boolean,
     /** The saved kind once added, else what it looks like. */
@@ -61,6 +63,7 @@ fun deviceChoices(
                     name = savedBy[device.address]?.name ?: device.name ?: device.address,
                     model = device.name ?: device.address,
                     connected = connected,
+                    battery = statuses[device.address]?.battery?.takeIf { connected },
                     added = device.address in savedBy,
                     kind = savedBy[device.address]?.kind ?: device.suggested,
                     // A live Headset or A2DP connection proves audio even when the class says otherwise.

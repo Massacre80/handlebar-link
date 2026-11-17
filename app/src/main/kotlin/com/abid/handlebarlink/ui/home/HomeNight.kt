@@ -49,6 +49,7 @@ import com.abid.handlebarlink.core.designsystem.component.CardRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
+import com.abid.handlebarlink.core.designsystem.component.HlBatteryLevel
 import com.abid.handlebarlink.core.designsystem.component.HlCard
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -117,7 +118,13 @@ internal fun HomeNight(
                         nightDeviceDetail(device),
                         connected = device?.connected,
                         modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
-                        status = device?.battery?.let { stringResource(R.string.device_battery, it) },
+                        battery =
+                            device?.battery?.let {
+                                HlBatteryLevel(
+                                    it,
+                                    stringResource(R.string.device_battery, it),
+                                )
+                            },
                         backdrop = backdrop,
                         icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
                     )
