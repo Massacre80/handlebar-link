@@ -58,11 +58,12 @@ fun HomeScreen(
     state: HomeUiState,
     onSettings: () -> Unit,
     contentPadding: PaddingValues,
+    onAddDevice: () -> Unit = {},
 ) {
     if (HlTheme.variant == HlThemeVariant.NIGHT) {
-        HomeNight(state, onSettings, contentPadding)
+        HomeNight(state, onSettings, contentPadding, onAddDevice)
     } else {
-        HomeBento(state, onSettings, contentPadding)
+        HomeBento(state, onSettings, contentPadding, onAddDevice)
     }
 }
 

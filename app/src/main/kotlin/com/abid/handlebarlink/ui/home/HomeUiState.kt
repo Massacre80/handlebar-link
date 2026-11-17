@@ -1,7 +1,12 @@
 package com.abid.handlebarlink.ui.home
 
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.ui.devices.kindName
 
 /** What the status pill says about the bike link. */
 enum class LinkStatus {
@@ -37,6 +42,17 @@ enum class LinkStatus {
 data class HomeUiState(
     /** The pill. */
     val link: LinkStatus,
+    /** The device tile: the intercom if one is added, else the first added; null for the empty tile. */
+    val device: HomeDevice? = null,
+)
+
+/** An added device on Home. [battery] in percent, null until it reports one. */
+data class HomeDevice(
+    val name: String,
+    val model: String,
+    val kind: DeviceKind,
+    val connected: Boolean,
+    val battery: Int?,
 )
 
 /** The pill for [state] of the link to the selected bike ([bikeSelected] false: none chosen). */
@@ -85,3 +101,26 @@ fun linkStatus(
             }
         }
     }
+
+/**
+ * Night's tile line (Paper "Home 3"): the model while connected; else why there is nothing live, not set up
+ * or not connected to this phone (it may be on another).
+ */
+@Composable
+fun nightDeviceDetail(device: HomeDevice?): String =
+    when {
+        device == null -> stringResource(R.string.intercom_none_detail)
+        device.connected -> device.model
+        else -> stringResource(R.string.device_not_connected)
+    }
+
+/** Bento's row line (Paper "Home 4"): kind and battery while connected ("Intercom · 72%"), else as Night. */
+@Composable
+fun bentoDeviceDetail(device: HomeDevice?): String {
+    if (device == null || !device.connected) return nightDeviceDetail(device)
+    val kind = stringResource(kindName(device.kind))
+    return device.battery?.let {
+        stringResource(R.string.device_state_both, kind, stringResource(R.string.device_battery, it))
+    }
+        ?: kind
+}

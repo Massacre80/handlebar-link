@@ -67,6 +67,7 @@ internal fun HomeBento(
     state: HomeUiState,
     onSettings: () -> Unit,
     contentPadding: PaddingValues,
+    onAddDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     // The page scrolls full width; wide windows centre a column of at most HlSizes.contentMax.
@@ -97,10 +98,11 @@ internal fun HomeBento(
             BentoStats()
             CarPlayCard()
             CardRow {
+                val device = state.device
                 DeviceRow(
-                    stringResource(R.string.intercom_none),
-                    stringResource(R.string.intercom_none_detail),
-                    connected = null,
+                    device?.name ?: stringResource(R.string.intercom_none),
+                    bentoDeviceDetail(device),
+                    connected = device?.connected,
                     modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
@@ -108,6 +110,7 @@ internal fun HomeBento(
                     stringResource(R.string.add_device_short),
                     detail = null,
                     Modifier.weight(BENTO_ADD_WEIGHT).fillMaxHeight(),
+                    onClick = onAddDevice,
                 )
             }
             Spacer(Modifier.height(spacing.s8))

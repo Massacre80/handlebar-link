@@ -23,7 +23,7 @@ fun PermissionsScreen(
         HlText(stringResource(R.string.permissions_intro), HlTheme.typography.body, HlTheme.colors.inkMuted)
         PermissionList(
             ROWS.zip(access.all()).mapIndexed { index, (row, status) ->
-                PermissionItem(row.first, row.second, status) { onAct(index) }
+                PermissionItem(row.first, row.second, status, onAct = { onAct(index) })
             },
         )
     }

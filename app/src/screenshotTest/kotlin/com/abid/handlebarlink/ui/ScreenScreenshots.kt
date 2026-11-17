@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -19,11 +20,19 @@ import com.abid.handlebarlink.core.designsystem.preview.ScreenSizes
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.data.AppTheme
+import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.ui.devices.AddDeviceActions
+import com.abid.handlebarlink.ui.devices.AddDeviceScreen
+import com.abid.handlebarlink.ui.devices.AddDeviceUiState
+import com.abid.handlebarlink.ui.devices.DeviceChoice
+import com.abid.handlebarlink.ui.devices.DeviceSheet
+import com.abid.handlebarlink.ui.devices.SheetDevice
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.settings.ModeScreen
 import com.abid.handlebarlink.ui.settings.NoActions
 import com.abid.handlebarlink.ui.settings.PermissionsScreen
@@ -170,3 +179,61 @@ fun PermissionsNight() = Permissions(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun PermissionsBento() = Permissions(HlThemeVariant.BENTO)
+
+private val PreviewDevices =
+    AddDeviceUiState.Ready(
+        audio =
+            listOf(
+                DeviceChoice("AA", "EJEAS V6 Pro+", "EJEAS V6 Pro+", true, false, DeviceKind.INTERCOM, audio = true),
+                DeviceChoice("BB", "Buds", "Galaxy Buds2", false, true, DeviceKind.HEADSET, audio = true),
+            ),
+        other =
+            listOf(
+                DeviceChoice("CC", "Galaxy Watch", "Galaxy Watch", false, false, DeviceKind.OTHER, audio = false),
+            ),
+    )
+
+@Composable
+private fun AddDevice(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        HlBackground(Modifier.fillMaxSize()) {
+            AddDeviceScreen(PreviewDevices, Access.GRANTED, AddDeviceActions({}, {}, {}, {}, {}))
+        }
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun AddDeviceNight() = AddDevice(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun AddDeviceBento() = AddDevice(HlThemeVariant.BENTO)
+
+@Composable
+private fun WhatIsIt(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        DeviceSheet(
+            SheetDevice("EJEAS V6 Pro+", audio = true, connected = true),
+            DeviceKind.INTERCOM,
+            onKind = {},
+            name = rememberTextFieldState("Helmet intercom"),
+            onSave = {},
+            onCancel = {},
+        )
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun WhatIsItNight() = WhatIsIt(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun WhatIsItBento() = WhatIsIt(HlThemeVariant.BENTO)

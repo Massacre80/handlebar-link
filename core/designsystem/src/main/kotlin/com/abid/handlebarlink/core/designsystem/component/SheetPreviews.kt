@@ -2,6 +2,7 @@ package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -30,7 +31,10 @@ internal fun Sheet() {
                 onClick = {},
             )
         }
-        HlValueRow("Helmet intercom", "Shown on Home")
+        Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
+            HlSectionLabel("Name")
+            HlTextField(rememberTextFieldState("Helmet intercom"), "Shown on Home")
+        }
         Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
             HlButton("Save device", onClick = {})
             HlQuietButton("Cancel", onClick = {})

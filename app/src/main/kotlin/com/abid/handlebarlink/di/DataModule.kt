@@ -7,6 +7,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.DataStoreBikeSettings
+import com.abid.handlebarlink.devices.AndroidBluetoothDevices
+import com.abid.handlebarlink.devices.BluetoothDevices
+import com.abid.handlebarlink.devices.DataStoreDeviceSettings
+import com.abid.handlebarlink.devices.DeviceSettings
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -21,6 +25,12 @@ import javax.inject.Singleton
 abstract class DataModule {
     @Binds
     abstract fun bikeSettings(settings: DataStoreBikeSettings): BikeSettings
+
+    @Binds
+    abstract fun deviceSettings(settings: DataStoreDeviceSettings): DeviceSettings
+
+    @Binds
+    abstract fun bluetoothDevices(devices: AndroidBluetoothDevices): BluetoothDevices
 
     companion object {
         @Provides

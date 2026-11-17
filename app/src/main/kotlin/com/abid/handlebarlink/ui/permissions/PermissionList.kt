@@ -94,7 +94,7 @@ private fun PermissionRow(item: PermissionItem) {
                     )
                 }
             } else {
-                HlActionPill(stringResource(accessText(status)))
+                HlActionPill(stringResource(item.action ?: accessText(status)))
             }
         }
     }

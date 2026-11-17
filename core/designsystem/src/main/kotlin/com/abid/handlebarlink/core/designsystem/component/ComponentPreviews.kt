@@ -102,6 +102,12 @@ internal fun Devices() {
             AddDeviceSlot("Add", null, Modifier.weight(BENTO_ADD_WEIGHT).fillMaxHeight(), onClick = {})
         }
     }
+    // Add device's rows.
+    HlGroup {
+        HlNavRow(HlIcons.Intercom, "EJEAS V6 Pro+", "Connected", onClick = {}, live = true)
+        HlGroupDivider()
+        HlNavRow(HlIcons.Plus, "Pair a new device", "In Android's Bluetooth settings", onClick = {})
+    }
 }
 
 @Composable

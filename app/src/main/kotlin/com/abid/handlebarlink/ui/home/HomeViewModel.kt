@@ -3,6 +3,9 @@ package com.abid.handlebarlink.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.data.BikeSettings
+import com.abid.handlebarlink.devices.BluetoothDevices
+import com.abid.handlebarlink.devices.DeviceSettings
+import com.abid.handlebarlink.devices.primary
 import com.abid.handlebarlink.ride.RideCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -21,12 +24,24 @@ class HomeViewModel
     constructor(
         coordinator: RideCoordinator,
         settings: BikeSettings,
+        devices: DeviceSettings,
+        bluetooth: BluetoothDevices,
     ) : ViewModel() {
         /** Home's state; "no bike" until loaded. */
         @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
         val uiState: StateFlow<HomeUiState> =
-            combine(settings.bike, coordinator.link.flatMapLatest { it?.state ?: flowOf(null) }) { bike, state ->
-                HomeUiState(linkStatus(bike != null, state))
+            combine(
+                settings.bike,
+                coordinator.link.flatMapLatest { it?.state ?: flowOf(null) },
+                devices.devices,
+                bluetooth.statuses(),
+            ) { bike, state, saved, statuses ->
+                val device =
+                    saved.primary()?.let {
+                        val status = statuses[it.address]
+                        HomeDevice(it.name, it.model, it.kind, status?.connected == true, status?.battery)
+                    }
+                HomeUiState(linkStatus(bike != null, state), device)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HomeUiState(LinkStatus.NO_BIKE))
 
         private companion object {

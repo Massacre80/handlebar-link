@@ -5,6 +5,7 @@ import androidx.annotation.StringRes
 import androidx.navigation3.runtime.NavKey
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.devices.DeviceKind
 import kotlinx.serialization.Serializable
 
 /** Home: the start destination (Navigation principles, "fixed start destination"). */
@@ -42,6 +43,26 @@ data object ModeRoute : NavKey
 /** Settings › Permissions: each permission and its call to action, pushed over Settings. */
 @Serializable
 data object PermissionsRoute : NavKey
+
+/** Add device: the phone's paired Bluetooth devices, pushed over the current tab. */
+@Serializable
+data object AddDeviceRoute : NavKey
+
+/**
+ * "What is it?" (Paper "Flow · Add device"): a sheet over Add device for one paired device, with what the
+ * list knew of it, so it survives process death without reading Bluetooth again.
+ */
+@Serializable
+data class DeviceSheetRoute(
+    val address: String,
+    /** The device's own name (cleaned; its model), or its address. */
+    val deviceName: String,
+    /** The name the rider gave it, when it is already added. */
+    val savedName: String?,
+    val kind: DeviceKind,
+    val audio: Boolean,
+    val connected: Boolean,
+) : NavKey
 
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(

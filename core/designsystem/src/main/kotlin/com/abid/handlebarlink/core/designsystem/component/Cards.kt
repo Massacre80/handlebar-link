@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.core.designsystem.component
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,6 +86,7 @@ public fun DeviceTile(
     modifier: Modifier = Modifier,
     status: String? = null,
     backdrop: Backdrop? = null,
+    @DrawableRes icon: Int = HlIcons.Intercom,
 ) {
     val colors = HlTheme.colors
     val type = HlTheme.typography
@@ -102,7 +104,7 @@ public fun DeviceTile(
                         .background(colors.raisedLo, RoundedCornerShape(HlTheme.radii.nested)),
                     contentAlignment = Alignment.Center,
                 ) {
-                    HlIcon(HlIcons.Intercom, colors.ink, size = HlTheme.sizes.iconSmall)
+                    HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
                 }
                 Spacer(Modifier.weight(1f))
                 status?.let { HlText(it, type.meta, colors.inkMuted, maxLines = 1) }

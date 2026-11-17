@@ -8,4 +8,6 @@ data class PermissionItem(
     @param:StringRes val why: Int,
     val status: Access,
     val onAct: () -> Unit,
+    /** The pill's text when it is not the permission's own ("Turn on" for Bluetooth). */
+    @param:StringRes val action: Int? = null,
 )

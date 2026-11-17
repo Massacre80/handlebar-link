@@ -63,6 +63,8 @@ import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
+import com.abid.handlebarlink.ui.devices.kindIcon
+import com.abid.handlebarlink.ui.devices.kindName
 
 /**
  * "Home 3 — Night": the bike as the hero between the gauges and the cards. The bike area keeps the
@@ -74,6 +76,7 @@ internal fun HomeNight(
     state: HomeUiState,
     onSettings: () -> Unit,
     contentPadding: PaddingValues,
+    onAddDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     val column = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
@@ -103,18 +106,22 @@ internal fun HomeNight(
             Box(column.height(heroHeight)) {
                 HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
                 CardRow(Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16)) {
+                    val device = state.device
                     DeviceTile(
-                        stringResource(R.string.intercom),
-                        stringResource(R.string.intercom_none),
-                        stringResource(R.string.intercom_none_detail),
-                        connected = null,
+                        stringResource(device?.let { kindName(it.kind) } ?: R.string.intercom),
+                        device?.name ?: stringResource(R.string.intercom_none),
+                        nightDeviceDetail(device),
+                        connected = device?.connected,
                         modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
+                        status = device?.battery?.let { stringResource(R.string.device_battery, it) },
                         backdrop = backdrop,
+                        icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
                     )
                     AddDeviceSlot(
                         stringResource(R.string.add_device),
-                        stringResource(R.string.coming_soon),
+                        stringResource(R.string.add_device_detail),
                         Modifier.weight(1f).fillMaxHeight(),
+                        onClick = onAddDevice,
                         backdrop = backdrop,
                     )
                 }
