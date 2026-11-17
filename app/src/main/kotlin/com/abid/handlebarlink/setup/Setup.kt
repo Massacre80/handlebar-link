@@ -14,6 +14,8 @@ data class FoundMeter(
     val rssi: Int,
     /** A Honda meter by its name ([isHondaMeter]); other devices are listed after, as a fallback. */
     val honda: Boolean = true,
+    /** Already paired with this phone: choosing it skips linking and pairing. */
+    val paired: Boolean = false,
 )
 
 /**
@@ -76,13 +78,20 @@ interface SetupConditions {
     fun locationOn(): Boolean
 }
 
-/** Our own scan for Honda meters. */
-fun interface MeterScanner {
+/** Finding meters: the ones this phone already paired, and our own scan for the others. */
+interface MeterScanner {
     /**
-     * The meters found so far, strongest first; scanning while collected and stopped when the collector is
-     * cancelled. Fails with [SetupException] (SCAN_FAILED, PERMISSION_MISSING, BLUETOOTH_OFF).
+     * The devices found so far, Honda meters first; scanning while collected and stopped when the collector
+     * is cancelled. Fails with [SetupException] (SCAN_FAILED, PERMISSION_MISSING, BLUETOOTH_OFF).
      */
     fun scan(): Flow<List<FoundMeter>>
+
+    /**
+     * Honda meters this phone has already paired ([FoundMeter.paired]); empty when there are none or Nearby
+     * devices is not allowed. A paired meter that is connected stops advertising, so the scan cannot find it
+     * (seen on the bike, 2026-11-17, after a reinstall).
+     */
+    suspend fun paired(): List<FoundMeter>
 }
 
 /** Linking a meter to the app through Android's companion-device consent. */

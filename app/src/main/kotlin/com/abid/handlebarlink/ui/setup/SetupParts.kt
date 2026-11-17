@@ -180,9 +180,10 @@ internal fun MeterCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.s6),
             ) {
-                SignalBars(bars(meter.rssi))
+                // A paired meter was not heard by the scan: no signal to show.
+                if (!meter.paired) SignalBars(bars(meter.rssi))
                 HlText(
-                    stringResource(signalText(meter.rssi)),
+                    stringResource(if (meter.paired) R.string.setup_meter_paired else signalText(meter.rssi)),
                     HlTheme.typography.meta,
                     colors.inkInverseMuted,
                     maxLines = 1,

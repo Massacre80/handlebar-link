@@ -42,6 +42,7 @@ enum class SetupStep {
 data class SetupUiState(
     val step: SetupStep = SetupStep.WELCOME,
     val meters: List<FoundMeter> = emptyList(),
+    val paired: List<FoundMeter> = emptyList(),
     val searching: Boolean = false,
     val chosen: FoundMeter? = null,
     val consent: IntentSender? = null,
@@ -103,6 +104,10 @@ class SetupViewModel
                 return
             }
             state.update { it.copy(step = SetupStep.CHOOSE, meters = emptyList(), problem = null) }
+            viewModelScope.launch {
+                val paired = scanner.paired()
+                state.update { it.copy(paired = paired) }
+            }
             search()
         }
 
@@ -120,7 +125,18 @@ class SetupViewModel
                     try {
                         withTimeoutOrNull(SCAN_MS) {
                             scanner.scan().collect { found ->
-                                state.update { it.copy(meters = found) }
+                                // A paired meter that still advertises is listed once, as paired.
+                                state.update { now ->
+                                    now.copy(
+                                        meters =
+                                            found.filter { meter ->
+                                                now.paired.none {
+                                                    it.address ==
+                                                        meter.address
+                                                }
+                                            },
+                                    )
+                                }
                             }
                         }
                     } catch (e: SetupException) {
@@ -132,9 +148,24 @@ class SetupViewModel
                 }
         }
 
-        /** The rider tapped [meter]: stop scanning (associate() doc) and ask Android to link it. */
+        /**
+         * The rider tapped [meter]: stop scanning (associate() doc) and ask Android to link it; a meter this
+         * phone already paired goes straight to "You're set".
+         */
         fun choose(meter: FoundMeter) {
             scan?.cancel()
+            if (meter.paired) {
+                // Linked and paired already: nothing for Android to ask.
+                state.update {
+                    it.copy(
+                        step = SetupStep.DONE,
+                        chosen = meter,
+                        linkedAddress = meter.address,
+                        problem = null,
+                    )
+                }
+                return
+            }
             state.update { it.copy(step = SetupStep.LINKING, chosen = meter, problem = null) }
             viewModelScope.launch {
                 try {

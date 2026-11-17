@@ -58,11 +58,17 @@ class SetupViewModelTest {
     private var linkedAddress: String? = meter.address
     private val bondResults = ArrayDeque(listOf(true))
     private val bikes = FakeBikes()
+    private var paired = emptyList<FoundMeter>()
 
     private fun TestScope.viewModel() =
         SetupViewModel(
             conditions = conditions,
-            scanner = MeterScanner { scan() },
+            scanner =
+                object : MeterScanner {
+                    override fun scan() = this@SetupViewModelTest.scan()
+
+                    override suspend fun paired() = this@SetupViewModelTest.paired
+                },
             association =
                 object : MeterAssociation {
                     override suspend fun request(meter: FoundMeter): IntentSender =
@@ -239,6 +245,29 @@ class SetupViewModelTest {
 
             assertThat(vm.uiState.value.problem).isNotNull()
             assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.PERMISSION_MISSING)
+        }
+
+    @Test
+    fun `a meter this phone already paired is listed and skips linking and pairing (seen after a reinstall)`() =
+        runTest(main.dispatcher.scheduler) {
+            paired = listOf(meter.copy(rssi = 0, paired = true))
+            val vm = ready()
+            vm.findBike()
+            runCurrent()
+            assertThat(vm.uiState.value.paired).isEqualTo(paired)
+
+            // The scan hearing the same meter does not list it twice.
+            found.emit(listOf(meter))
+            runCurrent()
+            assertThat(vm.uiState.value.meters).isEqualTo(emptyList())
+
+            vm.choose(paired.single())
+            runCurrent()
+            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.DONE)
+            assertThat(vm.uiState.value.consent).isNull()
+            assertThat(vm.uiState.value.linkedAddress).isEqualTo(meter.address)
+            assertThat(bondResults.size).isEqualTo(1) // bond() never called
+            assertThat(scanning).isFalse()
         }
 
     private class FakeConditions : SetupConditions {

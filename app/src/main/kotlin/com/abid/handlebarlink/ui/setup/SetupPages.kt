@@ -137,6 +137,10 @@ internal fun ChoosePage(
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
             val (meters, others) = state.meters.partition { it.honda }
+            AnimatedVisibility(state.paired.isNotEmpty()) { ListLabel(stringResource(R.string.setup_paired)) }
+            state.paired.forEach { meter ->
+                key(meter.address) { Arriving { MeterCard(meter) { actions.onChoose(meter) } } }
+            }
             AnimatedVisibility(meters.isNotEmpty()) { ListLabel(stringResource(R.string.setup_found)) }
             meters.forEach { meter ->
                 key(meter.address) { Arriving { MeterCard(meter) { actions.onChoose(meter) } } }
@@ -144,7 +148,7 @@ internal fun ChoosePage(
             SearchRow(
                 when {
                     state.searching -> SearchState.SEARCHING
-                    meters.isEmpty() -> SearchState.NONE_FOUND
+                    meters.isEmpty() && state.paired.isEmpty() -> SearchState.NONE_FOUND
                     else -> SearchState.ENDED
                 },
                 actions.onSearchAgain,

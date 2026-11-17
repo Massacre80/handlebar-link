@@ -11,10 +11,14 @@ import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
 import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.data.PairedMeters
+import com.abid.handlebarlink.di.IoDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
@@ -30,9 +34,25 @@ class AndroidMeterScanner
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
+        private val pairedMeters: PairedMeters,
+        @param:IoDispatcher private val io: CoroutineDispatcher,
         logger: Logger,
     ) : MeterScanner {
         private val log = logger.child("setup.scan")
+
+        // Android's bonded devices: a binder call, so off the main thread.
+        override suspend fun paired(): List<FoundMeter> =
+            withContext(io) {
+                pairedMeters.list().orEmpty().map {
+                    FoundMeter(
+                        it.name,
+                        it.address,
+                        rssi = 0,
+                        honda = true,
+                        paired = true,
+                    )
+                }
+            }
 
         override fun scan(): Flow<List<FoundMeter>> =
             callbackFlow {
