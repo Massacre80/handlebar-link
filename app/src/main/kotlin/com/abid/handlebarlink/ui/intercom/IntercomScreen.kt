@@ -32,6 +32,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
+import com.abid.handlebarlink.core.designsystem.component.HlPillState
 import com.abid.handlebarlink.core.designsystem.component.HlSection
 import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlText
@@ -112,7 +113,14 @@ private fun PrimaryCard(
     reconnect: Reconnecting,
     onReconnect: (String) -> Unit,
 ) {
-    val connecting = reconnect is Reconnecting.Connecting || reconnect is Reconnecting.Linking
+    val pill =
+        when (reconnect) {
+            is Reconnecting.Connecting, is Reconnecting.Linking -> HlPillState.BUSY
+            is Reconnecting.Connected -> HlPillState.DONE
+            else -> HlPillState.IDLE
+        }
+    // "Connected" stays on the card a moment after Android reports the device, then the battery returns.
+    val justConnected = reconnect is Reconnecting.Connected && reconnect.address == device.address
     val problem =
         when (reconnect) {
             Reconnecting.Unsupported -> R.string.intercom_reconnect_unsupported
@@ -135,13 +143,19 @@ private fun PrimaryCard(
         battery = device.battery?.let { HlBatteryLevel(it, stringResource(R.string.device_battery, it)) },
         icon = kindIcon(device.kind),
         action =
-            if (device.connected) {
+            if (device.connected && !justConnected) {
                 null
             } else {
                 HlCardAction(
-                    stringResource(if (connecting) R.string.intercom_reconnecting else R.string.intercom_connect),
+                    stringResource(
+                        when (pill) {
+                            HlPillState.BUSY -> R.string.intercom_reconnecting
+                            HlPillState.DONE -> R.string.device_connected
+                            HlPillState.IDLE -> R.string.intercom_connect
+                        },
+                    ),
                     onClick = { onReconnect(device.address) },
-                    enabled = !connecting,
+                    state = pill,
                 )
             },
         detailColor = if (problem != null && !device.connected) HlTheme.colors.danger else Color.Unspecified,

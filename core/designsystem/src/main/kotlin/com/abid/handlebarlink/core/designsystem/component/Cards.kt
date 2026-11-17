@@ -1,6 +1,10 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,6 +27,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,10 +117,22 @@ public fun DeviceTile(
                     HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
                 }
                 Spacer(Modifier.weight(1f))
-                // The card's one action (a disconnected device's "Connect") takes the battery's place.
-                when {
-                    action != null -> HlPillButton(action.label, action.onClick, enabled = action.enabled)
-                    battery != null -> HlBattery(battery.percent, battery.label)
+                // The card's one action (a disconnected device's "Connect") takes the battery's place; they
+                // cross-fade, the action staying on screen as it fades (its last state, "Connected").
+                val fade = HlTheme.motion.fade<Float>()
+                val shown = remember { mutableStateOf(action) }
+                if (action != null) shown.value = action
+                AnimatedContent(
+                    action != null,
+                    transitionSpec = { fadeIn(fade) togetherWith fadeOut(fade) },
+                    contentAlignment = Alignment.CenterEnd,
+                    label = "card action",
+                ) { withAction ->
+                    val last = shown.value
+                    when {
+                        withAction && last != null -> HlPillButton(last.label, last.onClick, state = last.state)
+                        battery != null -> HlBattery(battery.percent, battery.label)
+                    }
                 }
             }
             Spacer(Modifier.weight(1f, fill = false))
@@ -322,6 +339,18 @@ public data class HlCardAction(
     val label: String,
     /** Done when pressed. */
     val onClick: () -> Unit,
-    /** False while it is under way ("Connecting…"). */
-    val enabled: Boolean = true,
+    /** Where it stands: ready, under way ("Connecting…") or done ("Connected"). */
+    val state: HlPillState = HlPillState.IDLE,
 )
+
+/** Where a [HlPillButton]'s action stands. */
+public enum class HlPillState {
+    /** Ready to press. */
+    IDLE,
+
+    /** Under way: a spinner, not pressable. */
+    BUSY,
+
+    /** Done: a check, for a moment before the pill goes. */
+    DONE,
+}

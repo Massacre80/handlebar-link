@@ -71,6 +71,11 @@ sealed interface Reconnecting {
         val address: String,
     ) : Reconnecting
 
+    /** [address] just connected: shown for a moment before the card shows its battery again. */
+    data class Connected(
+        val address: String,
+    ) : Reconnecting
+
     /** This phone's Android does not let apps reconnect. */
     data object Unsupported : Reconnecting
 

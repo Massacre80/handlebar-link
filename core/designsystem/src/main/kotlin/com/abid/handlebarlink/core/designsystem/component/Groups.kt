@@ -110,39 +110,3 @@ public fun HlActionPill(text: String) {
         )
     }
 }
-
-/**
- * The white call-to-action pill as a button of its own ([HlActionPill] marks a row that is the button): a
- * card's one action, such as "Connect" on a device card. Pressing scales it like every control; disabled, it
- * stays white and its label dims (an action under way, "Connecting…").
- */
-@Composable
-public fun HlPillButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-) {
-    val colors = HlTheme.colors
-    val press = remember { MutableInteractionSource() }
-    Box(
-        modifier
-            .pressScale(press, HlTheme.motion)
-            .height(HlTheme.sizes.chip)
-            .clip(CircleShape)
-            .background(colors.action)
-            .clickable(press, LocalIndication.current, enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = HlTheme.spacing.s16),
-        contentAlignment = Alignment.Center,
-    ) {
-        HlText(
-            text,
-            HlTheme.typography.label.copy(fontWeight = FontWeight.SemiBold),
-            if (enabled) colors.onAction else colors.onAction.copy(alpha = DIMMED),
-            maxLines = 1,
-        )
-    }
-}
-
-/** A disabled pill's label. */
-private const val DIMMED = 0.5f

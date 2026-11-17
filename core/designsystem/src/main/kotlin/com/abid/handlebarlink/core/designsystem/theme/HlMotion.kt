@@ -30,6 +30,14 @@ public data class HlMotion(
     val transformHoldMillis: Int = 400,
     /** How far the page under a growing card recedes (iOS's zoom transition scales it back slightly). */
     val recedeScale: Float = 0.94f,
+    /**
+     * The bouncy spring of a control changing state (a button going from "Connect" to loading), as Framer
+     * Motion's `{ type: "spring", duration: 0.6, bounce: 0.4 }` in the owner's web app: damping ratio
+     * 1 − bounce, stiffness (2π / duration)².
+     */
+    val bounceDamping: Float = 0.6f,
+    /** See [bounceDamping]. */
+    val bounceStiffness: Float = 110f,
     /** The tapped tile's content fading out as it starts to grow. */
     val transformFadeOutMillis: Int = 90,
     /** The page's content fading in over the growing card, overlapping the fade out so the card stays solid. */
@@ -44,6 +52,9 @@ public data class HlMotion(
 
     /** The spring for a container transform: critically damped, no bounce at either end. */
     public fun <T> transform(threshold: T? = null): SpringSpec<T> = spring(transformDamping, stiffness, threshold)
+
+    /** The spring for a control changing state ([bounceDamping]). */
+    public fun <T> bounce(threshold: T? = null): SpringSpec<T> = spring(bounceDamping, bounceStiffness, threshold)
 
     /** The spring for press feedback. */
     public fun <T> press(): SpringSpec<T> = spring(damping, pressStiffness)
