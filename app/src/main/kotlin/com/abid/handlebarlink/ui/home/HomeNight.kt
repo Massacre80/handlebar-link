@@ -115,6 +115,7 @@ internal fun HomeNight(
                         stringResource(R.string.add_device),
                         stringResource(R.string.coming_soon),
                         Modifier.weight(1f).fillMaxHeight(),
+                        backdrop = backdrop,
                     )
                 }
             }

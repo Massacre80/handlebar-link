@@ -170,6 +170,7 @@ public fun AddDeviceSlot(
     detail: String?,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    backdrop: Backdrop? = null,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -181,6 +182,8 @@ public fun AddDeviceSlot(
         modifier
             .pressScale(press, HlTheme.motion)
             .clip(RoundedCornerShape(radii.hero))
+            // Frosted like the intercom tile when it lies over the bike (owner, 2026-11-17).
+            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION, colors.screen) } ?: Modifier)
             .dashedOutline(colors.lineStrong, strokes.outline, radii.hero, strokes.dashOn, strokes.dashOff)
             .then(
                 if (onClick !=
@@ -288,6 +291,9 @@ public fun CardRow(
     )
 }
 
-/** The design's glass (`backdrop-filter: blur(24px) saturate(140%)` on Night's tiles and the tab bar). */
-internal val GLASS_BLUR = 24.dp
+/**
+ * The glass: the design's `backdrop-filter: blur(24px) saturate(140%)`, with the blur eased to 18 at the
+ * owner's request after seeing it on the phone (2026-11-17). Night's tiles and the tab bar.
+ */
+internal val GLASS_BLUR = 18.dp
 internal const val GLASS_SATURATION = 1.4f
