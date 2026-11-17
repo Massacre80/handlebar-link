@@ -261,11 +261,15 @@ public fun HlOptionRow(
             .then(if (enabled) Modifier else Modifier.alpha(DISABLED_ALPHA))
             .fillMaxWidth()
             .clip(shape)
-            .background(if (selected) colors.raisedHi else container)
-            // Bento's artboard outlines the chosen row in ink. On Night that was a white ring, removed at the
-            // owner's request (2026-11-17).
-            .then(if (selected && !night) Modifier.border(HlTheme.strokes.outline, colors.ink, shape) else Modifier)
-            .selectable(selected, press, LocalIndication.current, enabled, Role.RadioButton, onClick)
+            // The chosen row is marked by a grey fill and its check, no outline (owner, 2026-11-17: the
+            // artboard's ink ring read as a hard black border): Night's brighter glass, Bento's light grey.
+            .background(
+                when {
+                    !selected -> container
+                    night -> colors.raisedHi
+                    else -> colors.raisedLo
+                },
+            ).selectable(selected, press, LocalIndication.current, enabled, Role.RadioButton, onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
