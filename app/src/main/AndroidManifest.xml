@@ -38,6 +38,10 @@
     <!-- Package visibility: the intercom maker's app, opened from the Intercom page. -->
     <queries>
         <package android:name="com.ejeas.ejeasapp" />
+        <!-- Who gets a headset's assistant button now (the Devices page says so). -->
+        <intent>
+            <action android:name="android.intent.action.VOICE_COMMAND" />
+        </intent>
     </queries>
 
     <application
@@ -97,6 +101,23 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- A headset's assistant button (HFP AT+BVRA makes Android start ACTION_VOICE_COMMAND): does what the
+             rider chose and closes, nothing on screen, also over the lock screen while riding. Exported for
+             the system; only that action is acted on. -->
+        <activity
+            android:name=".devices.AssistantButtonActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:showWhenLocked="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VOICE_COMMAND" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
 
         <!-- Headset connection changes wake the app (an implicit-broadcast exception), so a headset's battery
              report right after it connects is heard; on disconnect its stored level is forgotten. Exported for

@@ -6,7 +6,6 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
-import android.media.session.MediaSessionManager
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.abid.handlebarlink.core.common.log.Logger
@@ -23,7 +22,7 @@ import javax.inject.Inject
  * `AudioManager.getAudioDevicesForAttributes` for where media plays, re-read when audio devices come and go;
  * Android 13's `MediaSessionManager` media-key session (allowed for apps with an enabled notification
  * listener, which this app has for the handlebar controls);.
- * Android 12 gets [MediaRoute.Unknown] and [MediaKeys.Unknown]: one version branch per feature, here.
+ * Android 12 gets [MediaRoute.Unknown]: one version branch per feature, here.
  */
 class AndroidAudioRouting
     @Inject
@@ -64,34 +63,6 @@ class AndroidAudioRouting
                 audio.registerAudioDeviceCallback(callback, null)
                 trySend(now())
                 awaitClose { audio.unregisterAudioDeviceCallback(callback) }
-            }.distinctUntilChanged()
-        }
-
-        override fun mediaKeys(): Flow<MediaKeys> {
-            val sessions = context.getSystemService(MediaSessionManager::class.java)
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-                sessions == null
-            ) {
-                return flowOf(MediaKeys.Unknown)
-            }
-            return callbackFlow {
-                fun now(): MediaKeys =
-                    try {
-                        sessions.mediaKeyEventSessionPackageName.takeIf { it.isNotEmpty() }?.let(MediaKeys::App)
-                            ?: MediaKeys.Unknown
-                    } catch (e: SecurityException) {
-                        // Notification access was turned off.
-                        log.warn("routing.keys.denied", "error" to e.message)
-                        MediaKeys.Unknown
-                    }
-                val listener = MediaSessionManager.OnMediaKeyEventSessionChangedListener { _, _ -> trySend(now()) }
-                try {
-                    sessions.addOnMediaKeyEventSessionChangedListener(ContextCompat.getMainExecutor(context), listener)
-                } catch (e: SecurityException) {
-                    log.warn("routing.keys.listen.denied", "error" to e.message)
-                }
-                trySend(now())
-                awaitClose { sessions.removeOnMediaKeyEventSessionChangedListener(listener) }
             }.distinctUntilChanged()
         }
 

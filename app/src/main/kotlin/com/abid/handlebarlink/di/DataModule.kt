@@ -7,10 +7,12 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.DataStoreBikeSettings
+import com.abid.handlebarlink.devices.AndroidAssistantButton
 import com.abid.handlebarlink.devices.AndroidAudioRouting
 import com.abid.handlebarlink.devices.AndroidBluetoothDevices
 import com.abid.handlebarlink.devices.AndroidBluetoothPairing
 import com.abid.handlebarlink.devices.AndroidHeadsetLink
+import com.abid.handlebarlink.devices.AssistantButton
 import com.abid.handlebarlink.devices.AudioRouting
 import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.BluetoothPairing
@@ -46,6 +48,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun headsetLink(link: AndroidHeadsetLink): HeadsetLink
+
+    @Binds
+    abstract fun assistantButton(button: AndroidAssistantButton): AssistantButton
 
     companion object {
         @Provides

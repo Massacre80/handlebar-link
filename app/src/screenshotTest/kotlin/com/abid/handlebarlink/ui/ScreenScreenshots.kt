@@ -20,6 +20,7 @@ import com.abid.handlebarlink.core.designsystem.preview.ScreenSizes
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.data.AppTheme
+import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.NearbyDevice
 import com.abid.handlebarlink.ui.devices.AddDeviceActions
@@ -34,7 +35,6 @@ import com.abid.handlebarlink.ui.devices.SheetDevice
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
-import com.abid.handlebarlink.ui.intercom.Buttons
 import com.abid.handlebarlink.ui.intercom.IntercomScreen
 import com.abid.handlebarlink.ui.intercom.IntercomUiState
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
@@ -318,7 +318,7 @@ fun IntercomNight() = Intercom(HlThemeVariant.NIGHT, PreviewIntercom)
 @Artboard
 @LargeText
 @Composable
-fun IntercomBento() = Intercom(HlThemeVariant.BENTO, PreviewIntercom.copy(buttons = Buttons.OTHER_APP))
+fun IntercomBento() = Intercom(HlThemeVariant.BENTO, PreviewIntercom.copy(handler = AssistantHandler.Other("Google")))
 
 @PreviewTest
 @Artboard

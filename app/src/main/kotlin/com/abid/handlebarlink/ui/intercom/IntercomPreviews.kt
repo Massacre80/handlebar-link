@@ -8,6 +8,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.devices.DeviceKind
 
 private val PreviewDevice =
@@ -27,7 +28,7 @@ internal val PreviewIntercom =
     IntercomUiState(
         devices = listOf(PreviewDevice, PreviewDevice.copy(address = "BB", name = "Passenger", connected = false)),
         music = Music.Primary,
-        buttons = Buttons.CARLINK,
+        handler = AssistantHandler.ThisApp,
         calls = Calls.Device("AA", "V6 Pro+"),
         outputs =
             listOf(
@@ -37,7 +38,7 @@ internal val PreviewIntercom =
         vendorApp = true,
     )
 
-internal val NoIntercomActions = IntercomActions({}, {}, {}, {}, {}, {}, {}, {})
+internal val NoIntercomActions = IntercomActions({}, {}, {}, {}, {}, {}, {}, {}, {})
 
 private const val PREVIEW_BATTERY = 50
 
@@ -54,7 +55,11 @@ private fun IntercomNightPreview() {
 private fun IntercomBentoPreview() {
     HlTheme(HlThemeVariant.BENTO) {
         HlBackground(Modifier.fillMaxSize()) {
-            IntercomScreen(PreviewIntercom.copy(buttons = Buttons.OTHER_APP), NoIntercomActions, PaddingValues())
+            IntercomScreen(
+                PreviewIntercom.copy(handler = AssistantHandler.Other("Google")),
+                NoIntercomActions,
+                PaddingValues(),
+            )
         }
     }
 }

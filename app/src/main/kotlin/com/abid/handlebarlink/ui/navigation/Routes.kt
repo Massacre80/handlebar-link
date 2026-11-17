@@ -82,6 +82,10 @@ data object CallsRoute : OverlayRoute
 @Serializable
 data object MusicRoute : OverlayRoute
 
+/** "Assistant button": a sheet over the Devices page choosing what the intercom's assistant button does. */
+@Serializable
+data object AssistantRoute : OverlayRoute
+
 /** "Remove …?": a dialog over the Intercom page confirming a device's removal from the app. */
 @Serializable
 data class RemoveDeviceRoute(

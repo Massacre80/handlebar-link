@@ -11,6 +11,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
@@ -19,6 +20,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlDialog
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
+import com.abid.handlebarlink.ui.navigation.AssistantRoute
 import com.abid.handlebarlink.ui.navigation.CallsRoute
 import com.abid.handlebarlink.ui.navigation.DeviceSheetRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
@@ -38,52 +40,10 @@ fun EntryProviderScope<NavKey>.intercomEntries(
     contentPadding: PaddingValues,
 ) {
     entry<IntercomRoute> { IntercomEntry(navigator, contentPadding) }
-    entry<CallsRoute>(metadata = sheet()) {
-        val viewModel: IntercomViewModel = hiltViewModel()
-        val state by viewModel.uiState.collectAsStateWithLifecycle()
-        val scope = rememberCoroutineScope()
-        CallsSheet(
-            state,
-            onChoose = { route ->
-                scope.launch {
-                    viewModel.chooseCallsNow(route)
-                    navigator.goBack()
-                }
-            },
-            onCancel = navigator::goBack,
-        )
-    }
-    entry<MusicRoute>(metadata = sheet()) {
-        val viewModel: IntercomViewModel = hiltViewModel()
-        val state by viewModel.uiState.collectAsStateWithLifecycle()
-        MusicSheet(
-            state.outputs,
-            onChoose = { id ->
-                viewModel.playOn(id)
-                navigator.goBack()
-            },
-            onCancel = navigator::goBack,
-        )
-    }
-    entry<RemoveDeviceRoute>(metadata = DialogSceneStrategy.dialog()) { route ->
-        val viewModel: IntercomViewModel = hiltViewModel()
-        val scope = rememberCoroutineScope()
-        HlDialog(
-            HlIcons.Trash,
-            stringResource(R.string.intercom_remove_title, route.name),
-            stringResource(R.string.intercom_remove_detail),
-            confirm = stringResource(R.string.intercom_remove),
-            onConfirm = {
-                scope.launch {
-                    viewModel.removeNow(route.address)
-                    navigator.goBack()
-                }
-            },
-            dismiss = stringResource(R.string.cancel),
-            onDismiss = navigator::goBack,
-            destructive = true,
-        )
-    }
+    entry<CallsRoute>(metadata = sheet()) { CallsEntry(navigator) }
+    entry<MusicRoute>(metadata = sheet()) { MusicEntry(navigator) }
+    entry<AssistantRoute>(metadata = sheet()) { AssistantEntry(navigator) }
+    entry<RemoveDeviceRoute>(metadata = DialogSceneStrategy.dialog()) { route -> RemoveEntry(route, navigator) }
 }
 
 @Composable
@@ -99,6 +59,11 @@ private fun IntercomEntry(
         rememberLauncherForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) { result ->
             viewModel.linked(result.resultCode, result.data)
         }
+    // Back from the system's chooser or another app's settings: who gets the assistant button now.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refreshHandler()
+        onPauseOrDispose {}
+    }
     val linking = state.reconnect as? Reconnecting.Linking
     LaunchedEffect(linking) { linking?.let { consent.launch(IntentSenderRequest.Builder(it.consent).build()) } }
     IntercomScreen(
@@ -120,10 +85,83 @@ private fun IntercomEntry(
             onChoosePrimary = viewModel::choosePrimary,
             onCalls = { navigator.navigate(CallsRoute) },
             onMusic = { navigator.navigate(MusicRoute) },
+            onAssistant = { navigator.navigate(AssistantRoute) },
             onReconnect = viewModel::reconnect,
             onVendorApp = { viewModel.vendorApp()?.let(context::startActivity) },
             onRemove = { device -> navigator.navigate(RemoveDeviceRoute(device.address, device.name)) },
         ),
         contentPadding,
+    )
+}
+
+@Composable
+private fun CallsEntry(navigator: Navigator) {
+    val viewModel: IntercomViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    CallsSheet(
+        state,
+        onChoose = { route ->
+            scope.launch {
+                viewModel.chooseCallsNow(route)
+                navigator.goBack()
+            }
+        },
+        onCancel = navigator::goBack,
+    )
+}
+
+@Composable
+private fun MusicEntry(navigator: Navigator) {
+    val viewModel: IntercomViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    MusicSheet(
+        state.outputs,
+        onChoose = { id ->
+            viewModel.playOn(id)
+            navigator.goBack()
+        },
+        onCancel = navigator::goBack,
+    )
+}
+
+@Composable
+private fun AssistantEntry(navigator: Navigator) {
+    val viewModel: IntercomViewModel = hiltViewModel()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    AssistantSheet(
+        state.assistant,
+        onChoose = { action ->
+            scope.launch {
+                viewModel.chooseAssistantNow(action)
+                navigator.goBack()
+            }
+        },
+        onCancel = navigator::goBack,
+    )
+}
+
+@Composable
+private fun RemoveEntry(
+    route: RemoveDeviceRoute,
+    navigator: Navigator,
+) {
+    val viewModel: IntercomViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
+    HlDialog(
+        HlIcons.Trash,
+        stringResource(R.string.intercom_remove_title, route.name),
+        stringResource(R.string.intercom_remove_detail),
+        confirm = stringResource(R.string.intercom_remove),
+        onConfirm = {
+            scope.launch {
+                viewModel.removeNow(route.address)
+                navigator.goBack()
+            }
+        },
+        dismiss = stringResource(R.string.cancel),
+        onDismiss = navigator::goBack,
+        destructive = true,
     )
 }

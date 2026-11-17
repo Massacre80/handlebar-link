@@ -1,9 +1,9 @@
 package com.abid.handlebarlink.ui.intercom
 
-import com.abid.handlebarlink.controls.CARLINK_PACKAGES
+import com.abid.handlebarlink.devices.AssistantAction
+import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.DeviceStatus
-import com.abid.handlebarlink.devices.MediaKeys
 import com.abid.handlebarlink.devices.MediaOutput
 import com.abid.handlebarlink.devices.MediaRoute
 import com.abid.handlebarlink.devices.PHONE
@@ -16,8 +16,10 @@ data class IntercomUiState(
     val devices: List<IntercomDevice> = emptyList(),
     /** Where media plays now. */
     val music: Music = Music.Unknown,
-    /** Where the intercom's play, pause and skip go. */
-    val buttons: Buttons = Buttons.UNKNOWN,
+    /** What the intercom's assistant button does. */
+    val assistant: AssistantAction = AssistantAction.PLAY_PAUSE,
+    /** Whether Android sends that button to this app. */
+    val handler: AssistantHandler = AssistantHandler.Ask,
     /** Where call audio goes: an added device, or the phone. */
     val calls: Calls = Calls.Phone,
     /** Where media can play, to choose from (Android 14+); empty where it cannot be chosen. */
@@ -115,22 +117,9 @@ sealed interface Music {
     data object Phone : Music
 }
 
-/** Where the intercom's play, pause and skip go. */
-enum class Buttons {
-    /** Android 12, or no notification access: cannot tell. */
-    UNKNOWN,
-
-    /** To CarLink: they control CarPlay. */
-    CARLINK,
-
-    /** To another app: CarPlay misses them until CarLink plays again. */
-    OTHER_APP,
-}
-
-/** What Android says about audio now: where media plays, where media keys go, where it could play. */
+/** What Android says about audio now: where media plays and where it could play. */
 data class AudioNow(
     val route: MediaRoute,
-    val keys: MediaKeys,
     val outputs: List<MediaOutput> = emptyList(),
 )
 
@@ -143,7 +132,6 @@ fun intercomState(
     vendorApp: Boolean,
 ): IntercomUiState {
     val route = audio.route
-    val keys = audio.keys
     val primary = saved.primary(chosen.primary)
     val devices =
         (listOfNotNull(primary) + saved.filter { it != primary }).map { device ->
@@ -160,11 +148,6 @@ fun intercomState(
             )
         }
     val music = musicOf(route, saved, primary)
-    val buttons =
-        when (keys) {
-            MediaKeys.Unknown -> Buttons.UNKNOWN
-            is MediaKeys.App -> if (keys.packageName in CARLINK_PACKAGES) Buttons.CARLINK else Buttons.OTHER_APP
-        }
     val calls =
         when (chosen.calls) {
             PHONE -> {
@@ -181,7 +164,7 @@ fun intercomState(
             }
         } ?: Calls.Phone
     val outputs = outputsOf(audio.outputs, saved)
-    return IntercomUiState(devices, music, buttons, calls, outputs, vendorApp)
+    return IntercomUiState(devices, music, calls = calls, outputs = outputs, vendorApp = vendorApp)
 }
 
 /** The rider's choices: the primary device and where calls go (null: not chosen). */
@@ -200,6 +183,8 @@ data class IntercomActions(
     val onCalls: () -> Unit,
     /** Opens the chooser for where music plays (Android 14+). */
     val onMusic: () -> Unit,
+    /** Opens the chooser for what the intercom's assistant button does. */
+    val onAssistant: () -> Unit,
     /** Reconnects the device at the address. */
     val onReconnect: (String) -> Unit,
     val onVendorApp: () -> Unit,

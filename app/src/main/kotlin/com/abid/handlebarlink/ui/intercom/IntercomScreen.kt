@@ -38,6 +38,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
@@ -80,7 +81,7 @@ fun IntercomScreen(
         } else {
             PrimaryCard(primary, state.reconnect, actions.onReconnect)
             Audio(state, primary, actions)
-            Buttons(state.buttons)
+            AssistantButton(state, actions.onAssistant)
             if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
             Details(primary, state.vendorApp, actions)
         }
@@ -203,23 +204,37 @@ private fun Audio(
     }
 }
 
+/**
+ * The one intercom button the phone's apps can take (its assistant button): what it does, and whether
+ * Android sends it here yet. Play, pause and skip go to the app playing audio and are not offered.
+ */
 @Composable
-private fun Buttons(buttons: Buttons) {
+private fun AssistantButton(
+    state: IntercomUiState,
+    onChoose: () -> Unit,
+) {
     val colors = HlTheme.colors
-    val (text, color) =
-        when (buttons) {
-            Buttons.CARLINK -> stringResource(R.string.intercom_buttons_carlink) to colors.success
-            Buttons.OTHER_APP -> stringResource(R.string.intercom_buttons_other) to colors.danger
-            Buttons.UNKNOWN -> stringResource(R.string.intercom_buttons_unknown) to colors.inkMuted
+    val (status, color) =
+        when (val handler = state.handler) {
+            AssistantHandler.ThisApp -> stringResource(R.string.assistant_ready) to colors.inkMuted
+            AssistantHandler.Ask -> stringResource(R.string.assistant_ask) to colors.inkMuted
+            is AssistantHandler.Other -> stringResource(R.string.assistant_other, handler.label) to colors.danger
         }
     HlSection(stringResource(R.string.intercom_buttons)) {
-        Column(
+        HlValueRow(
+            stringResource(R.string.assistant_button),
+            hint = stringResource(assistantName(state.assistant)),
+            onClick = onChoose,
+            container = Color.Transparent,
+            chevron = true,
+        )
+        HlGroupDivider()
+        HlText(
+            status,
+            HlTheme.typography.meta,
+            color,
             Modifier.padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
-            verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2),
-        ) {
-            HlText(stringResource(R.string.intercom_buttons_media), HlTheme.typography.value, colors.ink)
-            HlText(text, HlTheme.typography.meta, color)
-        }
+        )
     }
 }
 

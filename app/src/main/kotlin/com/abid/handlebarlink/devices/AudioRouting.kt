@@ -17,17 +17,6 @@ sealed interface MediaRoute {
     data object Phone : MediaRoute
 }
 
-/** Which app an intercom's play, pause and skip reach (Android sends them to the last app that played). */
-sealed interface MediaKeys {
-    /** Android 12, or not allowed to ask: not shown. */
-    data object Unknown : MediaKeys
-
-    /** The app, by package name. */
-    data class App(
-        val packageName: String,
-    ) : MediaKeys
-}
-
 /** A place media can play: a connected Bluetooth device or the phone itself. */
 data class MediaOutput(
     /** The platform's route id, for [AudioRouting.playOn]. */
@@ -43,9 +32,6 @@ data class MediaOutput(
 interface AudioRouting {
     /** Where media plays now, while collected. */
     fun mediaRoute(): Flow<MediaRoute>
-
-    /** Where media keys go now, while collected. */
-    fun mediaKeys(): Flow<MediaKeys>
 
     /** Where media can play, chosen in the app (Android 14+), while collected; empty where it cannot. */
     fun mediaOutputs(): Flow<List<MediaOutput>>

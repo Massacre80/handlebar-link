@@ -3,6 +3,8 @@ package com.abid.handlebarlink.ui.intercom
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abid.handlebarlink.devices.AssistantAction
+import com.abid.handlebarlink.devices.AssistantButton
 import com.abid.handlebarlink.devices.AudioRouting
 import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.DeviceSettings
@@ -30,7 +32,10 @@ class IntercomViewModel
         private val bluetooth: BluetoothDevices,
         private val routing: AudioRouting,
         private val link: HeadsetLink,
+        private val button: AssistantButton,
     ) : ViewModel() {
+        private val handler = MutableStateFlow(button.handler())
+
         private val reconnecting = MutableStateFlow<Reconnecting>(Reconnecting.Idle)
         private val statuses get() = bluetooth.statuses()
 
@@ -39,10 +44,12 @@ class IntercomViewModel
             combine(
                 combine(devices.devices, combine(devices.primary, devices.calls, ::Choices), ::Pair),
                 bluetooth.statuses(),
-                combine(routing.mediaRoute(), routing.mediaKeys(), routing.mediaOutputs(), ::AudioNow),
+                combine(routing.mediaRoute(), routing.mediaOutputs(), ::AudioNow),
                 reconnecting,
-            ) { (saved, chosen), statuses, audio, reconnect ->
-                intercomState(saved, chosen, statuses, audio, routing.vendorApp() != null).copy(reconnect = reconnect)
+                combine(button.action, handler, ::Pair),
+            ) { (saved, chosen), statuses, audio, reconnect, (assistant, handler) ->
+                intercomState(saved, chosen, statuses, audio, routing.vendorApp() != null)
+                    .copy(reconnect = reconnect, assistant = assistant, handler = handler)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), IntercomUiState())
 
         /** Makes [address] the primary device. */
@@ -102,6 +109,14 @@ class IntercomViewModel
         ) {
             reconnecting.value = Reconnecting.Idle
             link.linkedFrom(resultCode, data)?.let(::reconnect)
+        }
+
+        /** Sets what the intercom's assistant button does; returns once stored. */
+        suspend fun chooseAssistantNow(action: AssistantAction) = button.choose(action)
+
+        /** Reads again who gets the assistant button (the rider may have chosen "Always" meanwhile). */
+        fun refreshHandler() {
+            handler.value = button.handler()
         }
 
         /** The intercom maker's app, to open. */

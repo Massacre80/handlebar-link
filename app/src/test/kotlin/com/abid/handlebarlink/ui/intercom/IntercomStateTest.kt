@@ -6,7 +6,6 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.DeviceStatus
-import com.abid.handlebarlink.devices.MediaKeys
 import com.abid.handlebarlink.devices.MediaRoute
 import com.abid.handlebarlink.devices.SavedDevice
 import org.junit.Test
@@ -21,9 +20,8 @@ class IntercomStateTest {
         chosen: String? = null,
         calls: String? = null,
         route: MediaRoute = MediaRoute.Unknown,
-        keys: MediaKeys = MediaKeys.Unknown,
         statuses: Map<String, DeviceStatus> = emptyMap(),
-    ) = intercomState(saved, Choices(chosen, calls), statuses, AudioNow(route, keys), vendorApp = false)
+    ) = intercomState(saved, Choices(chosen, calls), statuses, AudioNow(route), vendorApp = false)
 
     @Test
     fun `the first intercom is primary until the rider chooses another, which then comes first`() {
@@ -43,13 +41,6 @@ class IntercomStateTest {
     }
 
     @Test
-    fun `buttons reach CarPlay only when CarLink holds the media keys`() {
-        assertThat(state(keys = MediaKeys.App("com.carlink.app")).buttons).isEqualTo(Buttons.CARLINK)
-        assertThat(state(keys = MediaKeys.App("com.spotify.music")).buttons).isEqualTo(Buttons.OTHER_APP)
-        assertThat(state().buttons).isEqualTo(Buttons.UNKNOWN)
-    }
-
-    @Test
     fun `live state per device, nothing assumed for a device Android does not report`() {
         val live = DeviceStatus(connected = true, battery = 60, calls = true, music = false)
         val primary = state(statuses = mapOf("AA" to live)).primary!!
@@ -62,7 +53,7 @@ class IntercomStateTest {
     @Test
     fun `nothing added, no primary`() {
         val empty =
-            intercomState(emptyList(), Choices(), emptyMap(), AudioNow(MediaRoute.Phone, MediaKeys.Unknown), false)
+            intercomState(emptyList(), Choices(), emptyMap(), AudioNow(MediaRoute.Phone), false)
         assertThat(empty.primary).isNull()
     }
 
