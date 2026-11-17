@@ -299,3 +299,9 @@ public fun CardRow(
  */
 internal val GLASS_BLUR = 18.dp
 internal const val GLASS_SATURATION = 1.4f
+
+/** A battery to show: [percent] and how it reads aloud ([label], "72%"). */
+public data class HlBatteryLevel(
+    val percent: Int,
+    val label: String,
+)

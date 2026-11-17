@@ -84,10 +84,14 @@ public data class HlSizes(
     val iconTiny: Dp = 18.dp,
     /** Radios and checks. */
     val indicator: Dp = 24.dp,
-    /** The battery glyph's width (Paper "Home 3" tile: 20 × 10). */
-    val batteryWidth: Dp = 20.dp,
-    /** The battery glyph's height. */
-    val batteryHeight: Dp = 10.dp,
+    /** The battery's width, terminal included (iOS style, the number inside). */
+    val batteryWidth: Dp = 30.dp,
+    /** The battery's height. */
+    val batteryHeight: Dp = 14.dp,
+    /** The battery terminal's width. */
+    val batteryNub: Dp = 1.5.dp,
+    /** The gap between the battery's body and its terminal. */
+    val batteryNubGap: Dp = 1.dp,
     /** A tick's height. */
     val tick: Dp = 12.dp,
     /** Night device tiles. */

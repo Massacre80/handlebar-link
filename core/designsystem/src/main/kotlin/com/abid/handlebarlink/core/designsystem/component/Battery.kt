@@ -1,25 +1,38 @@
 package com.abid.handlebarlink.core.designsystem.component
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.sp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 
 /**
- * A battery level as Paper "Home 3" draws it on the device tile: the glyph (an outline in half-strength
- * ink, a fill as long as the charge, the terminal) and the percentage in muted ink, 4 dp apart. The fill
- * turns to the danger colour at [LOW_PERCENT] or less. [label] is what the percentage reads ("72%").
+ * A battery level, iOS style (owner, 2026-11-18): one rounded body, the charge filling it from the left,
+ * the percentage inside, knocked out of the fill so the ground shows through; the terminal on the right.
+ * The fill is clipped to the body's own shape, so its corners are concentric with the body's. The fill is
+ * the danger colour at [LOW_PERCENT] or less. The number keeps a fixed size so "100" always fits (like the
+ * status bar); TalkBack reads [label].
  */
 @Composable
 public fun HlBattery(
@@ -28,63 +41,65 @@ public fun HlBattery(
     modifier: Modifier = Modifier,
 ) {
     val colors = HlTheme.colors
-    val level = percent.coerceIn(0, FULL) / FULL.toFloat()
-    val outline = colors.ink.copy(alpha = OUTLINE_ALPHA)
-    val fill = if (percent <= LOW_PERCENT) colors.danger else colors.ink
-    Row(
-        modifier.clearAndSetSemantics { contentDescription = label },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s4),
-    ) {
-        Spacer(
-            Modifier
-                .size(HlTheme.sizes.batteryWidth, HlTheme.sizes.batteryHeight)
-                .drawWithCache {
-                    // The artboard's 24 × 12 drawing, scaled to the glyph's size.
-                    val unit = size.width / VIEW_WIDTH
-                    val stroke = Stroke(STROKE * unit)
-                    val body = Size(BODY_WIDTH * unit, BODY_HEIGHT * unit)
-                    val bodyAt = Offset(INSET * unit, INSET * unit)
-                    val fillAt = Offset(FILL_AT * unit, FILL_AT * unit)
-                    val fillSize = Size(FILL_MAX * level * unit, FILL_HEIGHT * unit)
-                    val nubAt = Offset(NUB_X * unit, NUB_Y * unit)
-                    val nub = Size(NUB_WIDTH * unit, NUB_HEIGHT * unit)
-                    onDrawBehind {
-                        drawRoundRect(outline, bodyAt, body, CornerRadius(BODY_RADIUS * unit), style = stroke)
-                        drawRoundRect(fill, fillAt, fillSize, CornerRadius(FILL_RADIUS * unit))
-                        drawRoundRect(outline, nubAt, nub, CornerRadius(NUB_RADIUS * unit))
-                    }
-                },
-        )
-        HlText(label, HlTheme.typography.meta, colors.inkMuted, maxLines = 1)
-    }
+    val sizes = HlTheme.sizes
+    val level = percent.coerceIn(0, FULL)
+    val track = colors.ink.copy(alpha = TRACK_ALPHA)
+    val fill = if (level <= LOW_PERCENT) colors.danger else colors.ink
+    val measurer = rememberTextMeasurer()
+    val number = level.toString()
+    Spacer(
+        modifier
+            .clearAndSetSemantics { contentDescription = label }
+            .size(sizes.batteryWidth, sizes.batteryHeight)
+            // Offscreen: the number clears the pixels under it, letting the ground show through.
+            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+            .drawWithCache {
+                val nubWidth = sizes.batteryNub.toPx()
+                val gap = sizes.batteryNubGap.toPx()
+                val body = Size(size.width - nubWidth - gap, size.height)
+                val radius = CornerRadius(body.height * BODY_ROUNDING)
+                val outline = Path().apply { addRoundRect(RoundRect(Rect(Offset.Zero, body), radius)) }
+                val nubHeight = body.height * NUB_SHARE
+                val nubAt = Offset(body.width + gap, (body.height - nubHeight) / 2)
+                // The number at a fixed pixel size: the glyph does not grow with the font scale.
+                val text =
+                    measurer.measure(
+                        number,
+                        TextStyle(
+                            fontSize = (body.height * NUMBER_SHARE / density).sp / fontScale,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            letterSpacing = TIGHT.sp,
+                        ),
+                    )
+                val textAt =
+                    Offset((body.width - text.size.width) / 2f, (body.height - text.size.height) / 2f)
+                onDrawBehind {
+                    drawPath(outline, track)
+                    clipPath(outline) { drawRect(fill, size = Size(body.width * level / FULL, body.height)) }
+                    drawRoundRect(track, nubAt, Size(nubWidth, nubHeight), CornerRadius(nubWidth))
+                    drawText(text, Color.Black, textAt, blendMode = BlendMode.Clear)
+                }
+            },
+    )
 }
-
-/** A battery to show: [percent] and how it reads ([label], "72%"). */
-public data class HlBatteryLevel(
-    val percent: Int,
-    val label: String,
-)
 
 /** At or below this the fill is the danger colour. */
 public const val LOW_PERCENT: Int = 20
 
 private const val FULL = 100
-private const val OUTLINE_ALPHA = 0.5f
 
-// Paper "Home 3": viewBox 0 0 24 12.
-private const val VIEW_WIDTH = 24f
-private const val STROKE = 1.5f
-private const val INSET = 0.75f
-private const val BODY_WIDTH = 20f
-private const val BODY_HEIGHT = 10.5f
-private const val BODY_RADIUS = 2.5f
-private const val FILL_AT = 2.5f
-private const val FILL_MAX = 16.5f
-private const val FILL_HEIGHT = 7f
-private const val FILL_RADIUS = 1.2f
-private const val NUB_X = 22f
-private const val NUB_Y = 4f
-private const val NUB_WIDTH = 1.6f
-private const val NUB_HEIGHT = 4f
-private const val NUB_RADIUS = 0.8f
+/** The empty part of the body. */
+private const val TRACK_ALPHA = 0.32f
+
+/** Corner radius as a share of the body's height (iOS's battery: about a third). */
+private const val BODY_ROUNDING = 0.32f
+
+/** The terminal's height as a share of the body's. */
+private const val NUB_SHARE = 0.38f
+
+/** The number's size as a share of the body's height. */
+private const val NUMBER_SHARE = 0.78f
+
+/** Slightly tight figures, so three digits sit well inside. */
+private const val TIGHT = -0.3f
