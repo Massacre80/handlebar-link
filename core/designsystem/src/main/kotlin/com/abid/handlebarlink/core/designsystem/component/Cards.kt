@@ -58,7 +58,8 @@ public fun HlCard(
         modifier
             .pressScale(press, HlTheme.motion)
             .clip(shape)
-            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION) } ?: Modifier)
+            // The card's backdrop (the bike) fades out, so the glass stands on the screen colour.
+            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION, colors.screen) } ?: Modifier)
             .background(colors.panel)
             .then(edged)
             .then(
@@ -287,6 +288,6 @@ public fun CardRow(
     )
 }
 
-/** The design's glass (`backdrop-filter: blur(24px) saturate(140%)` on Night's tiles). */
-private val GLASS_BLUR = 24.dp
-private const val GLASS_SATURATION = 1.4f
+/** The design's glass (`backdrop-filter: blur(24px) saturate(140%)` on Night's tiles and the tab bar). */
+internal val GLASS_BLUR = 24.dp
+internal const val GLASS_SATURATION = 1.4f

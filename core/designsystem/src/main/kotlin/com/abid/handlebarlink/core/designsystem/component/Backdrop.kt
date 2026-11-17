@@ -7,6 +7,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
 import androidx.compose.ui.graphics.TileMode
@@ -32,6 +33,12 @@ public class Backdrop internal constructor() {
     // Set by the source node while attached; plain fields, read while drawing (no state, no recomposition).
     internal var layer: GraphicsLayer? = null
     internal var source: Modifier.Node? = null
+
+    /** Counts the source's recordings; a glass records again when it changed (the bike arrives late). */
+    internal var generation: Int = 0
+
+    /** The glass drawn from this backdrop, told to redraw when the source records new content. */
+    internal val glasses: MutableSet<DrawModifierNode> = mutableSetOf()
 }
 
 /** A [Backdrop] for one screen. */
@@ -46,6 +53,11 @@ public fun Modifier.backdropSource(backdrop: Backdrop): Modifier = this then Bac
  * standard deviation) and saturated by [saturation] (CSS `saturate()`). Put it after the card's clip and
  * before its fill, so the fill tints the glass and the clip shapes it.
  *
+ * CSS `backdrop-filter` replaces what lies behind with its blurred copy. Drawing the copy over a backdrop
+ * that is not opaque (the bike fades out towards the cards) let the sharp original show through (seen on
+ * the phone, 2026-11-17), so a backdrop that is not opaque needs a [base]: the ground it lies on, painted
+ * first. A backdrop that includes its own ground (the whole page, for the tab bar) needs none.
+ *
  * Positions are read while drawing (`requireLayoutCoordinates`), not tracked with `onGloballyPositioned`,
  * which fired on every frame of a page slide; the blur and colour filter are built once, and the glass is
  * re-recorded only when its offset or size changes (Compose performance skill, layouts and graphics).
@@ -54,7 +66,8 @@ public fun Modifier.backdropBlur(
     backdrop: Backdrop,
     blur: Dp,
     saturation: Float,
-): Modifier = this then BackdropBlurElement(backdrop, blur, saturation)
+    base: Color = Color.Transparent,
+): Modifier = this then BackdropBlurElement(backdrop, blur, saturation, base)
 
 private data class BackdropSourceElement(
     val backdrop: Backdrop,
@@ -96,6 +109,10 @@ private class BackdropSourceNode(
         }
         layer.record { this@draw.drawContent() }
         drawLayer(layer)
+        // The glass recorded the old content; it must draw again (an invalidation for the next frame only:
+        // a glass redraw never redraws the source, so this cannot loop).
+        backdrop.generation++
+        backdrop.glasses.forEach { it.invalidateDraw() }
     }
 }
 
@@ -103,11 +120,12 @@ private data class BackdropBlurElement(
     val backdrop: Backdrop,
     val blur: Dp,
     val saturation: Float,
+    val base: Color,
 ) : ModifierNodeElement<BackdropBlurNode>() {
-    override fun create() = BackdropBlurNode(backdrop, blur, saturation)
+    override fun create() = BackdropBlurNode(backdrop, blur, saturation, base)
 
     override fun update(node: BackdropBlurNode) {
-        node.update(backdrop, blur, saturation)
+        node.update(backdrop, blur, saturation, base)
     }
 }
 
@@ -115,21 +133,29 @@ private class BackdropBlurNode(
     private var backdrop: Backdrop,
     private var blur: Dp,
     private var saturation: Float,
+    private var base: Color,
 ) : Modifier.Node(),
     DrawModifierNode {
     private var glass: GraphicsLayer? = null
     private var shift: Offset = Offset.Unspecified
     private var recordedSize: Size = Size.Unspecified
     private var effectFor: Float = Float.NaN
+    private var recordedGeneration: Int = -1
 
     fun update(
         backdrop: Backdrop,
         blur: Dp,
         saturation: Float,
+        base: Color,
     ) {
+        if (backdrop !== this.backdrop && isAttached) {
+            this.backdrop.glasses -= this
+            backdrop.glasses += this
+        }
         this.backdrop = backdrop
         this.blur = blur
         this.saturation = saturation
+        this.base = base
         effectFor = Float.NaN
         shift = Offset.Unspecified
         invalidateDraw()
@@ -137,13 +163,16 @@ private class BackdropBlurNode(
 
     override fun onAttach() {
         glass = requireGraphicsContext().createGraphicsLayer()
+        backdrop.glasses += this
     }
 
     override fun onDetach() {
+        backdrop.glasses -= this
         glass?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
         glass = null
         shift = Offset.Unspecified
         effectFor = Float.NaN
+        recordedGeneration = -1
     }
 
     override fun ContentDrawScope.draw() {
@@ -162,11 +191,13 @@ private class BackdropBlurNode(
                 effectFor = radius
                 shift = Offset.Unspecified
             }
-            if (offset != shift || size != recordedSize) {
+            if (offset != shift || size != recordedSize || backdrop.generation != recordedGeneration) {
                 glass.record { translate(offset.x, offset.y) { drawLayer(source) } }
                 shift = offset
                 recordedSize = size
+                recordedGeneration = backdrop.generation
             }
+            if (base.alpha > 0f) drawRect(base)
             drawLayer(glass)
         }
         drawContent()

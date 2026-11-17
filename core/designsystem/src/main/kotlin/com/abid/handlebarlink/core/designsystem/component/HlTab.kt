@@ -56,7 +56,8 @@ public data class HlTab(
 /**
  * The floating tab bar ("Component · Tab bar"): the active tab sits on a raised chip, the others share the
  * remaining width. On a change the chip springs to the new tab while the tabs resize and recolour
- * (Motion-style "layoutId" sliding, done with a spring offset and `animateBounds`).
+ * (Motion-style "layoutId" sliding, done with a spring offset and `animateBounds`). With a [backdrop] (the
+ * page it floats over), the bar is frosted glass like the design.
  */
 @Composable
 public fun HlTabBar(
@@ -64,6 +65,7 @@ public fun HlTabBar(
     selected: Int,
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null,
 ) {
     val colors = HlTheme.colors
     val sizes = HlTheme.sizes
@@ -77,6 +79,8 @@ public fun HlTabBar(
                 CircleShape,
                 Shadow(radius = bar.blur, color = colors.shadow, offset = DpOffset(0.dp, bar.offsetY)),
             ).clip(CircleShape)
+            // The design's glass: the page behind, blurred and saturated, under the glass tint.
+            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION) } ?: Modifier)
             .background(colors.glass)
             .border(HlTheme.strokes.hairline, colors.glassEdge, CircleShape),
         contentAlignment = Alignment.CenterStart,

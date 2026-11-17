@@ -32,10 +32,13 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
+import com.abid.handlebarlink.core.designsystem.component.backdropSource
+import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.home.HomeScreen
@@ -139,15 +142,19 @@ private fun BoxScope.Tabs() {
             }
         }
     val motion = HlTheme.motion
-    NavDisplay(
-        entries = state.toDecoratedEntries(entries),
-        onBack = navigator::goBack,
-        transitionSpec = { pageTransition(state.lastMove, motion) },
-        popTransitionSpec = { pageTransition(state.lastMove, motion) },
-        // The back gesture previews what Back will do, following the finger (Android 15+ by default).
-        predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
-    )
-    FloatingTabBar(state, navigator)
+    // The pages are the tab bar's backdrop: recorded with their ground, frosted under the bar.
+    val barBackdrop = rememberBackdrop()
+    HlBackground(Modifier.fillMaxSize().backdropSource(barBackdrop)) {
+        NavDisplay(
+            entries = state.toDecoratedEntries(entries),
+            onBack = navigator::goBack,
+            transitionSpec = { pageTransition(state.lastMove, motion) },
+            popTransitionSpec = { pageTransition(state.lastMove, motion) },
+            // The back gesture previews what Back will do, following the finger (Android 15+ by default).
+            predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
+        )
+    }
+    FloatingTabBar(state, navigator, barBackdrop)
 }
 
 /** The tab bar floating over the pages; it slides away on full pages (Settings) and back on tab pages. */
@@ -155,6 +162,7 @@ private fun BoxScope.Tabs() {
 private fun BoxScope.FloatingTabBar(
     state: NavigationState,
     navigator: Navigator,
+    backdrop: Backdrop,
 ) {
     val spacing = HlTheme.spacing
     val motion = HlTheme.motion
@@ -173,6 +181,7 @@ private fun BoxScope.FloatingTabBar(
                     .navigationBarsPadding()
                     .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
                     .widthIn(max = HlTheme.sizes.contentMax),
+            backdrop = backdrop,
         )
     }
 }
