@@ -2,7 +2,8 @@
 
 Status: **approved, in progress** (2026-11-16). Done: M0, M1, M2 (engine, runtime, Android adapters), M3.1–M3.2 (app wiring, ride service), UI.1
 (design tokens, Night and Bento themes) and the structure fixes of the
-architecture review (`docs/reviews/2026-11-16-architecture-review.md`). Mistakes and their rules:
+architecture review (`docs/reviews/2026-11-16-architecture-review.md`). M4: M4.1 (setup) and M4.2
+(presence observing and service) built; the on-bike timing (D4/D5) is open. Mistakes and their rules:
 `docs/LESSONS.md`.
 
 ## Goal
@@ -123,8 +124,47 @@ Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the 
   a privileged app, not the system), filtered to our address, 30 s limit as RoadSync; skip when bonded.
 - **Store** the meter's address (and the association id); read the device back with `getRemoteDevice`,
   never `AssociationInfo.getAssociatedDevice()` (not persisted).
-- **Later (M4.2)**: presence observing (`ObservingDevicePresenceRequest` API 36, older variants below),
-  `CompanionDeviceService`, `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND`.
+- **Then (M4.2)**: presence observing and the presence service, below.
+
+### Auto-start on ignition (M4.2–M4.3, 2026-11-18)
+
+Sources: the official docs (companion-device-pairing "Keep companion apps awake"; BLE "Communicate in the
+background"; FGS "Restrictions on starting from the background"; the CompanionDeviceManager,
+CompanionDeviceService and DevicePresenceEvent references) and 02 §3. Code: `app/.../autostart/`.
+
+- **Observing** (`PresenceArming`, at every process start and whenever the selected bike changes): the
+  selected bike's association is observed, every other association of the app is released (`planPresence`).
+  One version branch (`AndroidCompanionPresence`): API 36+ `startObservingDevicePresence(
+  ObservingDevicePresenceRequest.Builder().setAssociationId(id))`, which deprecates the address overload;
+  API 31–35 `startObservingDevicePresence(address)`. Associations are listed with `getMyAssociations()` (33+)
+  or `getAssociations()` (Android 12, addresses only). FEATURE_COMPANION_DEVICE_SETUP is checked first, as the
+  reference requires. "Forgotten" here means the selection is cleared: observation stops; the association
+  itself is kept (disassociating is part of "Forget this bike", not built yet; 02 §4.2).
+- **Presence service** (`BikePresenceService`, a `CompanionDeviceService`, exported and guarded by
+  `BIND_COMPANION_DEVICE_SERVICE`): only the callback family of the running release is trusted
+  (`presenceCallbacks`: `onDevicePresenceEvent` on 36+, `onDeviceAppeared/Disappeared(AssociationInfo)` on
+  33–35, the address overloads on 31–32), because on 36+ the system also calls the deprecated ones. BLE
+  appeared / BT connected = present; BLE disappeared / BT disconnected = gone; other events are ignored.
+- **Appeared** (`PresenceEvents`): the selected bike's link gets `onPresence(true)` and the ride service is
+  started with `startForegroundService` from the background, allowed for a CDM app holding
+  `REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND` (FGS exemptions). Without Nearby devices the
+  start is skipped: a `connectedDevice` service could not call `startForeground`, which that start requires.
+  A running ride re-posts its foreground notification for the duplicate start. **Gone**: only
+  `onPresence(false)`; the service is never stopped by a disappear event (02 §3.2: the meter stops
+  advertising while connected).
+- **Policy per bike** (`LinkPolicy`): a bike Android watches is **presence-driven** (10 min linger, 02 §2.5,
+  then the ride service ends until the next appearance); a bike without an association stays **always
+  armed** (as before M4), because nothing would start it again. A bike chosen from "Paired with this phone"
+  in setup has no association (that path skips Android's consent): it does not auto-start; logged as
+  `presence.not_linked`. See the open question below.
+- Also requested: `REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE` (required by the observe calls) and
+  `REQUEST_COMPANION_RUN_IN_BACKGROUND` (the BLE background guide's way to stay connected while present).
+- **Presence-driven vs always armed (decision pending D4/D5):** presence-driven is the default for watched
+  bikes, as the research recommends; the on-bike timing below decides whether it stays. If CDM presence is
+  slow or unreliable with the screen off, the default becomes always armed (`linkConfig`, one place).
+- **Open question:** should setup also link (associate) a meter picked from "Paired with this phone"? Today
+  such a meter is connected and not advertising, which is why that path skips the consent sheet; Android's
+  consent needs it advertising (ignition on, link to the app closed).
 
 Tooling (re-verified 2026-11-16 against Maven Central, Google Maven and the official AGP 9.5 release
 notes via `android docs`): Gradle 9.9.1 (AGP 9.5 needs ≥ 9.6), AGP 9.5.1 with built-in Kotlin,
@@ -161,7 +201,7 @@ No milestone starts before the previous one is done.
 | **M1** ✅ | `:bike:protocol`: the meter codec, written from `SAB_PROTOCOL.md`. | Unit tests cover every frame, reply and code verified on the CB350. |
 | **M2** | `:bike:link` (pure Kotlin engine): GATT transport seam, scripted fake meter, the connection state machine and its 16 required tests; `:bike:link-android`: the real Android transport and CTS server. | All tests pass on virtual time, incl. a randomised test with invariants. |
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
-| **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
+| **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. Steps: M4.1 setup ✅, M4.2 presence observing and service ✅ (built; on-bike check open). | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
 | **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components ✅, UI.3 pages and navigation ✅, UI.4 screenshot tests ✅. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
 | **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
 

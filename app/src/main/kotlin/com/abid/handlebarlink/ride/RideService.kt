@@ -31,8 +31,9 @@ import javax.inject.Inject
 
 /**
  * Keeps the process and the Bluetooth link alive during a ride: a `connectedDevice` foreground service
- * (architecture review M2.4–M3-8). Started by the app while it is on screen; ends itself when the
- * ride ends. Not exported: only this app starts it, with explicit intents.
+ * (architecture review M2.4–M3-8). Started by the app while it is on screen, and from the background when
+ * Android reports the bike nearby (autostart/, docs/PLAN.md M4); ends itself when the ride ends. Not
+ * exported: only this app starts it, with explicit intents.
  */
 @AndroidEntryPoint
 class RideService : LifecycleService() {
@@ -59,10 +60,24 @@ class RideService : LifecycleService() {
     ): Int {
         super.onStartCommand(intent, flags, startId)
         when (intent?.action) {
-            ACTION_START -> startRide()
-            ACTION_STOP -> coordinator.stop()
-            ACTION_END_CALL_AUDIO -> endCall.tryEmit(Unit)
-            else -> log.warn("service.unknown_action", "action" to intent?.action)
+            ACTION_START -> {
+                startRide(
+                    presentHint = intent.getBooleanExtra(EXTRA_PRESENT_HINT, true),
+                    foregroundStart = intent.getBooleanExtra(EXTRA_FOREGROUND_START, false),
+                )
+            }
+
+            ACTION_STOP -> {
+                coordinator.stop()
+            }
+
+            ACTION_END_CALL_AUDIO -> {
+                endCall.tryEmit(Unit)
+            }
+
+            else -> {
+                log.warn("service.unknown_action", "action" to intent?.action)
+            }
         }
         if (ride == null) stopSelf()
         // Never restarted by the system: a restart from the background may not start a foreground
@@ -70,10 +85,19 @@ class RideService : LifecycleService() {
         return START_NOT_STICKY
     }
 
-    private fun startRide() {
-        if (ride != null || !promote()) return
+    private fun startRide(
+        presentHint: Boolean,
+        foregroundStart: Boolean,
+    ) {
+        if (ride != null) {
+            // startForegroundService on a running ride: post the foreground notification again, as that start
+            // requires (FGS-LAUNCH: startForeground after every startForegroundService).
+            if (foregroundStart) showForeground()
+            return
+        }
+        if (!promote()) return
         notifications.clearProblem()
-        ride = lifecycleScope.launch { runRide() }
+        ride = lifecycleScope.launch { runRide(presentHint) }
     }
 
     /** Becomes a foreground service; false when Android does not allow it now. */
@@ -101,7 +125,7 @@ class RideService : LifecycleService() {
     }
 
     @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
-    private suspend fun runRide() {
+    private suspend fun runRide(presentHint: Boolean) {
         val updates =
             lifecycleScope.launch {
                 coordinator.link
@@ -116,7 +140,7 @@ class RideService : LifecycleService() {
             }
         val callAudio = lifecycleScope.launch { routeCalls() }
         try {
-            coordinator.ride()?.let(notifications::showProblem)
+            coordinator.ride(presentHint)?.let(notifications::showProblem)
         } finally {
             callAudio.cancel()
             updates.cancel()
@@ -148,8 +172,13 @@ class RideService : LifecycleService() {
     /** Switches the foreground notification and types between the ride and a held call. */
     private fun asCall(on: Boolean) {
         holdingCall = on
+        showForeground()
+    }
+
+    /** Posts the foreground notification and types for what the service is doing now (ride or held call). */
+    private fun showForeground() {
         try {
-            if (on) {
+            if (holdingCall) {
                 ServiceCompat.startForeground(
                     this,
                     RideNotifications.ID_RIDE,
@@ -166,9 +195,9 @@ class RideService : LifecycleService() {
                 )
             }
         } catch (e: ForegroundServiceStartNotAllowedException) {
-            log.warn("callaudio.foreground_refused", "error" to e.message)
+            log.warn("service.foreground_refused", "call" to holdingCall, "error" to e.message)
         } catch (e: SecurityException) {
-            log.warn("callaudio.foreground_denied", "error" to e.message)
+            log.warn("service.foreground_denied", "call" to holdingCall, "error" to e.message)
         }
     }
 
@@ -177,10 +206,44 @@ class RideService : LifecycleService() {
         private const val ACTION_START = "com.abid.handlebarlink.ride.START"
         private const val ACTION_STOP = "com.abid.handlebarlink.ride.STOP"
         private const val ACTION_END_CALL_AUDIO = "com.abid.handlebarlink.ride.END_CALL_AUDIO"
+        private const val EXTRA_PRESENT_HINT = "present_hint"
+        private const val EXTRA_FOREGROUND_START = "foreground_start"
 
         /** Starts a ride; call while the app is on screen (a foreground service may not start from the background). */
         fun start(context: Context) {
             context.startService(Intent(context, RideService::class.java).setAction(ACTION_START))
+        }
+
+        /**
+         * Starts a ride from the background, allowed because the app has a companion-device association and
+         * holds REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND (FGS background-start exemptions).
+         * [presentHint]: the bike was just reported nearby. False when Android refused, or when Nearby devices
+         * is not allowed: then the service could not call startForeground (connectedDevice needs
+         * BLUETOOTH_CONNECT, FGS-TYPES), which startForegroundService requires, so it is not started at all.
+         */
+        fun startInBackground(
+            context: Context,
+            presentHint: Boolean,
+            log: Logger,
+        ): Boolean {
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                log.warn("service.background_no_permission")
+                return false
+            }
+            val intent =
+                Intent(context, RideService::class.java)
+                    .setAction(ACTION_START)
+                    .putExtra(EXTRA_PRESENT_HINT, presentHint)
+                    .putExtra(EXTRA_FOREGROUND_START, true)
+            return try {
+                ContextCompat.startForegroundService(context, intent)
+                true
+            } catch (e: ForegroundServiceStartNotAllowedException) {
+                log.warn("service.background_refused", "error" to e.message)
+                false
+            }
         }
 
         /** The intent that stops holding a call (the call notification's hang-up). */

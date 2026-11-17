@@ -31,6 +31,7 @@ import javax.inject.Singleton
 /**
  * Owns the ride (architecture review M2.4–M3-1): one link per selected bike, run for as long as the
  * ride service calls [ride], with handlebar presses routed to CarPlay. The UI reads [link] for status.
+ * Android's presence reports for the selected bike reach its link through [onPresence].
  */
 @Singleton
 class RideCoordinator
@@ -50,7 +51,7 @@ class RideCoordinator
             settings.bike
                 .map { it?.address }
                 .distinctUntilChanged()
-                .map { address -> address?.let(provider::create) }
+                .map { address -> address?.let { provider.create(it) } }
                 .stateIn(scope, SharingStarted.Eagerly, null)
 
         /** The selected bike's link (one per address, created once), or null when no bike is selected. */
@@ -63,11 +64,27 @@ class RideCoordinator
         }
 
         /**
+         * Android reports the device at [address] appearing ([present]) or leaving. For the selected bike
+         * (matched ignoring case) its link is told, once it exists (a report can wake the process before the
+         * link is created), and the link decides what follows; true then. False for any other device.
+         */
+        suspend fun onPresence(
+            address: String,
+            present: Boolean,
+        ): Boolean {
+            val selected = settings.bike.first()?.address
+            if (selected == null || !selected.equals(address, ignoreCase = true)) return false
+            link.filterNotNull().first().onPresence(present)
+            return true
+        }
+
+        /**
          * Runs the ride: starts the link and routes presses until the link no longer needs to be kept
          * alive (stopped, blocked, or idle after the bike left), or until cancelled. Returns the problem
-         * the rider has to act on, if any. Returns at once when no bike is selected.
+         * the rider has to act on, if any. Returns at once when no bike is selected. [presentHint]: there is a
+         * fresh sign the bike is in range (connect directly instead of waiting for it).
          */
-        suspend fun ride(): LinkProblem? {
+        suspend fun ride(presentHint: Boolean): LinkProblem? {
             if (settings.bike.first() == null) {
                 log.warn("ride.no_bike")
                 return null
@@ -79,7 +96,7 @@ class RideCoordinator
                 coroutineScope {
                     launch(io) { current.buttons.collect(::route) }
                     launch { current.run() }
-                    current.start(presentHint = true)
+                    current.start(presentHint)
                     // keepAlive is current whenever a state arrives (BikeLink.keepAlive).
                     current.state.dropWhile { it == LinkState.Stopped }.first { !current.keepAlive.value }
                     coroutineContext.cancelChildren()
