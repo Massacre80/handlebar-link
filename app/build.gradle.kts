@@ -23,6 +23,7 @@ dependencies {
     implementation(projects.bike.linkAndroid)
     implementation(projects.core.designsystem)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.telecom)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.lifecycle.service)

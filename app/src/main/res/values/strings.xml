@@ -6,6 +6,8 @@
     <string name="channel_ride">Ride</string>
     <string name="channel_problems">Problems</string>
     <string name="ride_notification_title">Ride</string>
+    <string name="call_audio_title">CarPlay call in your helmet</string>
+    <string name="call_audio_person">CarPlay call</string>
     <string name="ride_stop">Stop</string>
     <string name="status_stopped">Stopped</string>
     <string name="status_waiting">Waiting for the bike (turn the ignition on)</string>
