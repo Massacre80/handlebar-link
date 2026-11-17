@@ -21,14 +21,15 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import javax.inject.Inject
 
 /**
  * [BluetoothDevices] from Android's public Bluetooth APIs (developer.android.com, "Find Bluetooth devices",
  * "Bluetooth profiles", "Bluetooth permissions"): the bonded set for the list; the Headset and A2DP profile
- * proxies and their connection broadcasts for live state; the headsets' own battery reports (Apple's
- * +IPHONEACCEV, delivered as a vendor-specific headset event), the only public route to a headset's battery.
+ * proxies and their connection broadcasts for live state; the battery each headset last reported, from
+ * [HeadsetBatteries] (Apple's +IPHONEACCEV, the only public route to a headset's battery).
  * Everything needs BLUETOOTH_CONNECT ("Nearby devices"), checked before each call; a SecurityException (it was
  * revoked meanwhile) reads as "not allowed".
  */
@@ -37,6 +38,7 @@ class AndroidBluetoothDevices
     constructor(
         @param:ApplicationContext private val context: Context,
         logger: Logger,
+        private val batteries: HeadsetBatteries,
     ) : BluetoothDevices {
         private val log = logger.child("devices")
         private val adapter: BluetoothAdapter? get() = context.getSystemService(BluetoothManager::class.java)?.adapter
@@ -59,26 +61,28 @@ class AndroidBluetoothDevices
         }
 
         override fun statuses(): Flow<Map<String, DeviceStatus>> =
+            combine(connections(), batteries.levels) { connected, levels ->
+                connected.associateWith { DeviceStatus(connected = true, battery = levels[it]) }
+            }.distinctUntilChanged()
+
+        /** The addresses connected now on the Headset or A2DP profile, while collected. */
+        private fun connections(): Flow<Set<String>> =
             callbackFlow {
                 val adapter = adapter
                 if (adapter == null || !allowed()) {
-                    trySend(emptyMap())
+                    trySend(emptySet())
                     awaitClose {}
                     return@callbackFlow
                 }
-                // Addresses connected per profile, and the last battery each headset reported.
+                // Addresses connected per profile.
                 val connected =
                     mutableMapOf(
                         BluetoothProfile.HEADSET to setOf<String>(),
                         BluetoothProfile.A2DP to setOf(),
                     )
-                val battery = mutableMapOf<String, Int>()
                 val proxies = mutableMapOf<Int, BluetoothProfile>()
 
-                fun publish() {
-                    val addresses = connected.values.flatten().toSet()
-                    trySend(addresses.associateWith { DeviceStatus(connected = true, battery = battery[it]) })
-                }
+                fun publish() = trySend(connected.values.flatten().toSet())
                 val listener =
                     object : BluetoothProfile.ServiceListener {
                         override fun onServiceConnected(
@@ -119,19 +123,13 @@ class AndroidBluetoothDevices
                                     connected[BluetoothProfile.A2DP] =
                                         change(connected, BluetoothProfile.A2DP, device, intent)
                                 }
-
-                                BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT -> {
-                                    batteryPercent(intent)?.let { battery[device.address] = it }
-                                }
                             }
-                            if (connected.values.none { device.address in it }) battery.remove(device.address)
                             publish()
                         }
                     }
                 // Exported: Bluetooth broadcasts come from the Bluetooth app, a privileged app, not the system
                 // ("Broadcasts overview", context-registered receivers).
                 ContextCompat.registerReceiver(context, receiver, CONNECTIONS, ContextCompat.RECEIVER_EXPORTED)
-                ContextCompat.registerReceiver(context, receiver, BATTERY, ContextCompat.RECEIVER_EXPORTED)
                 adapter.getProfileProxy(context, listener, BluetoothProfile.HEADSET)
                 adapter.getProfileProxy(context, listener, BluetoothProfile.A2DP)
                 publish()
@@ -169,16 +167,10 @@ class AndroidBluetoothDevices
                 PackageManager.PERMISSION_GRANTED
 
         private companion object {
-            /** Apple's Bluetooth company id: +XAPL and +IPHONEACCEV arrive under it. */
-            const val APPLE = 76
             val CONNECTIONS =
                 IntentFilter().apply {
                     addAction(BluetoothHeadset.ACTION_CONNECTION_STATE_CHANGED)
                     addAction(BluetoothA2dp.ACTION_CONNECTION_STATE_CHANGED)
-                }
-            val BATTERY =
-                IntentFilter(BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT).apply {
-                    addCategory("${BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_COMPANY_ID_CATEGORY}.$APPLE")
                 }
         }
     }

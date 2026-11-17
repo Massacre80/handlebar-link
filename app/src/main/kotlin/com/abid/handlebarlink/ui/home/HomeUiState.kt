@@ -110,7 +110,10 @@ fun linkStatus(
 fun nightDeviceDetail(device: HomeDevice?): String =
     when {
         device == null -> stringResource(R.string.intercom_none_detail)
-        device.connected -> device.model
+
+        // The model under the rider's name; "Connected" when the name is the model (nothing to add).
+        device.connected -> if (device.model != device.name) device.model else stringResource(R.string.device_connected)
+
         else -> stringResource(R.string.device_not_connected)
     }
 
