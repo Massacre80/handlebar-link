@@ -60,6 +60,10 @@ import com.abid.handlebarlink.core.designsystem.theme.BikeGroundShadow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
+import com.abid.handlebarlink.ui.devices.ADD_DEVICE
+import com.abid.handlebarlink.ui.navigation.containerContent
+import com.abid.handlebarlink.ui.navigation.containerTransform
+import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 
 /** "Home 4 — Bento": everything in cards, scrolling when the screen is short. */
 @Composable
@@ -106,12 +110,16 @@ internal fun HomeBento(
                     modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
-                AddDeviceSlot(
-                    stringResource(R.string.add_device_short),
-                    detail = null,
-                    Modifier.weight(BENTO_ADD_WEIGHT).fillMaxHeight(),
-                    onClick = onAddDevice,
-                )
+                // Grows into the Add device page; the slot keeps its own size inside (no stretching).
+                val addDevice = rememberContainerTransform(ADD_DEVICE)
+                Box(Modifier.weight(BENTO_ADD_WEIGHT).containerTransform(addDevice).fillMaxHeight()) {
+                    AddDeviceSlot(
+                        stringResource(R.string.add_device_short),
+                        detail = null,
+                        Modifier.containerContent(addDevice).fillMaxSize(),
+                        onClick = onAddDevice,
+                    )
+                }
             }
             Spacer(Modifier.height(spacing.s8))
         }

@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.ui.devices
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -25,6 +26,9 @@ import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.ui.navigation.containerContent
+import com.abid.handlebarlink.ui.navigation.containerTransform
+import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.permissions.PermissionItem
 import com.abid.handlebarlink.ui.permissions.PermissionList
@@ -96,8 +100,10 @@ private fun DeviceLists(
         // Watches, cars and computers rarely belong here: folded, still reachable. Open when nothing else is.
         var open by rememberSaveable { mutableStateOf(state.audio.isEmpty()) }
         HlSection(stringResource(R.string.devices_other)) {
-            AnimatedVisibility(open) { Devices(state.other, onPick) }
-            if (!open) {
+            // The list unfolds while the "show" row folds away: one smooth change of height.
+            val motion = HlTheme.motion
+            AnimatedVisibility(open, enter = unfold(motion), exit = fold(motion)) { Devices(state.other, onPick) }
+            AnimatedVisibility(!open, enter = unfold(motion), exit = fold(motion)) {
                 HlNavRow(
                     HlIcons.Bluetooth,
                     stringResource(R.string.devices_other_show),
@@ -134,13 +140,18 @@ private fun PairNew(
     empty: Boolean,
     onPair: () -> Unit,
 ) {
+    val transform = rememberContainerTransform(PAIR_DEVICE)
     val row: @Composable () -> Unit = {
-        HlNavRow(
-            HlIcons.Plus,
-            stringResource(R.string.devices_pair_new),
-            detail = stringResource(R.string.devices_pair_new_detail),
-            onClick = onPair,
-        )
+        // Grows into Pair a new device; the row keeps its own size inside.
+        Box(Modifier.containerTransform(transform)) {
+            HlNavRow(
+                HlIcons.Plus,
+                stringResource(R.string.devices_pair_new),
+                detail = stringResource(R.string.devices_pair_new_detail),
+                onClick = onPair,
+                modifier = Modifier.containerContent(transform),
+            )
+        }
     }
     if (empty) {
         HlSection(stringResource(R.string.devices_none)) {

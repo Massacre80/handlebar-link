@@ -63,8 +63,12 @@ import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
+import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
+import com.abid.handlebarlink.ui.navigation.containerContent
+import com.abid.handlebarlink.ui.navigation.containerTransform
+import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 
 /**
  * "Home 3 — Night": the bike as the hero between the gauges and the cards. The bike area keeps the
@@ -117,13 +121,17 @@ internal fun HomeNight(
                         backdrop = backdrop,
                         icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
                     )
-                    AddDeviceSlot(
-                        stringResource(R.string.add_device),
-                        stringResource(R.string.add_device_detail),
-                        Modifier.weight(1f).fillMaxHeight(),
-                        onClick = onAddDevice,
-                        backdrop = backdrop,
-                    )
+                    // Grows into the Add device page; the slot keeps its own size inside (no stretching).
+                    val addDevice = rememberContainerTransform(ADD_DEVICE)
+                    Box(Modifier.weight(1f).containerTransform(addDevice).fillMaxHeight()) {
+                        AddDeviceSlot(
+                            stringResource(R.string.add_device),
+                            stringResource(R.string.add_device_detail),
+                            Modifier.containerContent(addDevice).fillMaxSize(),
+                            onClick = onAddDevice,
+                            backdrop = backdrop,
+                        )
+                    }
                 }
             }
             // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.

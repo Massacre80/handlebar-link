@@ -24,6 +24,10 @@ public data class HlMotion(
     val tabShift: Float = 0.2f,
     /** Fades. */
     val fadeMillis: Int = 180,
+    /** Damping of a container transform (a card growing into a page): none of the layout spring's overshoot. */
+    val transformDamping: Float = 1f,
+    /** How long the page under a container transform stays: the transform spring settles in about 350 ms. */
+    val transformHoldMillis: Int = 400,
     /** One way of the "looking" pulse. */
     val pulseMillis: Int = 1100,
     /** The pulse's lowest alpha. */
@@ -31,6 +35,9 @@ public data class HlMotion(
 ) {
     /** The spring for layout moves; [threshold] is the type's visibility threshold when it has one. */
     public fun <T> layout(threshold: T? = null): SpringSpec<T> = spring(damping, stiffness, threshold)
+
+    /** The spring for a container transform: critically damped, no bounce at either end. */
+    public fun <T> transform(threshold: T? = null): SpringSpec<T> = spring(transformDamping, stiffness, threshold)
 
     /** The spring for press feedback. */
     public fun <T> press(): SpringSpec<T> = spring(damping, pressStiffness)

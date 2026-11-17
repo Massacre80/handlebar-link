@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -29,6 +31,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
+import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.scene.DialogSceneStrategy
@@ -53,6 +56,7 @@ import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
+import com.abid.handlebarlink.ui.navigation.LocalSharedTransitionScope
 import com.abid.handlebarlink.ui.navigation.ModeRoute
 import com.abid.handlebarlink.ui.navigation.NavigationState
 import com.abid.handlebarlink.ui.navigation.Navigator
@@ -124,6 +128,7 @@ private fun BoxScope.Tabs() {
                 HlTheme.sizes.tabBar + spacing.s20 * 2 +
                     WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
         )
+    val motion = HlTheme.motion
     val entries =
         entryProvider {
             entry<HomeRoute> {
@@ -148,24 +153,38 @@ private fun BoxScope.Tabs() {
                 )
             }
             settingsEntries(navigator)
-            deviceEntries(navigator)
+            deviceEntries(navigator, motion)
         }
-    val motion = HlTheme.motion
     // The pages are the tab bar's backdrop: recorded with their ground, frosted under the bar.
     val barBackdrop = rememberBackdrop()
     HlBackground(Modifier.fillMaxSize().backdropSource(barBackdrop)) {
-        NavDisplay(
-            entries = state.toDecoratedEntries(entries),
-            onBack = navigator::goBack,
-            // "What is it?" and other sheets: dialog destinations over the page under them.
-            sceneStrategies = listOf(DialogSceneStrategy()),
-            transitionSpec = { pageTransition(state.lastMove, motion) },
-            popTransitionSpec = { pageTransition(state.lastMove, motion) },
-            // The back gesture previews what Back will do, following the finger (Android 15+ by default).
-            predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
-        )
+        // Shared bounds between pages (Add device grows out of its tile); the docs' setup for Navigation 3.
+        SharedTransitionLayout(Modifier.fillMaxSize()) {
+            CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                Pages(state, navigator, entries)
+            }
+        }
     }
     FloatingTabBar(state, navigator, barBackdrop)
+}
+
+@Composable
+private fun Pages(
+    state: NavigationState,
+    navigator: Navigator,
+    entries: (NavKey) -> NavEntry<NavKey>,
+) {
+    val motion = HlTheme.motion
+    NavDisplay(
+        entries = state.toDecoratedEntries(entries),
+        onBack = navigator::goBack,
+        // "What is it?" and other sheets: dialog destinations over the page under them.
+        sceneStrategies = listOf(DialogSceneStrategy()),
+        transitionSpec = { pageTransition(state.lastMove, motion) },
+        popTransitionSpec = { pageTransition(state.lastMove, motion) },
+        // The back gesture previews what Back will do, following the finger (Android 15+ by default).
+        predictivePopTransitionSpec = { pageTransition(navigator.backMove(), motion) },
+    )
 }
 
 /** The tab bar floating over the pages; it slides away on full pages (Settings) and back on tab pages. */

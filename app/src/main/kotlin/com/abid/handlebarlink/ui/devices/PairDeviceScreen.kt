@@ -1,6 +1,8 @@
 package com.abid.handlebarlink.ui.devices
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntSize
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlActionPill
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
@@ -117,7 +121,8 @@ private fun Search(
                     } else {
                         Modifier.clickable(press, LocalIndication.current, role = Role.Button, onClick = onSearchAgain)
                     },
-                ).padding(start = spacing.s12, end = spacing.s14, top = spacing.s12, bottom = spacing.s12),
+                ).animateContentSize(HlTheme.motion.layout(IntSize.VisibilityThreshold))
+                .padding(start = spacing.s12, end = spacing.s14, top = spacing.s12, bottom = spacing.s12),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.s12),
         ) {
@@ -150,8 +155,14 @@ private fun Found(
     if (state.other.isNotEmpty()) {
         var open by rememberSaveable { mutableStateOf(state.audio.isEmpty()) }
         HlSection(stringResource(R.string.devices_other)) {
-            AnimatedVisibility(open) { Devices(state.other, state.attempt, onPair) }
-            if (!open) {
+            // The list unfolds while the "show" row folds away: one smooth change of height.
+            val motion = HlTheme.motion
+            AnimatedVisibility(
+                open,
+                enter = unfold(motion),
+                exit = fold(motion),
+            ) { Devices(state.other, state.attempt, onPair) }
+            AnimatedVisibility(!open, enter = unfold(motion), exit = fold(motion)) {
                 HlNavRow(
                     HlIcons.Bluetooth,
                     stringResource(R.string.devices_other_show),
@@ -171,22 +182,38 @@ private fun Devices(
 ) {
     Column {
         devices.forEachIndexed { index, device ->
-            if (index > 0) HlGroupDivider()
-            val state = attempt?.takeIf { it.device.address == device.address }?.state
-            HlNavRow(
-                kindIcon(device.suggested),
-                device.name,
-                detail =
-                    when (state) {
-                        PairState.PAIRING, PairState.PAIRED -> stringResource(R.string.pair_pairing)
-                        PairState.FAILED -> stringResource(R.string.pair_failed)
-                        null -> null
-                    },
-                onClick = { onPair(device) },
-                detailColor = if (state == PairState.FAILED) HlTheme.colors.danger else Color.Unspecified,
-            )
+            // Each device unfolds into the list as the search finds it; known ones keep their place.
+            key(device.address) {
+                Appearing {
+                    Column {
+                        if (index > 0) HlGroupDivider()
+                        DeviceRow(device, attempt, onPair)
+                    }
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun DeviceRow(
+    device: NearbyDevice,
+    attempt: PairAttempt?,
+    onPair: (NearbyDevice) -> Unit,
+) {
+    val state = attempt?.takeIf { it.device.address == device.address }?.state
+    HlNavRow(
+        kindIcon(device.suggested),
+        device.name,
+        detail =
+            when (state) {
+                PairState.PAIRING, PairState.PAIRED -> stringResource(R.string.pair_pairing)
+                PairState.FAILED -> stringResource(R.string.pair_failed)
+                null -> null
+            },
+        onClick = { onPair(device) },
+        detailColor = if (state == PairState.FAILED) HlTheme.colors.danger else Color.Unspecified,
+    )
 }
 
 private val PreviewNearby =

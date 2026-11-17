@@ -1,6 +1,8 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntSize
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
@@ -66,7 +69,11 @@ public fun HlNavRow(
         ) {
             HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        // A detail line coming or going ("Pairing…") eases the row to its new height.
+        Column(
+            Modifier.weight(1f).animateContentSize(HlTheme.motion.layout(IntSize.VisibilityThreshold)),
+            verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        ) {
             HlText(title, HlTheme.typography.value, colors.ink, maxLines = 2)
             detail?.let {
                 HlText(
