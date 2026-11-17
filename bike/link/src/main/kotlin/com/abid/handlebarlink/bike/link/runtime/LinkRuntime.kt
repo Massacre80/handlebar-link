@@ -47,6 +47,7 @@ internal class LinkRuntime(
     config: BikeLinkConfig,
 ) : BikeLink {
     private val machineConfig = MachineConfig(lingerMillis = config.lingerMillis)
+    private val probeGatt = config.probeGatt
     private val inbox = Channel<Event>(Channel.UNLIMITED)
     private val running = AtomicBoolean(false)
 
@@ -87,7 +88,8 @@ internal class LinkRuntime(
 
     private suspend fun loop(scope: CoroutineScope) {
         val outputs = EffectRunner.Outputs(keepAliveFlow, problemFlow, buttonFlow)
-        val runner = EffectRunner(scope, ports, { inbox.trySend(it) }, outputs, RuntimeEnv(time, random, log))
+        val runner =
+            EffectRunner(scope, ports, { inbox.trySend(it) }, outputs, RuntimeEnv(time, random, log, probeGatt))
         var machine = Machine(facts = ports.signals.current().toFacts(), nextGen = nextGen)
         scope.launch { ports.signals.changes.collect { inbox.send(it.toEvent()) } }
         log.info("link.run.start", "facts" to machine.facts)

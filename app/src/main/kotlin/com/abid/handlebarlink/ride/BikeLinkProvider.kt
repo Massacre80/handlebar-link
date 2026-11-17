@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ride
 
 import android.content.Context
 import com.abid.handlebarlink.bike.link.BikeLink
+import com.abid.handlebarlink.bike.link.BikeLinkConfig
 import com.abid.handlebarlink.bike.link.android.AndroidBikeLink
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -34,7 +35,17 @@ class AndroidBikeLinkProvider
         private val logger: Logger,
     ) : BikeLinkProvider {
         override fun create(address: String): RideLink {
-            val link = AndroidBikeLink.create(context, address, dispatcher, time, logger.child("bike"))
+            // probeGatt: log everything the meter offers once per run (owner, 2026-11-17: find all the data
+            // it has, also what RoadSync does not use). Read-only; see GattProbe.
+            val link =
+                AndroidBikeLink.create(
+                    context,
+                    address,
+                    dispatcher,
+                    time,
+                    logger.child("bike"),
+                    BikeLinkConfig(probeGatt = true),
+                )
             return RideLink(link, link::recheckPermission)
         }
     }

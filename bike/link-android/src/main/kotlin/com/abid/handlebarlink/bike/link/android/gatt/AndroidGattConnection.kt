@@ -16,8 +16,10 @@ import com.abid.handlebarlink.bike.link.android.AndroidBluetooth
 import com.abid.handlebarlink.bike.link.android.GattStatus
 import com.abid.handlebarlink.bike.link.spi.BondState
 import com.abid.handlebarlink.bike.link.spi.ConnectionChange
+import com.abid.handlebarlink.bike.link.spi.GattCharacteristicInfo
 import com.abid.handlebarlink.bike.link.spi.GattConnection
 import com.abid.handlebarlink.bike.link.spi.GattNotification
+import com.abid.handlebarlink.bike.link.spi.GattServiceInfo
 import com.abid.handlebarlink.bike.protocol.SabSafety
 import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.core.common.log.Logger
@@ -116,12 +118,37 @@ internal class AndroidGattConnection(
         characteristic: UUID,
     ): Boolean = gatt?.getService(service)?.getCharacteristic(characteristic) != null
 
+    override fun services(): List<GattServiceInfo> =
+        gatt?.services.orEmpty().map { service ->
+            GattServiceInfo(
+                service.uuid,
+                service.characteristics.map { c ->
+                    GattCharacteristicInfo(c.uuid, c.properties, c.descriptors.map { it.uuid })
+                },
+            )
+        }
+
+    // Declared for lint; each call still checks the permission first (it can be revoked at any time).
+    @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
+    override suspend fun readDescriptor(
+        service: UUID,
+        characteristic: UUID,
+        descriptor: UUID,
+    ): ByteArray {
+        check(SabSafety.isReadAllowed(service, characteristic)) { "reading $characteristic is forbidden" }
+        val d =
+            characteristic(service, characteristic).getDescriptor(descriptor)
+                ?: throw LinkException(LinkError.ServicesMissing)
+        return perform(GattOp.READ_DESCRIPTOR, descriptor) { it.readDescriptor(d) } as ByteArray
+    }
+
     // Declared for lint; each call still checks the permission first (it can be revoked at any time).
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     override suspend fun read(
         service: UUID,
         characteristic: UUID,
     ): ByteArray {
+        check(SabSafety.isReadAllowed(service, characteristic)) { "reading $characteristic is forbidden" }
         val c = characteristic(service, characteristic)
         return perform(GattOp.READ, characteristic) { it.readCharacteristic(c) } as ByteArray
     }

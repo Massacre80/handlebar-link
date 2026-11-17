@@ -81,12 +81,45 @@ internal class FakeGattLink : GattLink {
         characteristic: UUID,
     ): Boolean = services[service]?.contains(characteristic) == true
 
+    /** Properties per characteristic; readable unless listed. */
+    var properties: Map<UUID, Int> = emptyMap()
+
+    /** Descriptors per characteristic, and their values. */
+    var descriptors: Map<UUID, Map<UUID, ByteArray>> = emptyMap()
+    val reads = mutableListOf<UUID>()
+
+    override fun services(): List<GattServiceInfo> =
+        services.map { (service, characteristics) ->
+            GattServiceInfo(
+                service,
+                characteristics.map { c ->
+                    GattCharacteristicInfo(c, properties[c] ?: READ_PROPERTY, descriptors[c].orEmpty().keys.toList())
+                },
+            )
+        }
+
+    override suspend fun readDescriptor(
+        service: UUID,
+        characteristic: UUID,
+        descriptor: UUID,
+    ): ByteArray {
+        check(SabSafety.isReadAllowed(service, characteristic)) { "read a forbidden descriptor" }
+        return op(GattOp.READ_DESCRIPTOR, Behaviour.Answer) {
+            reads += descriptor
+            descriptors.getValue(characteristic).getValue(descriptor).copyOf()
+        }
+    }
+
     override suspend fun read(
         service: UUID,
         characteristic: UUID,
     ): ByteArray {
+        check(SabSafety.isReadAllowed(service, characteristic)) { "read a forbidden characteristic" }
         val behaviour = if (characteristic in failingReads) Behaviour.Fail(GATT_ERROR) else Behaviour.Answer
-        return op(GattOp.READ, behaviour) { values.getValue(characteristic).copyOf() }
+        return op(GattOp.READ, behaviour) {
+            reads += characteristic
+            values.getValue(characteristic).copyOf()
+        }
     }
 
     override suspend fun enableNotifications(
@@ -169,6 +202,7 @@ internal class FakeGattLink : GattLink {
 
     companion object {
         const val GATT_ERROR = 133
+        const val READ_PROPERTY = 0x02
         const val REQUEST_SAB_MODE: Byte = 0x0A
         const val MODE_SAB = 9
         const val MODE_HU = 10

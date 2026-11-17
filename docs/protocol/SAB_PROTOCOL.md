@@ -133,6 +133,8 @@ Standard 16-bit UUIDs use base `0000xxxx-0000-1000-8000-00805F9B34FB` (`B/model/
 | ├ Packet | `ec2f22ba-a682-42af-b439-68fa72177719` | write | **Do not write** | `SAB.java:275` |
 | └ Firmware Version | `32c7720d-440a-47a8-a866-a8b6bea9eeb6` | read | 2 bytes `[major, minor]` → `"%02d.%02d"`. Safe to read; RoadSync reads it on every connect. | `SAB.java:252`; `B/model/dfu/FirmwareVersion.java:49-62`; `SABController.java:1465-1492` |
 
+**GATT probe (our app, 2026-11-17).** RoadSync uses only the services above. To learn everything the CB350's meter offers, the link can run a read-only probe once per run after setup (`BikeLinkConfig.probeGatt`, `GattProbe`): it logs every service, characteristic (with properties) and descriptor, and the value of every readable characteristic and every descriptor (`probe.*` log events). It never writes or subscribes, and reads nothing in the DFU service but its firmware version (`SabSafety.isReadAllowed`). Android listed Battery (`180F`) and HID (`1812`) on the meter after bonding; the probe's output decides what they hold.
+
 ### 2.2 Service the **phone** hosts (GATT server)
 | Item | Value | Source |
 |---|---|---|

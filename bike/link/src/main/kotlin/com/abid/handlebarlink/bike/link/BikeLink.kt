@@ -49,4 +49,10 @@ public data class BikeLinkConfig(
      * stay armed (until companion-device presence can wake the app, M4).
      */
     val lingerMillis: Long? = null,
+    /**
+     * After the first setup of each run, read every readable characteristic and descriptor the meter has
+     * and log them (the GATT probe: read-only, never the DFU service but its version). For finding what
+     * the meter offers beyond RoadSync's use.
+     */
+    val probeGatt: Boolean = false,
 )
