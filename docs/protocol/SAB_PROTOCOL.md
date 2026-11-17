@@ -133,7 +133,32 @@ Standard 16-bit UUIDs use base `0000xxxx-0000-1000-8000-00805F9B34FB` (`B/model/
 | ├ Packet | `ec2f22ba-a682-42af-b439-68fa72177719` | write | **Do not write** | `SAB.java:275` |
 | └ Firmware Version | `32c7720d-440a-47a8-a866-a8b6bea9eeb6` | read | 2 bytes `[major, minor]` → `"%02d.%02d"`. Safe to read; RoadSync reads it on every connect. | `SAB.java:252`; `B/model/dfu/FirmwareVersion.java:49-62`; `SABController.java:1465-1492` |
 
-**GATT probe (our app, 2026-11-17).** RoadSync uses only the services above. To learn everything the CB350's meter offers, the link can run a read-only probe once per run after setup (`BikeLinkConfig.probeGatt`, `GattProbe`): it logs every service, characteristic (with properties) and descriptor, and the value of every readable characteristic and every descriptor (`probe.*` log events). It never writes or subscribes, and reads nothing in the DFU service but its firmware version (`SabSafety.isReadAllowed`). Android listed Battery (`180F`) and HID (`1812`) on the meter after bonding; the probe's output decides what they hold.
+**GATT probe (our app, 2026-11-17).** RoadSync uses only the services above. To learn everything the CB350's meter offers, the link can run a read-only probe once per run after setup (`BikeLinkConfig.probeGatt`, `GattProbe`): it logs every service, characteristic (with properties) and descriptor, and the value of every readable characteristic and every descriptor (`probe.*` log events). It never writes or subscribes, and reads nothing in the DFU service but its firmware version (`SabSafety.isReadAllowed`). The HID service is listed but not read: Android reserves it for its HID host, and a refused read of its Report Map left `BluetoothGatt` busy, so every later operation failed until the next connection (probe run 1, 2026-11-17; fixed by skipping HID).
+
+**Probe run 1, CB350RS meter, 2026-11-17** (13 services, 42 characteristics; values before the HID read):
+
+| Service | Characteristic | Properties | Value |
+|---|---|---|---|
+| Generic Attribute `1801` | Service Changed `2A05` | indicate | CCCD `02 00` (indications on, set by Android) |
+| Generic Access `1800` | Device Name `2A00` | read, write | "HONDA BTU 2040" + one NUL (15 bytes) |
+| | Appearance `2A01` | read | `00 00` (unknown) |
+| | Peripheral Preferred Connection Parameters `2A04` | read | `09 00 0C 00 00 00 C8 00`: interval 11.25–15 ms, latency 0, supervision timeout **2 s** |
+| Device Information `180A` | Manufacturer `2A29` | read | **"Visteon"** (the meter's maker) |
+| | Model Number `2A24` | read | "5801" |
+| | Serial Number `2A25` | read | an 8-character serial (not recorded here) |
+| | Hardware Revision `2A27` | read | "1.00" |
+| | Firmware Revision `2A26` / Software Revision `2A28` | read | "10.01" |
+| | System ID `2A23` | read | derived from the meter's address |
+| | PnP ID `2A50` | read | `01 A7 00 01 58 00 00`: Bluetooth SIG vendor 0x00A7, product 0x5801, version 0 |
+| Battery `180F` | Battery Level `2A19` | read, notify | `64` = **100 %**; Presentation Format `04 00 AD 27 01 01 00` (uint8, percent) |
+| HID `1812` | Protocol Mode `2A4E` | read, write-no-response | `01` (report protocol) |
+| | Report Map `2A4B`, Report ×2 `2A4D`, HID Information `2A4A`, Boot Keyboard Input `2A22`, Control Point `2A4C` | | not read (Android's) |
+| Vehicle Information, Assignment, Data Communication, Security, DFU | as §2.1 | as §2.1 | (reads failed after the HID read; the setup read series `03F5`) |
+| **Unknown `cc036c66-e0c9-42ce-b11f-257c546c5ac2`** | `85569fa7-6645-415d-8439-fb32f08e2133` notify; `3bda2a5b-8267-4db0-8064-d0242117d473` write; `3030ac98-582b-4c15-8ef2-e80ef8d303c8` notify | | not in RoadSync |
+| **Unknown `146a0176-b46f-48e7-ab74-70a7ce1a5341`** | `2573cb1a-7a02-45cd-957e-ebe6ab066539` write-no-response, notify; `f7b4d188-ad35-424f-a473-000dcdcfd8fb` write, notify; `fe7964e8-a8cc-4fbf-bd1d-14f6e9262bc5` read, write-no-response | | not in RoadSync |
+| **Unknown `e95a363a-5a67-437a-88a4-153dbe498bf1`** | `96f6a339-60dc-4983-9789-8da520b7b5f7` write-no-response | | not in RoadSync |
+
+No characteristic carries odometer, trip, fuel or speed as a readable value. The three unknown services offer only notifications and writes (plus one readable `fe7964e8`, to be read in run 2); whatever they carry would come as notifications, which a read-only probe cannot see.
 
 ### 2.2 Service the **phone** hosts (GATT server)
 | Item | Value | Source |

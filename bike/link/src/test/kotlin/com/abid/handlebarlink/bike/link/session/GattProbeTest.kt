@@ -80,6 +80,23 @@ class GattProbeTest {
         }
 
     @Test
+    fun `the HID service is listed but never read (a refused read wedged the link on the bike)`() =
+        runTest {
+            val reportMap = UUID.fromString("00002a4b-0000-1000-8000-00805f9b34fb")
+            val protocolMode = UUID.fromString("00002a4e-0000-1000-8000-00805f9b34fb")
+            meter.services = mapOf(GattProbe.HID_SERVICE to setOf(protocolMode, reportMap))
+            meter.descriptors = mapOf(reportMap to mapOf(SabUuids.CLIENT_CHARACTERISTIC_CONFIG to byteArrayOf(0, 0)))
+
+            probe.run()
+
+            assertThat(meter.reads).isEmpty()
+            assertThat(logged("probe.characteristic").size).isEqualTo(2)
+            assertThat(
+                logged("probe.skipped").map { it.field("reason") },
+            ).containsExactlyInAnyOrder("android-hid", "android-hid")
+        }
+
+    @Test
     fun `a failed read is logged and the probe goes on`() =
         runTest {
             meter.values[SabUuids.VEHICLE_TYPE] = byteArrayOf(1)
