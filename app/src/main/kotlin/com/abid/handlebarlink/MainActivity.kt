@@ -1,5 +1,6 @@
 package com.abid.handlebarlink
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -27,12 +28,21 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    /** See [skipSetupIfAsked]. */
+    fun skipSetupNow() = viewModel.skipSetup()
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        skipSetupIfAsked(intent)
+    }
+
     @Inject lateinit var bikeRender: BikeRender
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge without SystemBarStyle (deprecated in activity 1.14): bar icons follow our theme.
         WindowCompat.enableEdgeToEdge(window)
         super.onCreate(savedInstanceState)
+        skipSetupIfAsked(intent)
         // Decoded in the background while the first frames draw, then shared by every screen.
         lifecycleScope.launch { bikeRender.load() }
         setContent {
@@ -43,6 +53,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
+/**
+ * Temporary (owner, 2026-11-17): `adb shell am start -n com.abid.handlebarlink/.MainActivity --ez skip_setup true`
+ * opens the tabs without a bike, to test the app away from it. Nothing is saved.
+ */
+private fun MainActivity.skipSetupIfAsked(intent: Intent?) {
+    if (intent?.getBooleanExtra(EXTRA_SKIP_SETUP, false) == true) skipSetupNow()
+}
+
+private const val EXTRA_SKIP_SETUP = "skip_setup"
 
 /** Applies the rider's theme and matches the system bar icons to it (edge-to-edge skill). */
 @Composable

@@ -72,9 +72,12 @@ import com.abid.handlebarlink.ui.setup.SetupRoute
 fun AppRoot() {
     val main: MainViewModel = hiltViewModel()
     val bikeChosen by main.bikeChosen.collectAsStateWithLifecycle()
+    val skipped by main.setupSkipped.collectAsStateWithLifecycle()
+    // Skipping setup (temporary) shows the tabs without a bike; the ride still needs one.
+    val showTabs = if (skipped) true else bikeChosen
     HlBackground(Modifier.fillMaxSize()) {
-        Crossfade(bikeChosen, animationSpec = HlTheme.motion.fade(), label = "setup or tabs") { chosen ->
-            when (chosen) {
+        Crossfade(showTabs, animationSpec = HlTheme.motion.fade(), label = "setup or tabs") { tabs ->
+            when (tabs) {
                 null -> {}
 
                 false -> {
@@ -82,7 +85,7 @@ fun AppRoot() {
                 }
 
                 true -> {
-                    RideAutoStart(main)
+                    if (bikeChosen == true) RideAutoStart(main)
                     Tabs()
                 }
             }

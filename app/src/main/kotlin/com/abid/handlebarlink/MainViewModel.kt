@@ -7,8 +7,10 @@ import com.abid.handlebarlink.data.AppearanceSettings
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.ride.RideCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
@@ -31,6 +33,19 @@ class MainViewModel
             bikes.bike
                 .map { it != null }
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+        private val skipped = MutableStateFlow(false)
+
+        /**
+         * Setup skipped for this process (temporary, owner 2026-11-17: test the app without a bike). Nothing
+         * is saved; the next start shows setup again.
+         */
+        val setupSkipped: StateFlow<Boolean> = skipped.asStateFlow()
+
+        /** Shows the tabs without a bike until the app restarts. */
+        fun skipSetup() {
+            skipped.value = true
+        }
 
         /** The app came to the foreground: the Bluetooth permission may have changed meanwhile. */
         fun onResumed() {
