@@ -6,6 +6,7 @@ package com.abid.handlebarlink.autostart
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
+import assertk.assertions.isEqualTo
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink.Command
 import com.abid.handlebarlink.controls.ControlResult
@@ -16,6 +17,7 @@ import com.abid.handlebarlink.core.testing.testLogger
 import com.abid.handlebarlink.data.SelectedBike
 import com.abid.handlebarlink.ride.RideCoordinator
 import com.abid.handlebarlink.ride.RideLink
+import com.abid.handlebarlink.ride.RideStarter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -31,6 +33,7 @@ class PresenceEventsTest {
     private val settings = InMemoryBikeSettings()
     private val presence = FakeCompanionPresence(listOf(meter, Association(4, "00:11:22:33:44:55")))
     private val starts = mutableListOf<Boolean>()
+    private var opens = 0
 
     private fun TestScope.events(): PresenceEvents {
         val io = StandardTestDispatcher(testScheduler)
@@ -47,10 +50,18 @@ class PresenceEventsTest {
         return PresenceEvents(
             presence = presence,
             coordinator = coordinator,
-            rides = {
-                starts += it
-                true
-            },
+            rides =
+                object : RideStarter {
+                    override fun startInBackground(presentHint: Boolean): Boolean {
+                        starts += presentHint
+                        return true
+                    }
+
+                    override fun showOnScreen(): Boolean {
+                        opens++
+                        return true
+                    }
+                },
             io = io,
             scope = backgroundScope,
             logger = logger,
@@ -69,6 +80,7 @@ class PresenceEventsTest {
 
             assertThat(link.commands).containsExactly(Command.Presence(true))
             assertThat(starts).containsExactly(true)
+            assertThat(opens).isEqualTo(starts.size)
         }
 
     @Test
@@ -83,6 +95,7 @@ class PresenceEventsTest {
 
             assertThat(link.commands).containsExactly(Command.Presence(false))
             assertThat(starts).isEmpty()
+            assertThat(opens).isEqualTo(0)
         }
 
     @Test
@@ -96,6 +109,7 @@ class PresenceEventsTest {
             runCurrent()
 
             assertThat(starts).containsExactly(true)
+            assertThat(opens).isEqualTo(starts.size)
         }
 
     @Test
@@ -115,5 +129,6 @@ class PresenceEventsTest {
 
             assertThat(link.commands).isEmpty()
             assertThat(starts).isEmpty()
+            assertThat(opens).isEqualTo(0)
         }
 }

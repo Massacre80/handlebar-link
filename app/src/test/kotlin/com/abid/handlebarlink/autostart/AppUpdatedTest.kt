@@ -7,6 +7,7 @@ import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
 import com.abid.handlebarlink.data.SelectedBike
+import com.abid.handlebarlink.ride.RideStarter
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -18,10 +19,15 @@ class AppUpdatedTest {
     private fun TestScope.appUpdated() =
         AppUpdated(
             settings = settings,
-            rides = {
-                starts += it
-                true
-            },
+            rides =
+                object : RideStarter {
+                    override fun startInBackground(presentHint: Boolean): Boolean {
+                        starts += presentHint
+                        return true
+                    }
+
+                    override fun showOnScreen(): Boolean = true
+                },
             logger = testLogger(RecordingLogSink(), TestTimeProvider(testScheduler)),
         )
 

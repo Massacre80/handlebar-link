@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.data.AppTheme
+import com.abid.handlebarlink.ride.EXTRA_RIDE
 import com.abid.handlebarlink.ui.AppRoot
 import com.abid.handlebarlink.ui.BikeRender
 import com.abid.handlebarlink.ui.LocalBikeRender
@@ -34,6 +35,18 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         skipSetupIfAsked(intent)
+        showForRideIfAsked(intent)
+    }
+
+    /**
+     * Started for a ride (the bike appeared, RideStarter.showOnScreen): the phone is the bike's display, so the
+     * app turns the screen on and shows over the lock screen; the rider unlocks only to leave it.
+     */
+    private fun showForRideIfAsked(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_RIDE, false) == true) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+        }
     }
 
     @Inject lateinit var bikeRender: BikeRender
@@ -43,6 +56,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.enableEdgeToEdge(window)
         super.onCreate(savedInstanceState)
         skipSetupIfAsked(intent)
+        showForRideIfAsked(intent)
         // Decoded in the background while the first frames draw, then shared by every screen.
         lifecycleScope.launch { bikeRender.load() }
         setContent {

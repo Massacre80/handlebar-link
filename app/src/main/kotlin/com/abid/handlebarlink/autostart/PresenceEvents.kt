@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 /**
  * What Android's presence reports do (docs/research/02-ble-connection.md §3.4): the selected bike appearing
- * goes to its link and starts the ride service from the background; the bike leaving only goes to the link,
+ * goes to its link, starts the ride service from the background and brings the app on screen; the bike
+ * leaving only goes to the link,
  * which keeps the service while the connection is up and lets it end once the bike stays away (the linger of
  * the presence-driven policy). Reports for any other device are logged and ignored. Callbacks return at once;
  * the work runs in the application scope (the system keeps the process bound while the bike is present).
@@ -66,6 +67,8 @@ class PresenceEvents
             if (present) {
                 val started = rides.startInBackground(presentHint = true)
                 log.info("presence.ride_start", "started" to started)
+                // The phone is the bike's display: the app comes on screen when the bike appears.
+                log.info("presence.screen", "requested" to rides.showOnScreen())
             }
         }
     }
