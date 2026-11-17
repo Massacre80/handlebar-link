@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
@@ -81,7 +83,11 @@ internal fun HomeNight(
         // sit behind the glass on every screen; the render's height follows the column's width.
         val columnWidth = minOf(maxWidth, HlTheme.sizes.contentMax)
         val bikeHeight = columnWidth * HERO_OVERSCAN * RENDER_ASPECT
-        val heroHeight = bikeHeight * TILES_AT + HlTheme.sizes.tile
+        // Capped at the artboard's share of the height less the navigation bar: the artboard has none, and on
+        // the Poco the CarPlay card slid under the tab bar by about 29 dp (seen on the phone, 2026-11-17).
+        val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+        val heroHeight =
+            minOf(bikeHeight * TILES_AT + HlTheme.sizes.tile, maxHeight * HERO_MAX_SHARE - navigationBar)
         Column(
             Modifier
                 .fillMaxSize()
@@ -208,6 +214,9 @@ private fun HeroBike(
 // height, and the tiles (186:168) start 263 dp below its top (64 %).
 private const val RENDER_ASPECT = 409f / 560f
 private const val TILES_AT = 263f / 409f
+
+/** The hero (bike and tiles) spans 386 of the artboard's 856 dp at most. */
+private const val HERO_MAX_SHARE = 386f / 856f
 private const val HERO_OVERSCAN = 1.36f
 private const val HERO_FADE_START = 0.52f
 private const val HERO_FADE_END = 0.86f
