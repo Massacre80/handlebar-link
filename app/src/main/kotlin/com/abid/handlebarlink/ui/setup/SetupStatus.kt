@@ -132,9 +132,9 @@ private fun ProblemCard(
     }
 }
 
-/** A small pill naming a row's action (the row itself is the button). */
+/** A small pill naming a row's action (the row itself is the button): the design's "Allow". */
 @Composable
-private fun ActionPill(text: String) {
+internal fun ActionPill(text: String) {
     Box(
         Modifier
             .height(HlTheme.sizes.chip)

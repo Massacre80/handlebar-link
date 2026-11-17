@@ -114,6 +114,15 @@ fun rememberRuntimeAccess(permission: String): AccessState = rememberRuntimeAcce
 fun rememberSetupAccess(onResult: (Boolean) -> Unit): AccessState =
     rememberRuntimeAccess(listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), onResult)
 
+/**
+ * Location for recording rides (owner, 2026-11-17: speed, distance and route on the Rides tab): precise and
+ * approximate asked together, while the app is in use (location permissions); granted only when precise is,
+ * since a ride needs it. Background recording during a ride comes with the Rides milestone.
+ */
+@Composable
+fun rememberLocationAccess(): AccessState =
+    rememberRuntimeAccess(listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+
 /** Bluetooth to the meter. */
 @Composable
 fun rememberNearbyAccess(): AccessState = rememberRuntimeAccess(Manifest.permission.BLUETOOTH_CONNECT)

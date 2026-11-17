@@ -28,18 +28,21 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
 /**
  * A card: glass with a hairline edge in Night, solid in Bento. Cards placed side by side share one height:
  * give their row `Modifier.height(IntrinsicSize.Min)` and each card `fillMaxHeight()` (see [CardRow]).
+ * With a [backdrop], the glass blurs what lies behind it (Night's tiles over the bike).
  */
 @Composable
 public fun HlCard(
     modifier: Modifier = Modifier,
     radius: Dp = HlTheme.radii.hero,
     onClick: (() -> Unit)? = null,
+    backdrop: Backdrop? = null,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val colors = HlTheme.colors
@@ -55,6 +58,7 @@ public fun HlCard(
         modifier
             .pressScale(press, HlTheme.motion)
             .clip(shape)
+            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION) } ?: Modifier)
             .background(colors.panel)
             .then(edged)
             .then(
@@ -79,12 +83,13 @@ public fun DeviceTile(
     connected: Boolean?,
     modifier: Modifier = Modifier,
     status: String? = null,
+    backdrop: Backdrop? = null,
 ) {
     val colors = HlTheme.colors
     val type = HlTheme.typography
     val spacing = HlTheme.spacing
     // The design height is a minimum: with large text the tile grows instead of clipping.
-    HlCard(modifier) {
+    HlCard(modifier, backdrop = backdrop) {
         Column(
             Modifier.fillMaxHeight().heightIn(min = HlTheme.sizes.tile).padding(spacing.s16),
             verticalArrangement = Arrangement.spacedBy(spacing.s12, Alignment.Bottom),
@@ -281,3 +286,7 @@ public fun CardRow(
         content = content,
     )
 }
+
+/** The design's glass (`backdrop-filter: blur(24px) saturate(140%)` on Night's tiles). */
+private val GLASS_BLUR = 24.dp
+private const val GLASS_SATURATION = 1.4f

@@ -40,6 +40,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.AddDeviceSlot
 import com.abid.handlebarlink.core.designsystem.component.ArcGauge
+import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.CardRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
@@ -53,6 +54,8 @@ import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.component.StatusPill
 import com.abid.handlebarlink.core.designsystem.component.TickBar
 import com.abid.handlebarlink.core.designsystem.component.TickRing
+import com.abid.handlebarlink.core.designsystem.component.backdropSource
+import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
@@ -69,8 +72,13 @@ internal fun HomeNight(
 ) {
     val spacing = HlTheme.spacing
     val column = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
+    val backdrop = rememberBackdrop()
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val heroHeight = maxOf(maxHeight * HERO_SHARE, HlTheme.sizes.tile + spacing.s24 * 2)
+        // The tiles start where the artboard puts them on the bike (64 % down the render), so its wheels
+        // sit behind the glass on every screen; the render's height follows the column's width.
+        val columnWidth = minOf(maxWidth, HlTheme.sizes.contentMax)
+        val bikeHeight = columnWidth * HERO_OVERSCAN * RENDER_ASPECT
+        val heroHeight = bikeHeight * TILES_AT + HlTheme.sizes.tile
         Column(
             Modifier
                 .fillMaxSize()
@@ -84,7 +92,7 @@ internal fun HomeNight(
             NightHeader(state, onSettings, column)
             NightGauges(column)
             Box(column.height(heroHeight)) {
-                HeroBike(Modifier.align(Alignment.TopCenter))
+                HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
                 CardRow(Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16)) {
                     DeviceTile(
                         stringResource(R.string.intercom),
@@ -92,6 +100,7 @@ internal fun HomeNight(
                         stringResource(R.string.intercom_none_detail),
                         connected = null,
                         modifier = Modifier.weight(NIGHT_TILE_WEIGHT).fillMaxHeight(),
+                        backdrop = backdrop,
                     )
                     AddDeviceSlot(
                         stringResource(R.string.add_device),
@@ -160,9 +169,15 @@ private fun NightGauges(modifier: Modifier) {
     }
 }
 
-/** The bike render, wider than the screen like the artboard, fading out towards the cards. */
+/**
+ * The bike render, wider than the screen like the artboard, fading out towards the cards; recorded into
+ * [backdrop] for the intercom tile's glass.
+ */
 @Composable
-private fun HeroBike(modifier: Modifier) {
+private fun HeroBike(
+    backdrop: Backdrop,
+    modifier: Modifier,
+) {
     BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Image(
             painterResource(R.drawable.bike_cb350rs),
@@ -171,6 +186,7 @@ private fun HeroBike(modifier: Modifier) {
             modifier =
                 Modifier
                     .requiredWidth(maxWidth * HERO_OVERSCAN)
+                    .backdropSource(backdrop)
                     .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                     .drawWithContent {
                         drawContent()
@@ -183,10 +199,10 @@ private fun HeroBike(modifier: Modifier) {
     }
 }
 
-// The artboard's ratios: the render is 560 of 411 wide and fades from 52 % to 86 % of its height;
-// the tiles are 186:168.
-// The hero (bike and tiles) spans 386 of the artboard's 856 dp height.
-private const val HERO_SHARE = 0.45f
+// The artboard's ratios: the render is 560 × 409 and 560 of 411 wide, fades from 52 % to 86 % of its
+// height, and the tiles (186:168) start 263 dp below its top (64 %).
+private const val RENDER_ASPECT = 409f / 560f
+private const val TILES_AT = 263f / 409f
 private const val HERO_OVERSCAN = 1.36f
 private const val HERO_FADE_START = 0.52f
 private const val HERO_FADE_END = 0.86f

@@ -32,6 +32,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
 import com.abid.handlebarlink.core.designsystem.component.HlStepRow
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
@@ -207,11 +208,11 @@ internal fun WaitingPage(
     }
 }
 
-/** "You're set": the whole bike, Notifications, then Home (which saves the bike). */
+/** "You're set": the whole bike and the permissions it still needs; Home opens once they are allowed. */
 @Composable
 internal fun DonePage(
     name: String,
-    notifications: Access,
+    access: SetupAccess,
     actions: SetupActions,
 ) {
     val spacing = HlTheme.spacing
@@ -230,14 +231,29 @@ internal fun DonePage(
                 stringResource(R.string.setup_done_text, name),
                 Modifier.padding(horizontal = spacing.s8),
             )
-            HlValueRow(
-                value = stringResource(R.string.permission_notifications),
-                detail = stringResource(R.string.permission_notifications_why),
-                hint = stringResource(accessText(notifications)),
-                onClick = if (notifications == Access.GRANTED) null else actions.onNotifications,
-                container = HlTheme.colors.panel,
+            PermissionCard(
+                listOf(
+                    PermissionItem(
+                        R.string.permission_notifications,
+                        R.string.permission_notifications_why,
+                        access.notifications,
+                        actions.onNotifications,
+                    ),
+                    PermissionItem(
+                        R.string.permission_location,
+                        R.string.permission_location_why,
+                        access.location,
+                        actions.onLocation,
+                    ),
+                ),
             )
-            HlButton(stringResource(R.string.setup_go_home), actions.onHome, Modifier.fillMaxWidth(), brand = true)
+            // No button: Home opens by itself once both are allowed (owner, 2026-11-17). A refusal for good
+            // must not trap the rider, so then they may continue without it.
+            if (access.blocked) {
+                HlQuietButton(stringResource(R.string.setup_continue_without), actions.onHome)
+            } else {
+                Footnote(stringResource(R.string.setup_done_auto))
+            }
         }
     }
 }

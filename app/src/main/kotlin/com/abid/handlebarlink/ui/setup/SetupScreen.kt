@@ -36,7 +36,7 @@ import com.abid.handlebarlink.ui.permissions.Access
 @Composable
 fun SetupScreen(
     state: SetupUiState,
-    notifications: Access,
+    access: SetupAccess,
     actions: SetupActions,
 ) {
     val motion = HlTheme.motion
@@ -52,7 +52,7 @@ fun SetupScreen(
             SetupStep.READY -> ReadyPage(state.problem, actions)
             SetupStep.CHOOSE -> ChoosePage(state, actions)
             SetupStep.LINKING, SetupStep.PAIRING -> WaitingPage(step, state, actions)
-            SetupStep.DONE -> DonePage(state.chosen?.name ?: state.linkedAddress.orEmpty(), notifications, actions)
+            SetupStep.DONE -> DonePage(state.chosen?.name ?: state.linkedAddress.orEmpty(), access, actions)
         }
     }
 }
@@ -80,7 +80,7 @@ internal fun SetupPage(content: @Composable ColumnScope.() -> Unit) {
 }
 
 private val PreviewMeter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
-private val PreviewActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {})
+private val PreviewActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {}, {})
 
 @Composable
 private fun SetupPreview(
@@ -88,7 +88,9 @@ private fun SetupPreview(
     state: SetupUiState,
 ) {
     HlTheme(variant) {
-        HlBackground(Modifier.fillMaxSize()) { SetupScreen(state, Access.ASK, PreviewActions) }
+        HlBackground(
+            Modifier.fillMaxSize(),
+        ) { SetupScreen(state, SetupAccess(Access.GRANTED, Access.ASK), PreviewActions) }
     }
 }
 
@@ -108,6 +110,10 @@ private fun SetupPairingFailedPreview() =
         HlThemeVariant.NIGHT,
         SetupUiState(SetupStep.PAIRING, chosen = PreviewMeter, problem = SetupProblem.PAIRING_FAILED),
     )
+
+@Preview(widthDp = 411, heightDp = 856)
+@Composable
+private fun SetupDonePreview() = SetupPreview(HlThemeVariant.NIGHT, SetupUiState(SetupStep.DONE, chosen = PreviewMeter))
 
 @Preview(widthDp = 411, heightDp = 856)
 @Composable

@@ -12,6 +12,10 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
+    <!-- Recording rides (speed, distance, route; owner, 2026-11-17), asked on "You're set" while the app is in
+         use. Precise and approximate together, as the location-permissions guide asks. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Linking the meter through Android's companion-device consent (companion-device-pairing). -->
     <uses-feature android:name="android.software.companion_device_setup" />
 

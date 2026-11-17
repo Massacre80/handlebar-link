@@ -36,7 +36,7 @@ import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.SelectedBike
 import com.abid.handlebarlink.ui.permissions.Access
 
-/** Where the three permissions stand, and what tapping each does. */
+/** Where the four permissions stand, and what tapping each does. */
 data class SettingsAccess(
     /** Nearby devices (Bluetooth). */
     val nearby: Access,
@@ -44,6 +44,8 @@ data class SettingsAccess(
     val notifications: Access,
     /** Notification access (CarLink's media session). */
     val media: Access,
+    /** Location (recording rides). */
+    val location: Access,
 )
 
 /** Settings' actions. */
@@ -52,7 +54,7 @@ data class SettingsActions(
     val onTheme: (AppTheme) -> Unit,
     /** Choose a bike. */
     val onBike: (SelectedBike) -> Unit,
-    /** Act on a permission: 0 Nearby devices, 1 notifications, 2 notification access. */
+    /** Act on a permission: 0 Nearby devices, 1 notifications, 2 notification access, 3 location. */
     val onAccess: (Int) -> Unit,
     /** Forget the bike and run setup again (pairs a meter in the app). */
     val onSetup: () -> Unit,
@@ -161,6 +163,7 @@ private fun PermissionsSection(
             Triple(R.string.permission_nearby, R.string.permission_nearby_why, access.nearby),
             Triple(R.string.permission_notifications, R.string.permission_notifications_why, access.notifications),
             Triple(R.string.permission_media, R.string.permission_media_why, access.media),
+            Triple(R.string.permission_location, R.string.permission_location_why, access.location),
         ).forEachIndexed { index, (title, why, status) ->
             HlValueRow(
                 value = stringResource(title),
@@ -219,7 +222,7 @@ internal val PreviewSettings =
     )
 
 /** Sample access for previews and screenshot tests: one of each status. */
-internal val PreviewAccess = SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED)
+internal val PreviewAccess = SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK)
 
 /** Actions that do nothing, for previews and screenshot tests. */
 internal val NoActions = SettingsActions({}, {}, {}, {}, {})

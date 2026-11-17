@@ -54,6 +54,7 @@ import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.navigation.rememberNavigationState
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
 import com.abid.handlebarlink.ui.permissions.Access
+import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
@@ -173,6 +174,7 @@ private fun SettingsEntry(onBack: () -> Unit) {
     val nearby = rememberNearbyAccess()
     val notifications = rememberNotificationAccess()
     val media = rememberMediaAccess()
+    val location = rememberLocationAccess()
     // The meters can only be listed with Nearby devices; read them again whenever that or the page resumes.
     LifecycleResumeEffect(nearby.status) {
         viewModel.refreshMeters()
@@ -180,11 +182,11 @@ private fun SettingsEntry(onBack: () -> Unit) {
     }
     SettingsScreen(
         state,
-        SettingsAccess(nearby.status, notifications.status, media.status),
+        SettingsAccess(nearby.status, notifications.status, media.status, location.status),
         SettingsActions(
             onTheme = viewModel::choose,
             onBike = viewModel::choose,
-            onAccess = { listOf(nearby, notifications, media)[it].act() },
+            onAccess = { listOf(nearby, notifications, media, location)[it].act() },
             onSetup = viewModel::setUpAgain,
             onBack = onBack,
         ),

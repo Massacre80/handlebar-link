@@ -14,6 +14,7 @@ import com.abid.handlebarlink.setup.SetupProblem
 import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupUiState
 import com.abid.handlebarlink.ui.permissions.Access
+import com.abid.handlebarlink.ui.setup.SetupAccess
 import com.abid.handlebarlink.ui.setup.SetupActions
 import com.abid.handlebarlink.ui.setup.SetupScreen
 import com.android.tools.screenshot.PreviewTest
@@ -28,16 +29,16 @@ annotation class Artboard
 
 private val Meter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
 
-private val NoActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {})
+private val NoActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {}, {})
 
 @Composable
 private fun Setup(
     variant: HlThemeVariant,
     state: SetupUiState,
-    notifications: Access = Access.ASK,
+    access: SetupAccess = SetupAccess(Access.GRANTED, Access.ASK),
 ) {
     HlTheme(variant) {
-        HlBackground(Modifier.fillMaxSize()) { SetupScreen(state, notifications, NoActions) }
+        HlBackground(Modifier.fillMaxSize()) { SetupScreen(state, access, NoActions) }
     }
 }
 

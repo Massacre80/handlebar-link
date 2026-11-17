@@ -85,6 +85,8 @@
     <string name="permission_notifications">Notifications</string>
     <string name="permission_notifications_why">Shows the ride and asks for help when needed</string>
     <string name="permission_media">Notification access</string>
+    <string name="permission_location">Location</string>
+    <string name="permission_location_why">Records your rides: speed, distance and route</string>
     <string name="permission_media_why">Lets the handlebar control CarPlay in CarLink</string>
     <string name="access_granted">Allowed</string>
     <string name="access_ask">Allow</string>
@@ -124,8 +126,9 @@
     <string name="setup_pairing_title">Pairing with your bike</string>
     <string name="setup_pairing_text">Confirm on the phone. If the meter asks too, confirm it there.</string>
     <string name="setup_done_title">You\'re set</string>
-    <string name="setup_done_text">%1$s is paired. One last thing so the app can tell you what it\'s doing:</string>
-    <string name="setup_go_home">Go to Home</string>
+    <string name="setup_done_text">%1$s is paired. Two last things so the app can do its job:</string>
+    <string name="setup_done_auto">Home opens once both are allowed</string>
+    <string name="setup_continue_without">Continue without</string>
     <string name="setup_none_found">No meter found</string>
     <string name="setup_problem_bluetooth">Bluetooth is off</string>
     <string name="setup_problem_bluetooth_detail">Setup needs it to find the meter.</string>
