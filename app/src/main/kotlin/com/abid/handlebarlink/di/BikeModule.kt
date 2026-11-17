@@ -1,6 +1,10 @@
 package com.abid.handlebarlink.di
 
+import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.controls.ControlTarget
+import com.abid.handlebarlink.controls.DataStoreHandlebarMapping
+import com.abid.handlebarlink.controls.HandlebarMapping
+import com.abid.handlebarlink.controls.MappedButtonPresses
 import com.abid.handlebarlink.controls.MediaSessionControlTarget
 import com.abid.handlebarlink.ride.AndroidBikeLinkProvider
 import com.abid.handlebarlink.ride.BikeLinkProvider
@@ -21,4 +25,10 @@ abstract class BikeModule {
 
     @Binds
     abstract fun controlTarget(target: MediaSessionControlTarget): ControlTarget
+
+    @Binds
+    abstract fun buttonPresses(presses: MappedButtonPresses): ButtonPresses
+
+    @Binds
+    abstract fun handlebarMapping(mapping: DataStoreHandlebarMapping): HandlebarMapping
 }

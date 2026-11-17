@@ -1,6 +1,6 @@
 package com.abid.handlebarlink.ui.intercom
 
-import com.abid.handlebarlink.devices.AssistantAction
+import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.DeviceStatus
@@ -17,7 +17,7 @@ data class IntercomUiState(
     /** Where media plays now. */
     val music: Music = Music.Unknown,
     /** What the intercom's assistant button does. */
-    val assistant: AssistantAction = AssistantAction.PLAY_PAUSE,
+    val assistant: RiderAction = RiderAction.PLAY_PAUSE,
     /** Whether Android sends that button to this app. */
     val handler: AssistantHandler = AssistantHandler.Ask,
     /** Where call audio goes: an added device, or the phone. */

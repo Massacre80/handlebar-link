@@ -3,7 +3,7 @@ package com.abid.handlebarlink.ui.intercom
 import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.abid.handlebarlink.devices.AssistantAction
+import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.devices.AssistantButton
 import com.abid.handlebarlink.devices.AudioRouting
 import com.abid.handlebarlink.devices.BluetoothDevices
@@ -112,7 +112,7 @@ class IntercomViewModel
         }
 
         /** Sets what the intercom's assistant button does; returns once stored. */
-        suspend fun chooseAssistantNow(action: AssistantAction) = button.choose(action)
+        suspend fun chooseAssistantNow(action: RiderAction) = button.choose(action)
 
         /** Reads again who gets the assistant button (the rider may have chosen "Always" meanwhile). */
         fun refreshHandler() {

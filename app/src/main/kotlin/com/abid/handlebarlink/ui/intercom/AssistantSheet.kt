@@ -14,13 +14,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.designsystem.component.HlHeader
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
 import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
-import com.abid.handlebarlink.devices.AssistantAction
 
 /**
  * "Assistant button": what the intercom's assistant button does. Siri comes with our own CarPlay receiver:
@@ -28,8 +28,8 @@ import com.abid.handlebarlink.devices.AssistantAction
  */
 @Composable
 fun AssistantSheet(
-    chosen: AssistantAction,
-    onChoose: (AssistantAction) -> Unit,
+    chosen: RiderAction,
+    onChoose: (RiderAction) -> Unit,
     onCancel: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
@@ -52,7 +52,7 @@ fun AssistantSheet(
                     onClick = {},
                     enabled = false,
                 )
-                AssistantAction.entries.forEach { action ->
+                RiderAction.entries.forEach { action ->
                     HlOptionRow(
                         null,
                         stringResource(assistantName(action)),
@@ -69,19 +69,21 @@ fun AssistantSheet(
 
 /** An action's name. */
 @StringRes
-fun assistantName(action: AssistantAction): Int =
+fun assistantName(action: RiderAction): Int =
     when (action) {
-        AssistantAction.PLAY_PAUSE -> R.string.assistant_play_pause
-        AssistantAction.NEXT -> R.string.assistant_next
-        AssistantAction.BATTERY -> R.string.assistant_battery
-        AssistantAction.NOTHING -> R.string.assistant_nothing
+        RiderAction.PLAY_PAUSE -> R.string.assistant_play_pause
+        RiderAction.NEXT -> R.string.assistant_next
+        RiderAction.PREVIOUS -> R.string.assistant_previous
+        RiderAction.BATTERY -> R.string.assistant_battery
+        RiderAction.NOTHING -> R.string.assistant_nothing
     }
 
 @StringRes
-private fun assistantDetail(action: AssistantAction): Int =
+private fun assistantDetail(action: RiderAction): Int =
     when (action) {
-        AssistantAction.PLAY_PAUSE -> R.string.assistant_play_pause_detail
-        AssistantAction.NEXT -> R.string.assistant_next_detail
-        AssistantAction.BATTERY -> R.string.assistant_battery_detail
-        AssistantAction.NOTHING -> R.string.assistant_nothing_detail
+        RiderAction.PLAY_PAUSE -> R.string.assistant_play_pause_detail
+        RiderAction.NEXT -> R.string.assistant_next_detail
+        RiderAction.PREVIOUS -> R.string.assistant_previous_detail
+        RiderAction.BATTERY -> R.string.assistant_battery_detail
+        RiderAction.NOTHING -> R.string.assistant_nothing_detail
     }

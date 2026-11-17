@@ -17,9 +17,7 @@ import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink.Command
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
-import com.abid.handlebarlink.controls.ControlAction
-import com.abid.handlebarlink.controls.ControlResult
-import com.abid.handlebarlink.controls.ControlTarget
+import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
@@ -40,7 +38,7 @@ class RideCoordinatorTest {
     private val bike = SelectedBike("D0:B2:70:42:7F:FB", "HONDA BTU 2040")
     private val link = FakeBikeLink()
     private val created = mutableListOf<String>()
-    private val performed = mutableListOf<ControlAction>()
+    private val pressed = mutableListOf<HandlebarSwitch>()
     private val settings = InMemorySettings()
     private var rechecks = 0
 
@@ -49,11 +47,7 @@ class RideCoordinatorTest {
         return RideCoordinator(
             settings = settings,
             provider = { address -> RideLink(link.also { created += address }) { rechecks++ } },
-            target =
-                ControlTarget {
-                    performed += it
-                    ControlResult.Done
-                },
+            buttons = ButtonPresses { pressed += it },
             io = StandardTestDispatcher(testScheduler),
             scope = backgroundScope,
             logger = testLogger(RecordingLogSink(), time),
@@ -93,7 +87,8 @@ class RideCoordinatorTest {
                 runCurrent()
             }
 
-            assertThat(performed).containsExactly(ControlAction.PREVIOUS, ControlAction.PLAY_PAUSE)
+            // Every press reaches the rider's mapping, which decides what it does (HandlebarMappingTest).
+            assertThat(pressed).containsExactly(HandlebarSwitch.UP, HandlebarSwitch.LEFT, HandlebarSwitch.RIGHT)
         }
 
     @Test

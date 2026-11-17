@@ -4,9 +4,7 @@ import com.abid.handlebarlink.bike.link.BikeLink
 import com.abid.handlebarlink.bike.link.ButtonEvent
 import com.abid.handlebarlink.bike.link.LinkProblem
 import com.abid.handlebarlink.bike.link.LinkState
-import com.abid.handlebarlink.controls.ControlResult
-import com.abid.handlebarlink.controls.ControlRouter
-import com.abid.handlebarlink.controls.ControlTarget
+import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.di.ApplicationScope
@@ -39,7 +37,7 @@ class RideCoordinator
     constructor(
         private val settings: BikeSettings,
         provider: BikeLinkProvider,
-        private val target: ControlTarget,
+        private val buttons: ButtonPresses,
         @IoDispatcher private val io: CoroutineDispatcher,
         @ApplicationScope scope: CoroutineScope,
         logger: Logger,
@@ -112,15 +110,6 @@ class RideCoordinator
             if (riding.get()) link.value?.stop()
         }
 
-        private fun route(event: ButtonEvent) {
-            val action = ControlRouter.actionFor(event.switch)
-            if (action == null) {
-                log.debug("control.unmapped", "switch" to event.switch)
-                return
-            }
-            when (val result = target.perform(action)) {
-                ControlResult.Done -> log.info("control.done", "switch" to event.switch, "action" to action)
-                is ControlResult.NotDone -> log.warn("control.not_done", "action" to action, "reason" to result.reason)
-            }
-        }
+        /** A handlebar press goes to the rider's mapping (Home's Handlebar card). */
+        private fun route(event: ButtonEvent) = buttons.press(event.switch)
     }

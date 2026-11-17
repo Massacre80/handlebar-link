@@ -9,8 +9,7 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink.Command
-import com.abid.handlebarlink.controls.ControlResult
-import com.abid.handlebarlink.controls.ControlTarget
+import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
@@ -42,7 +41,7 @@ class PresenceEventsTest {
             RideCoordinator(
                 settings = settings,
                 provider = { RideLink(link) {} },
-                target = ControlTarget { ControlResult.Done },
+                buttons = ButtonPresses {},
                 io = io,
                 scope = backgroundScope,
                 logger = logger,

@@ -70,6 +70,8 @@
     <string name="assistant_play_pause_detail">CarPlay\'s music</string>
     <string name="assistant_next">Next track</string>
     <string name="assistant_next_detail">Skips in CarPlay</string>
+    <string name="assistant_previous">Previous track</string>
+    <string name="assistant_previous_detail">Goes back in CarPlay</string>
     <string name="assistant_battery">Announce battery</string>
     <string name="assistant_battery_detail">Says the battery in your helmet</string>
     <string name="assistant_nothing">Nothing</string>

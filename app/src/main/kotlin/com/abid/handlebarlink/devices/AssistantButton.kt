@@ -1,21 +1,7 @@
 package com.abid.handlebarlink.devices
 
+import com.abid.handlebarlink.controls.RiderAction
 import kotlinx.coroutines.flow.Flow
-
-/** What the intercom's assistant button does (the one button a headset hands to the phone's apps). */
-enum class AssistantAction {
-    /** Play or pause CarPlay. */
-    PLAY_PAUSE,
-
-    /** CarPlay's next track. */
-    NEXT,
-
-    /** Speaks the device's battery in the helmet. */
-    BATTERY,
-
-    /** Nothing. */
-    NOTHING,
-}
 
 /** Whether Android sends the assistant button to this app. */
 sealed interface AssistantHandler {
@@ -39,10 +25,10 @@ sealed interface AssistantHandler {
  */
 interface AssistantButton {
     /** What the button does, as the rider chose. */
-    val action: Flow<AssistantAction>
+    val action: Flow<RiderAction>
 
     /** Sets what the button does. */
-    suspend fun choose(action: AssistantAction)
+    suspend fun choose(action: RiderAction)
 
     /** Who gets the button now. */
     fun handler(): AssistantHandler

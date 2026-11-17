@@ -7,6 +7,7 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
+import com.abid.handlebarlink.controls.RiderAction
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -23,12 +24,12 @@ class AndroidAssistantButton
         @param:ApplicationContext private val context: Context,
         private val store: DataStore<Preferences>,
     ) : AssistantButton {
-        override val action: Flow<AssistantAction> =
+        override val action: Flow<RiderAction> =
             store.data.map { preferences ->
-                AssistantAction.entries.firstOrNull { it.name == preferences[ACTION] } ?: AssistantAction.PLAY_PAUSE
+                RiderAction.entries.firstOrNull { it.name == preferences[ACTION] } ?: RiderAction.PLAY_PAUSE
             }
 
-        override suspend fun choose(action: AssistantAction) {
+        override suspend fun choose(action: RiderAction) {
             store.edit { it[ACTION] = action.name }
         }
 
