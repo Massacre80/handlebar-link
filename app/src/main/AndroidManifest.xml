@@ -61,5 +61,18 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <!-- Headset connection changes wake the app (an implicit-broadcast exception), so a headset's battery
+             report right after it connects is heard; on disconnect its stored level is forgotten. Exported for
+             the Bluetooth app's broadcast; the action is protected (system only) and the sender must hold
+             BLUETOOTH_CONNECT. -->
+        <receiver
+            android:name=".devices.HeadsetConnectionReceiver"
+            android:exported="true"
+            android:permission="android.permission.BLUETOOTH_CONNECT">
+            <intent-filter>
+                <action android:name="android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
