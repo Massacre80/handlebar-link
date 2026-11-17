@@ -158,6 +158,23 @@ Standard 16-bit UUIDs use base `0000xxxx-0000-1000-8000-00805F9B34FB` (`B/model/
 | **Unknown `146a0176-b46f-48e7-ab74-70a7ce1a5341`** | `2573cb1a-7a02-45cd-957e-ebe6ab066539` write-no-response, notify; `f7b4d188-ad35-424f-a473-000dcdcfd8fb` write, notify; `fe7964e8-a8cc-4fbf-bd1d-14f6e9262bc5` read, write-no-response | | not in RoadSync |
 | **Unknown `e95a363a-5a67-437a-88a4-153dbe498bf1`** | `96f6a339-60dc-4983-9789-8da520b7b5f7` write-no-response | | not in RoadSync |
 
+**Probe run 2, 2026-11-17** (HID skipped; every read succeeded):
+
+| Characteristic | Value | Meaning (§2.1) |
+|---|---|---|
+| Vehicle Type `5738696d` | `01` | MOTORCYCLE |
+| Display Capability `0ad39e0b` | `01` | INDICATOR only (no pop-up, no mystery box) |
+| Switch Type `ddd14e97` | `00` | RESERVED (as expected) |
+| Category Id `3f033888` | `01` | FI (fuel injection) |
+| Series Code `5074e0e8` | `F5 03` | `03F5`, CB350 |
+| Destination Id `55f7910b` | `00` | DEFAULT (not India `16`) |
+| DFU Firmware Version `32c7720d` | `0A 01` | "10.01" (matches Device Information) |
+| Security Status `a65b7152` | `00` | the meter holds no key (no key exchange has run) |
+| Security Data Source `ebb3656f` | `00` | |
+| Unknown `fe7964e8` (service `146a0176`) | `00` | |
+| CCCDs of Assignment Control, Function Source, Data Control Point | `01 00` | notifications on (our setup) |
+| CCCDs of the unknown services' characteristics | `00 00` | off: nothing subscribes to them |
+
 No characteristic carries odometer, trip, fuel or speed as a readable value. The three unknown services offer only notifications and writes (plus one readable `fe7964e8`, to be read in run 2); whatever they carry would come as notifications, which a read-only probe cannot see.
 
 ### 2.2 Service the **phone** hosts (GATT server)
