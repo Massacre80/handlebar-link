@@ -2,13 +2,10 @@ package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.BlurEffect
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.ColorMatrix
@@ -17,13 +14,11 @@ import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.layer.GraphicsLayer
 import androidx.compose.ui.graphics.layer.drawLayer
-import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.node.DrawModifierNode
-import androidx.compose.ui.node.GlobalPositionAwareModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.node.invalidateDraw
 import androidx.compose.ui.node.requireGraphicsContext
+import androidx.compose.ui.node.requireLayoutCoordinates
 import androidx.compose.ui.unit.Dp
 
 /**
@@ -34,8 +29,9 @@ import androidx.compose.ui.unit.Dp
  */
 @Stable
 public class Backdrop internal constructor() {
-    internal var layer: GraphicsLayer? by mutableStateOf(null)
-    internal var origin: Offset by mutableStateOf(Offset.Unspecified)
+    // Set by the source node while attached; plain fields, read while drawing (no state, no recomposition).
+    internal var layer: GraphicsLayer? = null
+    internal var source: Modifier.Node? = null
 }
 
 /** A [Backdrop] for one screen. */
@@ -49,6 +45,10 @@ public fun Modifier.backdropSource(backdrop: Backdrop): Modifier = this then Bac
  * Draws [backdrop] behind this content, where it lies on screen, blurred by [blur] (a CSS blur: the
  * standard deviation) and saturated by [saturation] (CSS `saturate()`). Put it after the card's clip and
  * before its fill, so the fill tints the glass and the clip shapes it.
+ *
+ * Positions are read while drawing (`requireLayoutCoordinates`), not tracked with `onGloballyPositioned`,
+ * which fired on every frame of a page slide; the blur and colour filter are built once, and the glass is
+ * re-recorded only when its offset or size changes (Compose performance skill, layouts and graphics).
  */
 public fun Modifier.backdropBlur(
     backdrop: Backdrop,
@@ -69,16 +69,16 @@ private data class BackdropSourceElement(
 private class BackdropSourceNode(
     private var backdrop: Backdrop,
 ) : Modifier.Node(),
-    DrawModifierNode,
-    GlobalPositionAwareModifierNode {
+    DrawModifierNode {
     override fun onAttach() {
         backdrop.layer = requireGraphicsContext().createGraphicsLayer()
+        backdrop.source = this
     }
 
     override fun onDetach() {
         backdrop.layer?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
         backdrop.layer = null
-        backdrop.origin = Offset.Unspecified
+        if (backdrop.source === this) backdrop.source = null
     }
 
     fun attachTo(next: Backdrop) {
@@ -86,10 +86,6 @@ private class BackdropSourceNode(
         onDetach()
         backdrop = next
         onAttach()
-    }
-
-    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-        backdrop.origin = coordinates.positionInRoot()
     }
 
     override fun ContentDrawScope.draw() {
@@ -111,22 +107,33 @@ private data class BackdropBlurElement(
     override fun create() = BackdropBlurNode(backdrop, blur, saturation)
 
     override fun update(node: BackdropBlurNode) {
-        node.backdrop = backdrop
-        node.blur = blur
-        node.saturation = saturation
-        node.invalidateDraw()
+        node.update(backdrop, blur, saturation)
     }
 }
 
 private class BackdropBlurNode(
-    var backdrop: Backdrop,
-    var blur: Dp,
-    var saturation: Float,
+    private var backdrop: Backdrop,
+    private var blur: Dp,
+    private var saturation: Float,
 ) : Modifier.Node(),
-    DrawModifierNode,
-    GlobalPositionAwareModifierNode {
+    DrawModifierNode {
     private var glass: GraphicsLayer? = null
-    private var origin by mutableStateOf(Offset.Unspecified)
+    private var shift: Offset = Offset.Unspecified
+    private var recordedSize: Size = Size.Unspecified
+    private var effectFor: Float = Float.NaN
+
+    fun update(
+        backdrop: Backdrop,
+        blur: Dp,
+        saturation: Float,
+    ) {
+        this.backdrop = backdrop
+        this.blur = blur
+        this.saturation = saturation
+        effectFor = Float.NaN
+        shift = Offset.Unspecified
+        invalidateDraw()
+    }
 
     override fun onAttach() {
         glass = requireGraphicsContext().createGraphicsLayer()
@@ -135,23 +142,31 @@ private class BackdropBlurNode(
     override fun onDetach() {
         glass?.let { requireGraphicsContext().releaseGraphicsLayer(it) }
         glass = null
-    }
-
-    override fun onGloballyPositioned(coordinates: LayoutCoordinates) {
-        origin = coordinates.positionInRoot()
+        shift = Offset.Unspecified
+        effectFor = Float.NaN
     }
 
     override fun ContentDrawScope.draw() {
         val source = backdrop.layer
+        val sourceNode = backdrop.source?.takeIf { it.isAttached }
         val glass = glass
-        // Where the backdrop's origin lies from this card's (null until both are placed).
-        val shift = if (backdrop.origin.isSpecified && origin.isSpecified) backdrop.origin - origin else null
-        if (source != null && glass != null && shift != null) {
-            // hwui turns a blur radius into a standard deviation as 0.57735 r + 0.5; CSS gives the deviation.
-            val radius = ((blur.toPx() - SIGMA_OFFSET) / SIGMA_PER_RADIUS).coerceAtLeast(0f)
-            glass.renderEffect = if (radius > 0f) BlurEffect(radius, radius, TileMode.Clamp) else null
-            glass.colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
-            glass.record { translate(shift.x, shift.y) { drawLayer(source) } }
+        if (source != null && glass != null && sourceNode != null) {
+            // Where the backdrop's origin lies in this card's coordinates, read now rather than tracked.
+            val offset = requireLayoutCoordinates().localPositionOf(sourceNode.requireLayoutCoordinates(), Offset.Zero)
+            val radius = blur.toPx()
+            if (radius != effectFor) {
+                // hwui turns a blur radius into a standard deviation as 0.57735 r + 0.5; CSS gives the deviation.
+                val skia = ((radius - SIGMA_OFFSET) / SIGMA_PER_RADIUS).coerceAtLeast(0f)
+                glass.renderEffect = if (skia > 0f) BlurEffect(skia, skia, TileMode.Clamp) else null
+                glass.colorFilter = ColorFilter.colorMatrix(ColorMatrix().apply { setToSaturation(saturation) })
+                effectFor = radius
+                shift = Offset.Unspecified
+            }
+            if (offset != shift || size != recordedSize) {
+                glass.record { translate(offset.x, offset.y) { drawLayer(source) } }
+                shift = offset
+                recordedSize = size
+            }
             drawLayer(glass)
         }
         drawContent()

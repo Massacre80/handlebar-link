@@ -31,6 +31,10 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            // Signed with the debug key so the optimised build can be installed and tested on the Poco: judge
+            // performance only on it, never on debug (Compose performance skill, "Release build"). The app is
+            // not distributed; a real release key comes with publishing.
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
     lint { applyProjectPolicy(project) }

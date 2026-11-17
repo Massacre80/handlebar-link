@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.BlurredEdgeTreatment
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -30,6 +31,7 @@ import com.abid.handlebarlink.core.designsystem.theme.BikeGroundShadow
 import com.abid.handlebarlink.core.designsystem.theme.BikeGroundShadowNight
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.BikeImage
 
 /**
  * The bike on its ground (Paper "Setup"): contact and ambient shadows under the tyres; on Night also a
@@ -46,36 +48,33 @@ fun BikeStage(
     val height = width * RENDER_ASPECT
     Box(modifier.offset(x = offsetX).requiredSize(width, height)) {
         if (night) {
-            // Unbounded: the glow is larger than the render box and must not end in a straight edge.
+            // A radial gradient already fades softly to nothing, so no blur: blurring this ~1500 px area cost a
+            // full-screen GPU pass on every frame of the page slides. Its radius takes in the blur's spread, and
+            // the brush is built once per size (drawWithCache).
             Box(
                 Modifier
                     .matchParentSize()
-                    .blur(width * BACKLIGHT_BLUR, BlurredEdgeTreatment.Unbounded)
-                    .drawBehind {
-                        drawCircle(
+                    .drawWithCache {
+                        val centre = Offset(size.width * BACKLIGHT_X, size.height * BACKLIGHT_Y)
+                        val radius = size.width * (BACKLIGHT_RADIUS + BACKLIGHT_SPREAD)
+                        val glow =
                             Brush.radialGradient(
                                 listOf(Color.White.copy(alpha = BACKLIGHT_ALPHA), Color.Transparent),
-                                center = Offset(size.width * BACKLIGHT_X, size.height * BACKLIGHT_Y),
-                                radius = size.width * BACKLIGHT_RADIUS,
-                            ),
-                            radius = size.width * BACKLIGHT_RADIUS,
-                            center = Offset(size.width * BACKLIGHT_X, size.height * BACKLIGHT_Y),
-                        )
+                                center = centre,
+                                radius = radius,
+                            )
+                        onDrawBehind { drawCircle(glow, radius = radius, center = centre) }
                     },
             )
             Reflection(Modifier.matchParentSize())
         }
-        Image(
-            painterResource(R.drawable.bike_cb350rs),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .groundShadow(
-                        if (night) BikeGroundShadowNight else BikeGroundShadow,
-                        if (night) Color.Black else HlTheme.colors.ink,
-                    ),
+        BikeImage(
+            Modifier
+                .fillMaxSize()
+                .groundShadow(
+                    if (night) BikeGroundShadowNight else BikeGroundShadow,
+                    if (night) Color.Black else HlTheme.colors.ink,
+                ),
         )
     }
 }
@@ -83,10 +82,7 @@ fun BikeStage(
 /** The render mirrored at the tyre line, faint and fading out quickly (a glossy floor). */
 @Composable
 private fun Reflection(modifier: Modifier) {
-    Image(
-        painterResource(R.drawable.bike_cb350rs),
-        contentDescription = null,
-        contentScale = ContentScale.Fit,
+    BikeImage(
         modifier =
             modifier
                 .graphicsLayer {
@@ -94,17 +90,18 @@ private fun Reflection(modifier: Modifier) {
                     transformOrigin = TransformOrigin(CENTRE, CONTACT_LINE)
                     alpha = REFLECTION_ALPHA
                     compositingStrategy = CompositingStrategy.Offscreen
-                }.drawWithContent {
-                    drawContent()
+                }.drawWithCache {
                     // Before the flip: keep only the strip just above the tyre line, which mirrors below it.
-                    drawRect(
+                    val strip =
                         Brush.verticalGradient(
                             0f to Color.Transparent,
                             (CONTACT_LINE - REFLECTION_DEPTH) to Color.Transparent,
                             CONTACT_LINE to Color.Black,
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
+                        )
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(strip, blendMode = BlendMode.DstIn)
+                    }
                 },
     )
 }
@@ -139,4 +136,6 @@ private const val BACKLIGHT_ALPHA = 0.07f
 private const val BACKLIGHT_X = 0.55f
 private const val BACKLIGHT_Y = 0.45f
 private const val BACKLIGHT_RADIUS = 0.42f
-private const val BACKLIGHT_BLUR = 0.06f
+
+/** How far the former blur spread the glow, now part of its radius. */
+private const val BACKLIGHT_SPREAD = 0.06f

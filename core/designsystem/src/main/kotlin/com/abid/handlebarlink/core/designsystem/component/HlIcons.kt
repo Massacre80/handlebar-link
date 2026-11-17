@@ -11,6 +11,7 @@ import androidx.compose.foundation.text.BasicText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -192,24 +193,25 @@ public fun HlBackground(
     val colors = HlTheme.colors
     val glow = HlTheme.variant == HlThemeVariant.NIGHT
     Box(
-        modifier.drawBehind {
-            drawRect(colors.screen)
-            if (glow) {
-                val radiusX = size.width * GLOW_WIDTH
-                val radiusY = size.height * GLOW_HEIGHT
-                val centre = Offset(size.width / 2, size.height)
-                scale(scaleX = 1f, scaleY = radiusY / radiusX, pivot = centre) {
-                    drawCircle(
-                        Brush.radialGradient(
-                            GLOW_STOP_INNER to colors.glowInner,
-                            GLOW_STOP_MID to colors.glowMid,
-                            GLOW_STOP_OUTER to colors.screen,
-                            center = centre,
-                            radius = radiusX,
-                        ),
-                        radius = radiusX,
-                        center = centre,
-                    )
+        // The glow's brush is built once per size, not on every frame (drawWithCache).
+        modifier.drawWithCache {
+            val radiusX = size.width * GLOW_WIDTH
+            val radiusY = size.height * GLOW_HEIGHT
+            val centre = Offset(size.width / 2, size.height)
+            val brush =
+                Brush.radialGradient(
+                    GLOW_STOP_INNER to colors.glowInner,
+                    GLOW_STOP_MID to colors.glowMid,
+                    GLOW_STOP_OUTER to colors.screen,
+                    center = centre,
+                    radius = radiusX,
+                )
+            onDrawBehind {
+                drawRect(colors.screen)
+                if (glow) {
+                    scale(scaleX = 1f, scaleY = radiusY / radiusX, pivot = centre) {
+                        drawCircle(brush, radius = radiusX, center = centre)
+                    }
                 }
             }
         },

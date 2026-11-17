@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -58,6 +60,7 @@ import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.BikeImage
 
 /**
  * "Home 3 — Night": the bike as the hero between the gauges and the cards. The bike area keeps the
@@ -179,22 +182,24 @@ private fun HeroBike(
     modifier: Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-        Image(
-            painterResource(R.drawable.bike_cb350rs),
-            contentDescription = null,
-            contentScale = ContentScale.Fit,
-            modifier =
-                Modifier
-                    .requiredWidth(maxWidth * HERO_OVERSCAN)
-                    .backdropSource(backdrop)
-                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                    .drawWithContent {
-                        drawContent()
-                        drawRect(
-                            Brush.verticalGradient(HERO_FADE_START to Color.Black, HERO_FADE_END to Color.Transparent),
-                            blendMode = BlendMode.DstIn,
+        BikeImage(
+            Modifier
+                .requiredWidth(maxWidth * HERO_OVERSCAN)
+                .aspectRatio(1f / RENDER_ASPECT)
+                .backdropSource(backdrop)
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                // The fade's brush is built once per size, not on every frame (drawWithCache).
+                .drawWithCache {
+                    val fade =
+                        Brush.verticalGradient(
+                            HERO_FADE_START to Color.Black,
+                            HERO_FADE_END to Color.Transparent,
                         )
-                    },
+                    onDrawWithContent {
+                        drawContent()
+                        drawRect(fade, blendMode = BlendMode.DstIn)
+                    }
+                },
         )
     }
 }

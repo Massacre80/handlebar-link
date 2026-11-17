@@ -59,6 +59,7 @@ import com.abid.handlebarlink.core.designsystem.component.groundShadow
 import com.abid.handlebarlink.core.designsystem.theme.BikeGroundShadow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.BikeImage
 
 /** "Home 4 — Bento": everything in cards, scrolling when the screen is short. */
 @Composable
@@ -131,12 +132,7 @@ private fun BentoBikeCard() {
                 .aspectRatio(BikeGroundShadow.boxWidth / BikeGroundShadow.boxHeight)
                 .groundShadow(BikeGroundShadow, colors.ink),
         ) {
-            Image(
-                painterResource(R.drawable.bike_cb350rs),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier.fillMaxSize(),
-            )
+            BikeImage(Modifier.fillMaxSize())
         }
         Column(Modifier.padding(spacing.s16), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
             HlText(stringResource(R.string.bike_full_name), type.lead, colors.ink)
