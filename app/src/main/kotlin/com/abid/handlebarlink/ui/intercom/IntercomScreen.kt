@@ -27,6 +27,7 @@ import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlActionRow
 import com.abid.handlebarlink.core.designsystem.component.HlBatteryLevel
 import com.abid.handlebarlink.core.designsystem.component.HlButton
+import com.abid.handlebarlink.core.designsystem.component.HlCardAction
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -76,8 +77,7 @@ fun IntercomScreen(
         if (primary == null) {
             Empty(actions.onAdd)
         } else {
-            PrimaryCard(primary)
-            if (!primary.connected) Reconnect(primary, state.reconnect, actions.onReconnect)
+            PrimaryCard(primary, state.reconnect, actions.onReconnect)
             Audio(state, primary, actions)
             Buttons(state.buttons)
             if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
@@ -102,10 +102,26 @@ private fun Empty(onAdd: () -> Unit) {
     }
 }
 
+/**
+ * The device as on Home. Disconnected, its card carries the white "Connect" (Android 17's connect, after one
+ * companion-link consent), "Connecting…" while Android connects, and why not in the card's line if it cannot.
+ */
 @Composable
-private fun PrimaryCard(device: IntercomDevice) {
+private fun PrimaryCard(
+    device: IntercomDevice,
+    reconnect: Reconnecting,
+    onReconnect: (String) -> Unit,
+) {
+    val connecting = reconnect is Reconnecting.Connecting || reconnect is Reconnecting.Linking
+    val problem =
+        when (reconnect) {
+            Reconnecting.Unsupported -> R.string.intercom_reconnect_unsupported
+            Reconnecting.Failed -> R.string.intercom_reconnect_failed
+            else -> null
+        }
     val detail =
         when {
+            problem != null && !device.connected -> stringResource(problem)
             !device.connected -> stringResource(R.string.device_not_connected)
             device.model != device.name -> device.model
             else -> stringResource(R.string.device_connected)
@@ -118,42 +134,18 @@ private fun PrimaryCard(device: IntercomDevice) {
         modifier = Modifier.fillMaxWidth(),
         battery = device.battery?.let { HlBatteryLevel(it, stringResource(R.string.device_battery, it)) },
         icon = kindIcon(device.kind),
+        action =
+            if (device.connected) {
+                null
+            } else {
+                HlCardAction(
+                    stringResource(if (connecting) R.string.intercom_reconnecting else R.string.intercom_connect),
+                    onClick = { onReconnect(device.address) },
+                    enabled = !connecting,
+                )
+            },
+        detailColor = if (problem != null && !device.connected) HlTheme.colors.danger else Color.Unspecified,
     )
-}
-
-/**
- * Reconnecting from the app (Android 17's connect, after one companion-link consent): the action, then
- * "Connecting…", or why it cannot.
- */
-@Composable
-private fun Reconnect(
-    device: IntercomDevice,
-    reconnect: Reconnecting,
-    onReconnect: (String) -> Unit,
-) {
-    val connecting = reconnect is Reconnecting.Connecting || reconnect is Reconnecting.Linking
-    val problem =
-        when (reconnect) {
-            Reconnecting.Unsupported -> R.string.intercom_reconnect_unsupported
-            Reconnecting.Failed -> R.string.intercom_reconnect_failed
-            else -> null
-        }
-    HlGroup {
-        HlActionRow(
-            HlIcons.Bluetooth,
-            stringResource(if (connecting) R.string.intercom_reconnecting else R.string.intercom_reconnect),
-            onClick = { if (!connecting) onReconnect(device.address) },
-        )
-        problem?.let {
-            HlGroupDivider()
-            HlText(
-                stringResource(it),
-                HlTheme.typography.meta,
-                HlTheme.colors.danger,
-                Modifier.padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
-            )
-        }
-    }
 }
 
 @Composable

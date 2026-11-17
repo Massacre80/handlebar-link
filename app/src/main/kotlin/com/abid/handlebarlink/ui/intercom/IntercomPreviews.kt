@@ -66,3 +66,52 @@ private fun IntercomEmptyPreview() {
         HlBackground(Modifier.fillMaxSize()) { IntercomScreen(IntercomUiState(), NoIntercomActions, PaddingValues()) }
     }
 }
+
+@Preview(name = "Devices · disconnected", widthDp = 411, heightDp = 420)
+@Composable
+private fun DisconnectedPreview() {
+    HlTheme(HlThemeVariant.NIGHT) {
+        HlBackground(Modifier.fillMaxSize()) {
+            IntercomScreen(
+                PreviewIntercom.copy(
+                    devices =
+                        PreviewIntercom.devices.map {
+                            it.copy(
+                                connected = false,
+                                calls = false,
+                                music = false,
+                                battery = null,
+                            )
+                        },
+                ),
+                NoIntercomActions,
+                PaddingValues(),
+            )
+        }
+    }
+}
+
+@Preview(name = "Devices · could not connect", widthDp = 411, heightDp = 420)
+@Composable
+private fun FailedPreview() {
+    HlTheme(HlThemeVariant.BENTO) {
+        HlBackground(Modifier.fillMaxSize()) {
+            IntercomScreen(
+                PreviewIntercom.copy(
+                    devices =
+                        PreviewIntercom.devices.map {
+                            it.copy(
+                                connected = false,
+                                calls = false,
+                                music = false,
+                                battery = null,
+                            )
+                        },
+                    reconnect = Reconnecting.Failed,
+                ),
+                NoIntercomActions,
+                PaddingValues(),
+            )
+        }
+    }
+}

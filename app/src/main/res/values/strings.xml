@@ -55,7 +55,7 @@
     <string name="add_device_short">Add</string>
     <string name="add_device_detail">Intercom or earbuds</string>
     <string name="intercom_empty_detail">Add your helmet intercom to see its battery, and where calls and music play.</string>
-    <string name="intercom_reconnect">Reconnect</string>
+    <string name="intercom_connect">Connect</string>
     <string name="intercom_reconnecting">Connecting…</string>
     <string name="intercom_reconnect_unsupported">This phone\'s Android doesn\'t let apps reconnect. Turn the intercom off and on.</string>
     <string name="intercom_reconnect_failed">Couldn\'t reconnect. Is the intercom on and nearby?</string>

@@ -27,6 +27,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -88,6 +90,8 @@ public fun DeviceTile(
     backdrop: Backdrop? = null,
     @DrawableRes icon: Int = HlIcons.Intercom,
     onClick: (() -> Unit)? = null,
+    action: HlCardAction? = null,
+    detailColor: Color = Color.Unspecified,
 ) {
     val colors = HlTheme.colors
     val type = HlTheme.typography
@@ -108,7 +112,11 @@ public fun DeviceTile(
                     HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
                 }
                 Spacer(Modifier.weight(1f))
-                battery?.let { HlBattery(it.percent, it.label) }
+                // The card's one action (a disconnected device's "Connect") takes the battery's place.
+                when {
+                    action != null -> HlPillButton(action.label, action.onClick, enabled = action.enabled)
+                    battery != null -> HlBattery(battery.percent, battery.label)
+                }
             }
             Spacer(Modifier.weight(1f, fill = false))
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
@@ -124,7 +132,7 @@ public fun DeviceTile(
                     )
                     HlText(name, type.lead, colors.ink, maxLines = 2)
                 }
-                HlText(detail, type.label, colors.inkMuted, maxLines = 2)
+                HlText(detail, type.label, detailColor.takeOrElse { colors.inkMuted }, maxLines = 2)
             }
         }
     }
@@ -306,4 +314,14 @@ internal const val GLASS_SATURATION = 1.4f
 public data class HlBatteryLevel(
     val percent: Int,
     val label: String,
+)
+
+/** A card's one action: its label, whether it can be pressed now, and what it does. */
+public data class HlCardAction(
+    /** What it does ("Connect"). */
+    val label: String,
+    /** Done when pressed. */
+    val onClick: () -> Unit,
+    /** False while it is under way ("Connecting…"). */
+    val enabled: Boolean = true,
 )
