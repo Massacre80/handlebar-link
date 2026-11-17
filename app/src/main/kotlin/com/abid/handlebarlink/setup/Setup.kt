@@ -6,13 +6,38 @@ import kotlinx.coroutines.flow.Flow
 
 /** A Honda meter our own scan found (docs/PLAN.md "First-time setup"). */
 data class FoundMeter(
-    /** Its advertised name, e.g. "HONDA BTU 2040". */
+    /** Its name, cleaned ([cleanName]), e.g. "HONDA BTU 2040". */
     val name: String,
     /** Its Bluetooth address. */
     val address: String,
     /** Signal strength in dBm (`ScanResult.getRssi`). */
     val rssi: Int,
+    /** A Honda meter by its name ([isHondaMeter]); other devices are listed after, as a fallback. */
+    val honda: Boolean = true,
 )
+
+/**
+ * A device name as advertised, up to the first character outside printable ASCII. The CB350's meter
+ * advertises "HONDA BTU 2040" followed by two NUL characters (SAB_PROTOCOL.md §1.1, capture 2026-11-17), so
+ * names are cut there before matching or showing (meter names are ASCII; another device's
+ * non-ASCII name is cut too, which only shortens how a fallback entry reads). Null when nothing is left.
+ */
+fun cleanName(raw: String?): String? =
+    raw
+        ?.takeWhile { it in ' '..'~' }
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+
+/**
+ * A Honda meter: it advertises the Vehicle Information service, or its cleaned name starts with "HONDA
+ * BTU" (RoadSync's name pattern); SAB_PROTOCOL.md §1.1. Either is enough.
+ */
+fun isHondaMeter(
+    name: String,
+    vehicleService: Boolean = false,
+): Boolean = vehicleService || name.startsWith(HONDA_METER_PREFIX)
+
+private const val HONDA_METER_PREFIX = "HONDA BTU"
 
 /** Why setup cannot go on; each has its own message and way out. */
 enum class SetupProblem {

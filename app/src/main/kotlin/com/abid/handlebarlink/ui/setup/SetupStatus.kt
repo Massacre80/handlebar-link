@@ -49,6 +49,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
@@ -65,7 +67,6 @@ import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlText
-import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.dashedOutline
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -174,8 +175,6 @@ internal fun SearchRow(
         if (failed) colors.danger.copy(alpha = DANGER_FILL) else Color.Transparent,
         motion.fade(),
     )
-    val loop = rememberInfiniteTransition(label = "searching")
-    val turn = loop.animateFloat(0f, FULL_TURN, infiniteRepeatable(tween(TURN_MS, easing = LinearEasing)), "turn")
     val press = remember { MutableInteractionSource() }
     Row(
         Modifier
@@ -199,15 +198,7 @@ internal fun SearchRow(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s14),
     ) {
-        // Ticks only: the artboard has no disc behind them.
-        SignalRing(
-            if (failed) colors.danger else colors.brand,
-            if (failed) colors.danger.copy(alpha = DANGER_EDGE) else colors.track,
-            Color.Transparent,
-            progress = if (searching) SEARCH_ARC else 0f,
-            modifier = Modifier.graphicsLayer { rotationZ = if (searching) turn.value else 0f },
-            size = HlTheme.sizes.avatar,
-        )
+        SearchSpinner(state)
         AnimatedContent(
             state,
             Modifier.weight(1f),
@@ -240,7 +231,6 @@ private fun SearchText(state: SearchState) {
                     Modifier.graphicsLayer { alpha = pulse },
                 )
                 HlText(stringResource(R.string.setup_searching_detail), HlTheme.typography.meta, colors.inkMuted)
-                LoadingBar(Modifier.padding(top = spacing.s6))
             }
 
             SearchState.NONE_FOUND -> {
@@ -257,27 +247,54 @@ private fun SearchText(state: SearchState) {
 }
 
 /**
- * An indeterminate loading bar: one rounded segment sweeping across the track, over and over. The sweep
- * is read while drawing, so it redraws without recomposing.
+ * The search mark: the Bluetooth sign in a ring. SEARCHING: a thick arc spins round it, fast and evenly
+ * (the scan's end is unknown); NONE_FOUND: the whole ring in the danger colour; ENDED: the quiet track.
+ * The turn is read in the layer, so spinning never recomposes.
  */
 @Composable
-private fun LoadingBar(modifier: Modifier = Modifier) {
+private fun SearchSpinner(state: SearchState) {
     val colors = HlTheme.colors
-    val sweep =
-        rememberInfiniteTransition(label = "loading").animateFloat(
+    val motion = HlTheme.motion
+    val tone by animateColorAsState(
+        when (state) {
+            SearchState.SEARCHING -> colors.brand
+            SearchState.NONE_FOUND -> colors.danger
+            SearchState.ENDED -> colors.inkMuted
+        },
+        motion.fade(),
+    )
+    val turn =
+        rememberInfiniteTransition(label = "searching").animateFloat(
             initialValue = 0f,
-            targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(SWEEP_MS, easing = FastOutSlowInEasing)),
-            label = "sweep",
+            targetValue = FULL_TURN,
+            animationSpec = infiniteRepeatable(tween(TURN_MS, easing = LinearEasing)),
+            label = "turn",
         )
-    Canvas(modifier.fillMaxWidth().height(HlTheme.strokes.progress)) {
-        val radius = CornerRadius(size.height / 2)
-        drawRoundRect(colors.track, cornerRadius = radius)
-        val segment = size.width * SEGMENT
-        val left = -segment + (size.width + segment) * sweep.value
-        clipRect {
-            drawRoundRect(colors.brand, Offset(left, 0f), Size(segment, size.height), radius)
+    val stroke = HlTheme.strokes.signal
+    Box(Modifier.size(HlTheme.sizes.avatar), contentAlignment = Alignment.Center) {
+        Canvas(
+            Modifier
+                .matchParentSize()
+                .graphicsLayer { rotationZ = if (state == SearchState.SEARCHING) turn.value else 0f },
+        ) {
+            val width = stroke.toPx()
+            val inset = width / 2
+            val arcSize = Size(size.width - width, size.height - width)
+            val ring = Stroke(width, cap = StrokeCap.Round)
+            drawArc(
+                if (state == SearchState.NONE_FOUND) tone else colors.track,
+                0f,
+                FULL_TURN,
+                false,
+                Offset(inset, inset),
+                arcSize,
+                style = ring,
+            )
+            if (state == SearchState.SEARCHING) {
+                drawArc(tone, START, SPIN_ARC, false, Offset(inset, inset), arcSize, style = ring)
+            }
         }
+        HlIcon(HlIcons.Bluetooth, tone, size = HlTheme.sizes.iconSmall)
     }
 }
 
@@ -311,11 +328,12 @@ private fun fixText(problem: SetupProblem): Int =
         else -> R.string.setup_fix_retry
     }
 
-private const val SEARCH_ARC = 0.26f
 private const val FULL_TURN = 360f
-private const val TURN_MS = 1_400
-private const val SWEEP_MS = 1_100
-private const val SEGMENT = 0.4f
+
+/** One turn of the search arc: quick, so the wait reads as active. */
+private const val TURN_MS = 800
+private const val SPIN_ARC = 100f
+private const val START = -90f
 private const val DANGER_FILL = 0.10f
 private const val DANGER_EDGE = 0.45f
 private const val DANGER_MARK = 0.18f

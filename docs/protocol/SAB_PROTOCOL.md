@@ -46,6 +46,8 @@ Reverse-engineered from a jadx decompile for interoperability with the owner's o
 | Test devices | `"HONDA BTU ARD"` (Arduino simulator: no CTS server started), `"HONDA BTU SIM"` (simulator: firmware string forced to "15.15") | `B/utils/BTUtils.java:119-151`, `SABController.java:1417-1418, 2340-2341` |
 | Manufacturer data | **Not used** anywhere | — |
 
+**Capture, 2026-11-17 (CB350RS meter, Poco F1, Android 17):** in pairing mode the meter is LE-only with a public address, connectable, and advertises the Vehicle Information Service UUID and its name. The advertised name is "HONDA BTU 2040" **followed by two NUL characters** (codes `72 79 78 68 65 32 66 84 85 32 50 48 52 48 0 0`), so an exact or full-pattern match on the name fails (also in CompanionDeviceManager's name filter); cut the name at the first non-printable character first. Earlier scans filtered on the service UUID returned nothing, but the meter may not yet have been advertising then (cause not established). With the cleaned name, setup linked and bonded the meter (LE, "Just Works": bonded 0.5 s after `createBond`) and the link read series code `03F5`.
+
 The scan only flips the UI to "bike found". The actual device is chosen through the CompanionDeviceManager association dialog (`OnboardingPairingResetViewModel.java:555-581`). The scan has a 10 s timeout, after which it fails with EMPTY_RESULT. In our own app, either approach works: scan for the service UUID, or match on the name.
 
 **Putting the meter into pairing mode (CB350 / K0ZA)** (`RES:665-668`):

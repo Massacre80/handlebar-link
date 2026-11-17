@@ -113,7 +113,10 @@ internal fun ReadyPage(
     }
 }
 
-/** Step 2, "Choose your bike": the meters our scan finds, and the search itself. */
+/**
+ * Step 2, "Choose your bike": the Honda meters our scan finds, the search itself, then any other named
+ * devices nearby (a fallback should a meter's name ever look different).
+ */
 @Composable
 internal fun ChoosePage(
     state: SetupUiState,
@@ -132,25 +135,35 @@ internal fun ChoosePage(
             Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s16 * 2),
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
-            AnimatedVisibility(state.meters.isNotEmpty()) {
-                HlText(
-                    stringResource(R.string.setup_found).uppercase(),
-                    HlTheme.typography.caps,
-                    HlTheme.colors.inkMuted,
-                    Modifier.padding(horizontal = spacing.s8),
-                )
-            }
-            state.meters.forEach { meter ->
+            val (meters, others) = state.meters.partition { it.honda }
+            AnimatedVisibility(meters.isNotEmpty()) { ListLabel(stringResource(R.string.setup_found)) }
+            meters.forEach { meter ->
                 key(meter.address) { Arriving { MeterCard(meter) { actions.onChoose(meter) } } }
             }
             SearchRow(
                 when {
                     state.searching -> SearchState.SEARCHING
-                    state.meters.isEmpty() -> SearchState.NONE_FOUND
+                    meters.isEmpty() -> SearchState.NONE_FOUND
                     else -> SearchState.ENDED
                 },
                 actions.onSearchAgain,
             )
+            AnimatedVisibility(others.isNotEmpty()) {
+                ListLabel(stringResource(R.string.setup_other), Modifier.padding(top = spacing.s14))
+            }
+            others.forEach { device ->
+                key(device.address) {
+                    Arriving {
+                        HlValueRow(
+                            value = device.name,
+                            hint = null,
+                            detail = device.address,
+                            onClick = { actions.onChoose(device) },
+                            container = HlTheme.colors.panel,
+                        )
+                    }
+                }
+            }
             ProblemRow(state.problem, actions.onFix)
         }
         Spacer(Modifier.weight(1f))
@@ -227,6 +240,20 @@ internal fun DonePage(
             HlButton(stringResource(R.string.setup_go_home), actions.onHome, Modifier.fillMaxWidth(), brand = true)
         }
     }
+}
+
+/** A list's overline ("FOUND NEARBY"). */
+@Composable
+private fun ListLabel(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    HlText(
+        text.uppercase(),
+        HlTheme.typography.caps,
+        HlTheme.colors.inkMuted,
+        modifier.padding(horizontal = HlTheme.spacing.s8),
+    )
 }
 
 /** The bike's name centred at the top, with [below] under it (the overline, or the link pill). */

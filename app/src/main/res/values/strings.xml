@@ -110,6 +110,7 @@
     <string name="setup_choose_title">Choose your bike</string>
     <string name="setup_choose_text">Tap your meter to pair it.</string>
     <string name="setup_found">Found nearby</string>
+    <string name="setup_other">Other devices</string>
     <string name="setup_meter_strong">Honda meter · Strong signal</string>
     <string name="setup_meter_good">Honda meter · Good signal</string>
     <string name="setup_meter_weak">Honda meter · Weak signal</string>

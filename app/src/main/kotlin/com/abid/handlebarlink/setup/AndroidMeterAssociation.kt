@@ -1,7 +1,6 @@
 package com.abid.handlebarlink.setup
 
 import android.app.Activity
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.companion.AssociationInfo
 import android.companion.AssociationRequest
@@ -13,8 +12,6 @@ import android.content.IntentSender
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.ParcelUuid
-import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.core.common.log.Logger
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -95,13 +92,14 @@ class AndroidMeterAssociation
         }
 
         private fun associationRequest(meter: FoundMeter): AssociationRequest {
+            // The tapped device's cleaned name, then anything: the meter's advertised name ends in bytes
+            // that are not text, so the exact name never matches (SAB_PROTOCOL.md §1.1, 2026-11-17). No
+            // service filter: a fallback device chosen from the list does not advertise it.
             val filter =
                 BluetoothLeDeviceFilter
                     .Builder()
-                    .setNamePattern(Pattern.compile(Pattern.quote(meter.name)))
-                    .setScanFilter(
-                        ScanFilter.Builder().setServiceUuid(ParcelUuid(SabUuids.VEHICLE_INFO_SERVICE)).build(),
-                    ).build()
+                    .setNamePattern(Pattern.compile(Pattern.quote(meter.name) + ".*", Pattern.DOTALL))
+                    .build()
             return AssociationRequest
                 .Builder()
                 .addDeviceFilter(filter)

@@ -3,7 +3,6 @@ package com.abid.handlebarlink.setup
 import android.Manifest
 import android.bluetooth.BluetoothManager
 import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
@@ -19,10 +18,13 @@ import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 
 /**
- * Scans for Honda meters while the setup screen is open (docs/PLAN.md "First-time setup"): a hardware filter
- * on the Vehicle Information service (as RoadSync, SAB_PROTOCOL.md §1), low latency because the app is in
- * the foreground (ScanSettings), names checked against `SabUuids.DEVICE_NAME_PATTERN`. The collector sets
- * the time limit and cancelling stops the scan.
+ * Scans for nearby named devices while the setup screen is open (docs/PLAN.md "First-time setup"), low
+ * latency because the app is in the foreground (ScanSettings). Honda meters ([isHondaMeter]: the Vehicle
+ * Information service or the name) come first, every other named device after them as a fallback. No
+ * hardware filter: on the bike, scans filtered on the service returned nothing before the meter was found
+ * unfiltered (cause not established, SAB_PROTOCOL.md §1.1), and the fallback needs every device. Names
+ * end in bytes that are not text and are cleaned ([cleanName]). What a meter advertises is logged once per
+ * address. The collector sets the time limit and cancelling stops the scan.
  */
 class AndroidMeterScanner
     @Inject
@@ -38,16 +40,34 @@ class AndroidMeterScanner
                     context.getSystemService(BluetoothManager::class.java)?.adapter?.bluetoothLeScanner
                         ?: throw SetupException(SetupProblem.BLUETOOTH_OFF)
                 val found = LinkedHashMap<String, FoundMeter>()
+                val seen = ScanTally()
                 val callback =
                     object : ScanCallback() {
                         override fun onScanResult(
                             callbackType: Int,
                             result: ScanResult,
                         ) {
-                            val name = result.scanRecord?.deviceName ?: return
-                            if (!METER.matches(name)) return
-                            found[result.device.address] = FoundMeter(name, result.device.address, result.rssi)
-                            trySend(found.values.sortedByDescending { it.rssi })
+                            val name = nameOf(result)
+                            seen.add(result.device.address, name)
+                            if (name != null) {
+                                val address = result.device.address
+                                val services = result.scanRecord?.serviceUuids.orEmpty()
+                                val honda = isHondaMeter(name, VEHICLE_SERVICE in services)
+                                if (honda && address !in found) {
+                                    log.info(
+                                        "scan.meter",
+                                        "name" to name,
+                                        // The advertised name's characters, to record what follows the text.
+                                        "advertised" to result.scanRecord?.deviceName?.map { it.code },
+                                        "services" to services,
+                                        "connectable" to result.isConnectable,
+                                    )
+                                }
+                                found[address] = FoundMeter(name, address, result.rssi, honda)
+                                // Honda meters first, then the order they were first seen: a list sorted by
+                                // signal kept jumping under the rider's thumb (owner, 2026-11-17).
+                                trySend(found.values.sortedByDescending { it.honda })
+                            }
                         }
 
                         override fun onScanFailed(errorCode: Int) {
@@ -57,7 +77,31 @@ class AndroidMeterScanner
                     }
                 start(scanner, callback)
                 log.info("scan.start")
-                awaitClose { stop(scanner, callback) }
+                awaitClose {
+                    stop(scanner, callback)
+                    log.info("scan.summary", "devices" to seen.devices, "named" to seen.named, "honda" to seen.honda)
+                }
+            }
+
+        /**
+         * A device's cleaned name ([cleanName]): from the advertisement, else the name Android already holds
+         * for the address (learnt from an earlier scan response or discovery).
+         */
+        private fun nameOf(result: ScanResult): String? =
+            cleanName(result.scanRecord?.deviceName) ?: cleanName(knownName(result))
+
+        private fun knownName(result: ScanResult): String? =
+            if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                try {
+                    result.device.name
+                } catch (e: SecurityException) {
+                    log.warn("scan.name.denied", "error" to e.message)
+                    null
+                }
+            } else {
+                null
             }
 
         private fun start(
@@ -70,7 +114,7 @@ class AndroidMeterScanner
                 throw SetupException(SetupProblem.PERMISSION_MISSING)
             }
             try {
-                scanner.startScan(listOf(FILTER), SETTINGS, callback)
+                scanner.startScan(emptyList(), SETTINGS, callback)
             } catch (e: SecurityException) {
                 throw SetupException(SetupProblem.PERMISSION_MISSING, e)
             }
@@ -94,9 +138,23 @@ class AndroidMeterScanner
         }
 
         private companion object {
-            val METER = Regex(SabUuids.DEVICE_NAME_PATTERN)
-            val FILTER: ScanFilter =
-                ScanFilter.Builder().setServiceUuid(ParcelUuid(SabUuids.VEHICLE_INFO_SERVICE)).build()
+            val VEHICLE_SERVICE = ParcelUuid(SabUuids.VEHICLE_INFO_SERVICE)
             val SETTINGS: ScanSettings = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).build()
         }
     }
+
+/** What one scan saw, for the log: devices, how many had a name, and the Honda meters (diagnosing setup). */
+private class ScanTally {
+    private val names = HashMap<String, String?>()
+
+    val devices: Int get() = names.size
+    val named: Int get() = names.values.count { it != null }
+    val honda: List<String> get() = names.values.filterNotNull().filter { isHondaMeter(it) }
+
+    fun add(
+        address: String,
+        name: String?,
+    ) {
+        if (names[address] == null) names[address] = name
+    }
+}

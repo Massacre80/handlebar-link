@@ -106,12 +106,15 @@ Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the 
   names. Asked from "Find my bike", after the screen that explains why (permissions skill §6: rationale
   first, never loop, settings page on permanent denial; never cache, catch `SecurityException`).
   Companion pairing needs Location Services on (companion-device-pairing).
-- **Our scan** (find-ble-devices; ScanSettings): hardware `ScanFilter` on the Vehicle Information service
-  `4d87b1ea-…` (SAB_PROTOCOL.md §1, as RoadSync), `SCAN_MODE_LOW_LATENCY` only while on screen, a time
-  limit, names post-filtered with `SabUuids.DEVICE_NAME_PATTERN`, RSSI shown; stop the scan before
-  associating (`associate()` doc).
-- **Association** (CompanionDeviceManager): the tapped meter only (`setNamePattern` on its exact name, the
-  service filter, `setSingleDevice(true)`; no address filter: its handling is not documented). One branch:
+- **Our scan** (find-ble-devices; ScanSettings): no hardware filter (service-filtered scans on the bike
+  returned nothing, cause not established; SAB_PROTOCOL.md §1.1). Names cleaned (the meter's ends in two NUL
+  characters); Honda meters (Vehicle Information service or "HONDA BTU" name) listed first,
+  other named devices after as a fallback, in the order first seen (sorting by signal made the list jump).
+  `SCAN_MODE_LOW_LATENCY` only while on screen, a time limit, RSSI shown; stop the scan before associating
+  (`associate()` doc).
+- **Association** (CompanionDeviceManager): the tapped device only (`setNamePattern` on its cleaned name
+  then anything, `setSingleDevice(true)`; no service filter, so a fallback device works; no address filter:
+  its handling is not documented). One branch:
   API 33+ `associate(request, Executor, Callback)` with `EXTRA_ASSOCIATION`; API 31–32
   `associate(request, Callback, Handler)` with `onDeviceFound` and `EXTRA_DEVICE` (a BLE `ScanResult`).
   Android 16+: a discovery timeout comes back as user-rejected.
