@@ -111,7 +111,7 @@ internal fun HomeBento(
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
                 // Grows into the Add device page; the slot keeps its own size inside (no stretching).
-                val addDevice = rememberContainerTransform(ADD_DEVICE)
+                val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
                 Box(Modifier.weight(BENTO_ADD_WEIGHT).containerTransform(addDevice).fillMaxHeight()) {
                     AddDeviceSlot(
                         stringResource(R.string.add_device_short),

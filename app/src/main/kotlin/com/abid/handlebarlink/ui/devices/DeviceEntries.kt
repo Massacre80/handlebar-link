@@ -9,8 +9,6 @@ import android.content.pm.PackageManager
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,34 +16,28 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
-import androidx.navigation3.scene.DialogSceneStrategy
-import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.theme.HlMotion
 import com.abid.handlebarlink.devices.PairState
 import com.abid.handlebarlink.devices.SavedDevice
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
+import com.abid.handlebarlink.ui.navigation.ContainerPage
 import com.abid.handlebarlink.ui.navigation.DeviceSheetRoute
 import com.abid.handlebarlink.ui.navigation.Navigator
 import com.abid.handlebarlink.ui.navigation.PairDeviceRoute
-import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerPage
-import com.abid.handlebarlink.ui.navigation.containerTransform
-import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
+import com.abid.handlebarlink.ui.navigation.sheet
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberSetupAccess
 
 /**
- * Add device and its "What is it?" sheet. The sheet is a Navigation 3 dialog destination
- * (DialogSceneStrategy): Add device stays under it, Back closes it, and it sits above the tab bar.
+ * Add device, Pair a new device and the "What is it?" sheet (a sheet scene over the page under it).
  */
 fun EntryProviderScope<NavKey>.deviceEntries(
     navigator: Navigator,
@@ -53,13 +45,10 @@ fun EntryProviderScope<NavKey>.deviceEntries(
 ) {
     // Add device grows out of Home's tile, Pair a new device out of its row (container transforms).
     entry<AddDeviceRoute>(metadata = containerPage(motion)) { AddDeviceEntry(navigator) }
-    entry<PairDeviceRoute>(metadata = containerPage(motion)) {
-        val transform = rememberContainerTransform(PAIR_DEVICE)
-        HlBackground(Modifier.fillMaxSize().containerTransform(transform)) {
-            Box(Modifier.containerContent(transform)) { PairDeviceEntry(navigator) }
-        }
-    }
-    entry<DeviceSheetRoute>(metadata = DialogSceneStrategy.dialog(SHEET)) { route ->
+    entry<PairDeviceRoute>(
+        metadata = containerPage(motion),
+    ) { ContainerPage(PAIR_DEVICE) { PairDeviceEntry(navigator) } }
+    entry<DeviceSheetRoute>(metadata = sheet()) { route ->
         val viewModel: DeviceSheetViewModel = hiltViewModel()
         val saved by viewModel.saved.collectAsStateWithLifecycle()
         var kind by rememberSaveable { mutableStateOf(route.kind) }
@@ -90,30 +79,27 @@ private fun AddDeviceEntry(navigator: Navigator) {
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    val transform = rememberContainerTransform(ADD_DEVICE)
-    HlBackground(Modifier.fillMaxSize().containerTransform(transform)) {
-        Box(Modifier.containerContent(transform)) {
-            AddDeviceScreen(
-                state,
-                nearby.status,
-                AddDeviceActions(
-                    onAllow = nearby::act,
-                    onTurnOn = {
-                        // Asking to turn Bluetooth on needs BLUETOOTH_CONNECT (ACTION_REQUEST_ENABLE).
-                        if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
-                            PackageManager.PERMISSION_GRANTED
-                        ) {
-                            enable.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-                        } else {
-                            nearby.act()
-                        }
-                    },
-                    onPick = { navigator.navigate(it.toSheet()) },
-                    onPair = { navigator.navigate(PairDeviceRoute) },
-                    onBack = navigator::goBack,
-                ),
-            )
-        }
+    ContainerPage(ADD_DEVICE) {
+        AddDeviceScreen(
+            state,
+            nearby.status,
+            AddDeviceActions(
+                onAllow = nearby::act,
+                onTurnOn = {
+                    // Asking to turn Bluetooth on needs BLUETOOTH_CONNECT (ACTION_REQUEST_ENABLE).
+                    if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+                        PackageManager.PERMISSION_GRANTED
+                    ) {
+                        enable.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                    } else {
+                        nearby.act()
+                    }
+                },
+                onPick = { navigator.navigate(it.toSheet()) },
+                onPair = { navigator.navigate(PairDeviceRoute) },
+                onBack = navigator::goBack,
+            ),
+        )
     }
 }
 
@@ -185,6 +171,3 @@ private fun openBluetoothSettings(context: Context) {
 /** Shared-bounds keys: Home's Add device tile and the page; Add device's pair row and its page. */
 const val ADD_DEVICE = "add-device"
 const val PAIR_DEVICE = "pair-device"
-
-/** Full width and edge to edge: the sheet anchors itself to the bottom and pads for the bars and keyboard. */
-private val SHEET = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)

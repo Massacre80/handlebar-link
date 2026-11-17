@@ -145,7 +145,7 @@ private fun PairNew(
     empty: Boolean,
     onPair: () -> Unit,
 ) {
-    val transform = rememberContainerTransform(PAIR_DEVICE)
+    val transform = rememberContainerTransform(PAIR_DEVICE, expanded = false)
     val row: @Composable () -> Unit = {
         // Grows into Pair a new device; the row keeps its own size inside.
         Box(Modifier.containerTransform(transform)) {

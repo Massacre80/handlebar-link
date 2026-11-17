@@ -43,6 +43,7 @@
   --color-track: rgb(255 255 255 / 12%);         /* ring tracks */
   --color-gauge: #E9EDE0;                        /* "To next service" ring */
   --color-shadow: rgb(0 0 0 / 35%);              /* tab bar #00000059 */
+  --color-scrim: rgb(0 0 0 / 40%);               /* derived: dim behind a sheet or a growing card */
   --color-surface-inverse-edge: rgb(200 240 60 / 28%); /* CarPlay card edge #C8F03C47 */
 
   --shadow-bar: 0 12px 32px;      /* tab bar */

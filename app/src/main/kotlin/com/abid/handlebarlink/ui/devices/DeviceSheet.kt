@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -47,8 +48,7 @@ import com.abid.handlebarlink.devices.DeviceKind
 
 /**
  * "What is it?" (Paper "Flow · Add device"): the device, its kind (the suggestion pre-chosen), its name on
- * Home, Save and Cancel. Anchored to the bottom over a scrim that closes it; it rises above the keyboard and
- * scrolls when it does not fit.
+ * Home, Save and Cancel; above the keyboard, scrolling when it does not fit. Shown as a sheet (SheetScene).
  */
 @Composable
 fun DeviceSheet(
@@ -60,58 +60,37 @@ fun DeviceSheet(
     onCancel: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
-    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-        // The scrim above the sheet: a tap there is Cancel (the dialog's own outside tap cannot reach it).
-        Spacer(
-            Modifier
-                .weight(1f)
-                .fillMaxWidth()
-                .clickable(interactionSource = null, indication = null, role = Role.Button, onClick = onCancel),
-        )
-        // The sheet rises from the bottom edge as it opens.
-        val shown = remember { MutableTransitionState(false).apply { targetState = true } }
-        val motion = HlTheme.motion
-        AnimatedVisibility(
-            shown,
-            enter = slideInVertically(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeIn(motion.fade()),
+    // Position, drag, scrim and the open and close motion belong to the sheet scene (SheetScene).
+    HlSheet(Modifier.verticalScroll(rememberScrollState())) {
+        Column(
+            Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
+            verticalArrangement = Arrangement.spacedBy(spacing.s20),
         ) {
-            HlSheet(
-                Modifier
-                    .widthIn(max = HlTheme.sizes.contentMax)
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Column(
-                    Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
-                    verticalArrangement = Arrangement.spacedBy(spacing.s20),
-                ) {
-                    val now =
-                        stringResource(if (device.connected) R.string.device_connected else R.string.device_paired)
-                    HlHeader(
-                        HlIcons.Bluetooth,
-                        device.name,
-                        if (device.audio) stringResource(R.string.device_looks_audio, now) else now,
+            val now = stringResource(if (device.connected) R.string.device_connected else R.string.device_paired)
+            HlHeader(
+                HlIcons.Bluetooth,
+                device.name,
+                if (device.audio) stringResource(R.string.device_looks_audio, now) else now,
+            )
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
+                HlSectionLabel(stringResource(R.string.device_sheet_kind))
+                KINDS.forEach { (option, title, detail) ->
+                    HlOptionRow(
+                        kindIcon(option),
+                        stringResource(title),
+                        stringResource(detail),
+                        selected = kind == option,
+                        onClick = { onKind(option) },
                     )
-                    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
-                        HlSectionLabel(stringResource(R.string.device_sheet_kind))
-                        KINDS.forEach { (option, title, detail) ->
-                            HlOptionRow(
-                                kindIcon(option),
-                                stringResource(title),
-                                stringResource(detail),
-                                selected = kind == option,
-                                onClick = { onKind(option) },
-                            )
-                        }
-                    }
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
-                        HlSectionLabel(stringResource(R.string.device_sheet_name))
-                        HlTextField(name, stringResource(R.string.device_sheet_name_hint), placeholder = device.name)
-                    }
-                    Column(Modifier.padding(top = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
-                        HlButton(stringResource(R.string.device_save), onSave, Modifier.fillMaxWidth())
-                        HlQuietButton(stringResource(R.string.cancel), onCancel, Modifier.fillMaxWidth())
-                    }
                 }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
+                HlSectionLabel(stringResource(R.string.device_sheet_name))
+                HlTextField(name, stringResource(R.string.device_sheet_name_hint), placeholder = device.name)
+            }
+            Column(Modifier.padding(top = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
+                HlButton(stringResource(R.string.device_save), onSave, Modifier.fillMaxWidth())
+                HlQuietButton(stringResource(R.string.cancel), onCancel, Modifier.fillMaxWidth())
             }
         }
     }
@@ -133,14 +112,16 @@ private val KINDS =
 @Composable
 private fun SheetPreview(variant: HlThemeVariant) {
     HlTheme(variant) {
-        DeviceSheet(
-            SheetDevice("EJEAS V6 Pro+", audio = true, connected = true),
-            DeviceKind.INTERCOM,
-            onKind = {},
-            name = rememberTextFieldState("Helmet intercom"),
-            onSave = {},
-            onCancel = {},
-        )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+            DeviceSheet(
+                SheetDevice("EJEAS V6 Pro+", audio = true, connected = true),
+                DeviceKind.INTERCOM,
+                onKind = {},
+                name = rememberTextFieldState("Helmet intercom"),
+                onSave = {},
+                onCancel = {},
+            )
+        }
     }
 }
 

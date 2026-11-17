@@ -28,6 +28,12 @@ public data class HlMotion(
     val transformDamping: Float = 1f,
     /** How long the page under a container transform stays: the transform spring settles in about 350 ms. */
     val transformHoldMillis: Int = 400,
+    /** How far the page under a growing card recedes (iOS's zoom transition scales it back slightly). */
+    val recedeScale: Float = 0.94f,
+    /** The tapped tile's content fading out as it starts to grow. */
+    val transformFadeOutMillis: Int = 90,
+    /** The page's content fading in over the growing card, overlapping the fade out so the card stays solid. */
+    val transformFadeInMillis: Int = 150,
     /** One way of the "looking" pulse. */
     val pulseMillis: Int = 1100,
     /** The pulse's lowest alpha. */

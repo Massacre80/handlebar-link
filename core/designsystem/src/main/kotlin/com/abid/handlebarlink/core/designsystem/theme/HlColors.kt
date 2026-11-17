@@ -87,6 +87,8 @@ public data class HlColors(
     val gauge: Color,
     /** Drop shadows. */
     val shadow: Color,
+    /** The dim behind a sheet or a card growing into a page (both looks: black, like iOS's dimming). */
+    val scrim: Color = Color(0x66000000),
 )
 
 /** Bento: light, solid cards (`design/bento.css`). */

@@ -129,7 +129,7 @@ internal fun HomeNight(
                         icon = device?.let { kindIcon(it.kind) } ?: HlIcons.Intercom,
                     )
                     // Grows into the Add device page; the slot keeps its own size inside (no stretching).
-                    val addDevice = rememberContainerTransform(ADD_DEVICE)
+                    val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
                     Box(Modifier.weight(1f).containerTransform(addDevice).fillMaxHeight()) {
                         AddDeviceSlot(
                             stringResource(R.string.add_device),

@@ -109,6 +109,7 @@ class TokenDriftTest {
             "track" -> track
             "gauge" -> gauge
             "shadow" -> shadow
+            "scrim" -> scrim
             else -> error("no field $name")
         }
 

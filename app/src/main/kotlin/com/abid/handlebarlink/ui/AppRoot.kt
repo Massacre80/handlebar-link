@@ -34,7 +34,6 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavEntry
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
-import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.R
@@ -63,6 +62,7 @@ import com.abid.handlebarlink.ui.navigation.Navigator
 import com.abid.handlebarlink.ui.navigation.PermissionsRoute
 import com.abid.handlebarlink.ui.navigation.RidesRoute
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
+import com.abid.handlebarlink.ui.navigation.SheetSceneStrategy
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.navigation.ThemeRoute
 import com.abid.handlebarlink.ui.navigation.pageTransition
@@ -178,8 +178,8 @@ private fun Pages(
     NavDisplay(
         entries = state.toDecoratedEntries(entries),
         onBack = navigator::goBack,
-        // "What is it?" and other sheets: dialog destinations over the page under them.
-        sceneStrategies = listOf(DialogSceneStrategy()),
+        // "What is it?" and other sheets: overlay scenes over the page under them.
+        sceneStrategies = listOf(SheetSceneStrategy()),
         transitionSpec = { pageTransition(state.lastMove, motion) },
         popTransitionSpec = { pageTransition(state.lastMove, motion) },
         // The back gesture previews what Back will do, following the finger (Android 15+ by default).
