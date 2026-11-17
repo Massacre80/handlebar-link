@@ -65,12 +65,4 @@ class SabSafetyTest {
         assertThat(SabSafety.isSubscribeAllowed(SabUuids.DATA_SERVICE)).isTrue()
         assertThat(SabSafety.isSubscribeAllowed(SabUuids.ASSIGNMENT_SERVICE)).isTrue()
     }
-
-    @Test
-    fun `nothing in the DFU service may be read but its firmware version`() {
-        val other = UUID.fromString("13561ecc-f5ed-4109-95c9-2040122b5810")
-        assertThat(SabSafety.isReadAllowed(SabUuids.DFU_SERVICE, other)).isFalse()
-        assertThat(SabSafety.isReadAllowed(SabUuids.DFU_SERVICE, SabUuids.DFU_FIRMWARE_VERSION)).isTrue()
-        assertThat(SabSafety.isReadAllowed(SabUuids.VEHICLE_INFO_SERVICE, SabUuids.SERIES_CODE)).isTrue()
-    }
 }

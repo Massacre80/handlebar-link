@@ -8,11 +8,9 @@ import com.abid.handlebarlink.bike.link.machine.Effect
 import com.abid.handlebarlink.bike.link.machine.Event
 import com.abid.handlebarlink.bike.link.machine.Timeouts
 import com.abid.handlebarlink.bike.link.machine.Timer
-import com.abid.handlebarlink.bike.link.session.GattProbe
 import com.abid.handlebarlink.bike.link.session.MeterSession
 import com.abid.handlebarlink.bike.link.spi.ConnectionChange
 import com.abid.handlebarlink.bike.link.spi.GattConnection
-import com.abid.handlebarlink.bike.link.spi.GattLink
 import com.abid.handlebarlink.bike.link.spi.LinkPorts
 import com.abid.handlebarlink.bike.protocol.FunctionEvent
 import kotlinx.coroutines.CancellationException
@@ -54,7 +52,6 @@ internal class EffectRunner(
     }
 
     private val generations = mutableMapOf<Int, Generation>()
-    private var probed = false
     private val timers = mutableMapOf<Timer, Job>()
 
     fun run(effect: Effect) {
@@ -168,36 +165,7 @@ internal class EffectRunner(
             // Subscribed before the setup writes anything, so the meter's first events are not missed.
             generation.presses = scope.launch(start = CoroutineStart.UNDISPATCHED) { session.events.collect(::forward) }
         }
-        generation.setup =
-            scope.launch {
-                val result = setUp(gen, session)
-                post(result)
-                // After the meter is set up (BikeLinkConfig.probeGatt): the reads once per run, then the
-                // vendor services' notifications on every connection, until it closes (this job is cancelled).
-                if (result is Event.SetupDone && env.probeGatt) {
-                    val readsDue = !probed
-                    probed = true
-                    probe(gen, generation.connection, readsDue)
-                }
-            }
-    }
-
-    /** The probe's own boundary: it only logs, so nothing it meets may end the ride. */
-    @Suppress("TooGenericExceptionCaught") // A diagnostics boundary like setUp's: a bug is logged, not fatal.
-    private suspend fun probe(
-        gen: Int,
-        link: GattLink,
-        reads: Boolean,
-    ) {
-        try {
-            val probe = GattProbe(link, log)
-            if (reads) probe.run()
-            probe.listen()
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            log.error("probe.bug", e, "gen" to gen)
-        }
+        generation.setup = scope.launch { post(setUp(gen, session)) }
     }
 
     /**

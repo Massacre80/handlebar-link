@@ -29,19 +29,6 @@ public interface GattLink {
         characteristic: UUID,
     ): Boolean
 
-    /**
-     * The discovered GATT table: every service, characteristic (with its properties) and descriptor, in the
-     * order the stack lists them. Empty before [discoverServices]. Read only by the GATT probe.
-     */
-    public fun services(): List<GattServiceInfo>
-
-    /** Reads a descriptor of a characteristic (the GATT probe only). */
-    public suspend fun readDescriptor(
-        service: UUID,
-        characteristic: UUID,
-        descriptor: UUID,
-    ): ByteArray
-
     /** Reads a characteristic. */
     public suspend fun read(
         service: UUID,
@@ -64,24 +51,6 @@ public interface GattLink {
         value: ByteArray,
     )
 }
-
-/** A discovered service and its characteristics. */
-public data class GattServiceInfo(
-    /** The service. */
-    val uuid: UUID,
-    /** Its characteristics, as discovered. */
-    val characteristics: List<GattCharacteristicInfo>,
-)
-
-/** A discovered characteristic. */
-public data class GattCharacteristicInfo(
-    /** The characteristic. */
-    val uuid: UUID,
-    /** Its properties bit field (Bluetooth Core, Vol 3 Part G 3.3.1.1: 0x02 read, 0x10 notify, …). */
-    val properties: Int,
-    /** Its descriptors. */
-    val descriptors: List<UUID>,
-)
 
 /** A notification from the meter. */
 public class GattNotification(

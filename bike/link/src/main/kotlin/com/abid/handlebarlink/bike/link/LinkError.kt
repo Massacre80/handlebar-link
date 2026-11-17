@@ -29,9 +29,6 @@ public enum class GattOp {
     /** Reading a characteristic. */
     READ,
 
-    /** Reading a descriptor (the GATT probe). */
-    READ_DESCRIPTOR,
-
     /** Enabling notifications (CCCD write). */
     ENABLE_NOTIFICATIONS,
 

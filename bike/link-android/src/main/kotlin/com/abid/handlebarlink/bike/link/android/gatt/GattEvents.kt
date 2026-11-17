@@ -87,26 +87,6 @@ internal class GattEvents(
         status: Int,
     ) = slot.complete(GattOp.WRITE, c.uuid, status, null)
 
-    override fun onDescriptorRead(
-        g: BluetoothGatt,
-        d: BluetoothGattDescriptor,
-        status: Int,
-        value: ByteArray,
-    ) = slot.complete(GattOp.READ_DESCRIPTOR, d.uuid, status, value.copyOf())
-
-    // Android 12: the value is on the descriptor (API 33 added the overload above).
-    @Deprecated("Android 12 callback")
-    @Suppress("DEPRECATION")
-    override fun onDescriptorRead(
-        g: BluetoothGatt,
-        d: BluetoothGattDescriptor,
-        status: Int,
-    ) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
-            slot.complete(GattOp.READ_DESCRIPTOR, d.uuid, status, d.value?.copyOf())
-        }
-    }
-
     override fun onDescriptorWrite(
         g: BluetoothGatt,
         d: BluetoothGattDescriptor,
