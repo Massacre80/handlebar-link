@@ -58,15 +58,14 @@ internal val LocalInGroup = staticCompositionLocalOf { false }
 internal fun rowShape(radius: Dp): Shape = if (LocalInGroup.current) RectangleShape else RoundedCornerShape(radius)
 
 /**
- * The hairline between two rows of an [HlGroup], inset from its edges. Leave it out next to a chosen
- * (filled) row: the fill already separates it, and a hairline ending at the fill looks broken.
+ * The hairline between two rows of an [HlGroup], from edge to edge (owner, 2026-11-17). Leave it out next
+ * to a chosen (filled) row: the fill already separates it.
  */
 @Composable
 public fun HlGroupDivider() {
     Box(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = HlTheme.spacing.s16)
             .height(HlTheme.strokes.hairline)
             .background(HlTheme.colors.line),
     )

@@ -262,12 +262,13 @@ public fun HlOptionRow(
             .fillMaxWidth()
             .clip(shape)
             // The chosen row is marked by a grey fill and its check, no outline (owner, 2026-11-17: the
-            // artboard's ink ring read as a hard black border): Night's brighter glass, Bento's light grey.
+            // artboard's ink ring read as a hard black border): Night's brighter glass; Bento's line grey,
+            // since its raisedLo is the page's own colour and the row vanished into it.
             .background(
                 when {
                     !selected -> container
                     night -> colors.raisedHi
-                    else -> colors.raisedLo
+                    else -> colors.line
                 },
             ).selectable(selected, press, LocalIndication.current, enabled, Role.RadioButton, onClick)
             .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
