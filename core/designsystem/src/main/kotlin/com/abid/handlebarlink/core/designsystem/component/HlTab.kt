@@ -147,9 +147,9 @@ private fun RowScope.TabItem(
             .clip(RoundedCornerShape(HlTheme.radii.control))
             .selectable(selected = active, role = Role.Tab, onClick = onClick),
         horizontalAlignment = Alignment.CenterHorizontally,
-        // The artboard: 2 dp between icon and label on the active tab, 4 dp on the others.
-        verticalArrangement =
-            Arrangement.spacedBy(if (active) HlTheme.spacing.s2 else HlTheme.spacing.s4, Alignment.CenterVertically),
+        // One 2 dp gap between icon and label on every tab (owner, 2026-11-17: the artboard's 4 dp on inactive
+        // tabs made the label jump when a tab became active, and sat low in the chip).
+        verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2, Alignment.CenterVertically),
     ) {
         HlIcon(tab.icon, tint = { iconTint })
         HlText(
