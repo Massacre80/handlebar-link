@@ -141,9 +141,11 @@ private fun BikeSection(
             }
 
             else -> {
+                val chosen = meters.indexOfFirst { it.address == state.bike?.address }
                 Column(Modifier.selectableGroup()) {
                     meters.forEachIndexed { index, meter ->
-                        if (index > 0) HlGroupDivider()
+                        // No hairline beside the chosen (filled) row.
+                        if (index > 0 && index != chosen && index - 1 != chosen) HlGroupDivider()
                         HlOptionRow(
                             icon = HlIcons.Bluetooth,
                             title = meter.name,
@@ -154,7 +156,7 @@ private fun BikeSection(
                         )
                     }
                 }
-                HlGroupDivider()
+                if (chosen != meters.lastIndex) HlGroupDivider()
                 HlValueRow(
                     stringResource(R.string.settings_setup_again),
                     hint = null,

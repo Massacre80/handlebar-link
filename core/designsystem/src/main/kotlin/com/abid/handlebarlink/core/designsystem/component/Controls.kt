@@ -252,7 +252,7 @@ public fun HlOptionRow(
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
     val night = HlTheme.variant == HlThemeVariant.NIGHT
-    val shape = RoundedCornerShape(HlTheme.radii.control)
+    val shape = rowShape(HlTheme.radii.control)
     val press = remember { MutableInteractionSource() }
     Row(
         modifier
@@ -332,7 +332,7 @@ public fun HlValueRow(
             .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .sizeIn(minHeight = HlTheme.sizes.controlLarge)
-            .clip(RoundedCornerShape(HlTheme.radii.control))
+            .clip(rowShape(HlTheme.radii.control))
             .background(container)
             .then(
                 if (onClick !=

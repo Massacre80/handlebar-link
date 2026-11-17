@@ -12,10 +12,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
@@ -39,11 +44,23 @@ public fun HlGroup(
             .clip(shape)
             .background(if (night) colors.raisedLo else colors.panel)
             .border(HlTheme.strokes.hairline, if (night) colors.lineStrong else colors.line, shape),
-        content = content,
-    )
+    ) {
+        // Rows inside are square: the group's clip rounds the outer corners only (owner, 2026-11-17).
+        CompositionLocalProvider(LocalInGroup provides true) { content() }
+    }
 }
 
-/** The hairline between two rows of an [HlGroup], inset from its edges. */
+/** True inside an [HlGroup]: rows there draw square, the group rounds its own corners. */
+internal val LocalInGroup = staticCompositionLocalOf { false }
+
+/** A row's shape: square inside an [HlGroup], else rounded by [radius]. */
+@Composable
+internal fun rowShape(radius: Dp): Shape = if (LocalInGroup.current) RectangleShape else RoundedCornerShape(radius)
+
+/**
+ * The hairline between two rows of an [HlGroup], inset from its edges. Leave it out next to a chosen
+ * (filled) row: the fill already separates it, and a hairline ending at the fill looks broken.
+ */
 @Composable
 public fun HlGroupDivider() {
     Box(

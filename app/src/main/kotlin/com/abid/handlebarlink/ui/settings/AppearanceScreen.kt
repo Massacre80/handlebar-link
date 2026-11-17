@@ -25,7 +25,8 @@ fun ThemeScreen(
     SubPage(stringResource(R.string.settings_theme), onBack) {
         HlGroup(Modifier.selectableGroup()) {
             THEMES.forEachIndexed { index, (option, detail) ->
-                if (index > 0) HlGroupDivider()
+                // No hairline beside the chosen (filled) row.
+                if (index > 0 && theme != option && theme != THEMES[index - 1].first) HlGroupDivider()
                 HlOptionRow(
                     icon = null,
                     title = stringResource(themeName(option)),
@@ -51,8 +52,8 @@ fun ModeScreen(
     SubPage(stringResource(R.string.settings_mode), onBack) {
         val dark = theme == AppTheme.NIGHT
         HlGroup(Modifier.selectableGroup()) {
+            // One of the two is always the chosen (filled) row: no hairline between them.
             ModeRow(R.string.mode_dark, R.string.mode_dark_detail, available = dark, theme)
-            HlGroupDivider()
             ModeRow(R.string.mode_light, R.string.mode_light_detail, available = !dark, theme)
         }
     }
