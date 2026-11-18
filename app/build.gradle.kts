@@ -21,6 +21,9 @@ android {
 dependencies {
     implementation(projects.core.common)
     implementation(projects.bike.linkAndroid)
+    // The CarPlay receiver engine (docs/PLAN.md "CarPlay receiver", C2); its platform ports come through
+    // CarPlayPortsSource (carplay/), bound in di/CarPlayModule.
+    implementation(projects.carplay.engine)
     implementation(projects.core.designsystem)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.core.telecom)
@@ -37,6 +40,7 @@ dependencies {
 
     testImplementation(projects.core.testing)
     testImplementation(projects.bike.linkTest)
+    testImplementation(projects.carplay.engineTest)
     testImplementation(libs.robolectric)
 
     androidTestImplementation(libs.androidx.test.runner)

@@ -53,6 +53,8 @@ data class SettingsAccess(
     val overlay: Access,
     /** Modify system settings (screen brightness from the handlebar). */
     val brightness: Access,
+    /** CarPlay's Wi-Fi and local network (Handlebar Link CarPlay); null while its beta switch is off. */
+    val carPlay: Access? = null,
 )
 
 /** Settings' actions. */
@@ -173,8 +175,9 @@ private fun BikeSection(
     }
 }
 
-/** The four permissions in Settings' order. */
-internal fun SettingsAccess.all(): List<Access> = listOf(nearby, notifications, media, location, overlay, brightness)
+/** The permissions in Settings' order (CarPlay's last, only while its beta switch is on). */
+internal fun SettingsAccess.all(): List<Access> =
+    listOfNotNull(nearby, notifications, media, location, overlay, brightness, carPlay)
 
 /** Sample state for previews and screenshot tests. */
 internal val PreviewSettings =

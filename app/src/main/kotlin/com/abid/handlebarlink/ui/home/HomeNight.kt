@@ -123,7 +123,7 @@ internal fun HomeNight(
             HandlebarCard(state.handlebar, actions.onHandlebar, column.padding(spacing.s16))
             // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.
             Spacer(Modifier.weight(1f))
-            CarPlayCard(column.padding(horizontal = spacing.s16).padding(bottom = spacing.s16))
+            CarPlayCard(state.carPlay, column.padding(horizontal = spacing.s16).padding(bottom = spacing.s16))
         }
     }
 }

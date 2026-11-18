@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.AppearanceSettings
 import com.abid.handlebarlink.data.BikeSettings
@@ -27,6 +28,8 @@ data class SettingsUiState(
     val bike: SelectedBike? = null,
     /** Paired Honda meters; null until read or while Nearby devices is not allowed. */
     val meters: List<SelectedBike>? = null,
+    /** The CarPlay beta switch: its permissions are listed only while it is on. */
+    val carPlay: Boolean = false,
 )
 
 /** Settings: the look, the bike, and refreshing the paired meters. */
@@ -37,13 +40,14 @@ class SettingsViewModel
         private val appearance: AppearanceSettings,
         private val bikes: BikeSettings,
         private val paired: PairedMeters,
+        carPlay: CarPlaySettings,
         @param:IoDispatcher private val io: CoroutineDispatcher,
     ) : ViewModel() {
         private val meters = MutableStateFlow<List<SelectedBike>?>(null)
 
         /** Settings' state. */
         val uiState: StateFlow<SettingsUiState> =
-            combine(appearance.theme, bikes.bike, meters, ::SettingsUiState)
+            combine(appearance.theme, bikes.bike, meters, carPlay.enabled, ::SettingsUiState)
                 .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), SettingsUiState())
 
         /** Stores [theme]; the whole app switches at once. */

@@ -7,6 +7,11 @@ import javax.inject.Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class BikeLinkDispatcher
 
+/** The single-threaded dispatcher all CarPlay engine state is confined to; separate from the bike link's. */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class CarPlayDispatcher
+
 /** For blocking calls (binder IPC to media sessions), never on the main thread (anr-audit-and-fix). */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)

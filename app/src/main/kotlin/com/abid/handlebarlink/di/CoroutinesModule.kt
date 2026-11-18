@@ -22,6 +22,11 @@ object CoroutinesModule {
     fun bikeLinkDispatcher(): CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1, "bike-link")
 
     @Provides
+    @Singleton
+    @CarPlayDispatcher
+    fun carPlayDispatcher(): CoroutineDispatcher = Dispatchers.Default.limitedParallelism(1, "carplay")
+
+    @Provides
     @IoDispatcher
     fun ioDispatcher(): CoroutineDispatcher = Dispatchers.IO
 

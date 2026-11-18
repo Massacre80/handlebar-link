@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Handlebar Link</string>
 
     <!-- Ride notification -->
@@ -257,6 +257,45 @@
     <string name="later_carplay">CarPlay runs in CarLink until our own receiver is ready.</string>
     <string name="later_garage">Odometer, service and bike details will live here.</string>
 
+    <!-- CarPlay page and Home's CarPlay card: our own receiver behind the beta switch (ui/carplay/) -->
+    <string name="carplay_switch">Handlebar Link CarPlay (beta)</string>
+    <string name="carplay_on">On</string>
+    <string name="carplay_off">Off</string>
+    <string name="carplay_beta_note">Beta: Handlebar Link connects to your iPhone itself, but shows no CarPlay screen yet. Only one receiver can reach the iPhone, so close CarLink while this is on.</string>
+    <string name="carplay_status_not_available">Not in this version of the app yet</string>
+    <string name="carplay_status_permission">Needs Nearby devices: allow it in Settings › Permissions</string>
+    <string name="carplay_status_failed">Stopped after an error. Turn it off and on to try again</string>
+    <string name="carplay_status_waiting">Starts with the next ride</string>
+    <string name="carplay_status_starting">Starting</string>
+    <string name="carplay_status_connecting">Connecting · %1$s</string>
+    <string name="carplay_status_connected">Connected</string>
+    <string name="carplay_status_retrying">%1$s · Retrying in %2$d s</string>
+    <string name="carplay_step_identity">Loading the CarPlay identity</string>
+    <string name="carplay_step_preparing">Preparing Wi-Fi</string>
+    <string name="carplay_step_dialing">Calling the iPhone over Bluetooth</string>
+    <string name="carplay_step_identifying">Introducing itself to the iPhone</string>
+    <string name="carplay_step_authenticating">Proving it is a CarPlay receiver</string>
+    <string name="carplay_step_waiting">Waiting for the iPhone to join</string>
+    <string name="carplay_step_pairing">Pairing with the iPhone</string>
+    <string name="carplay_error_identity">CarPlay identity files are missing</string>
+    <string name="carplay_error_bluetooth">Bluetooth is off or no iPhone is paired</string>
+    <string name="carplay_error_wifi_direct">Couldn\'t start Wi-Fi Direct</string>
+    <string name="carplay_error_network">Network error</string>
+    <string name="carplay_error_dial">Couldn\'t reach the iPhone over Bluetooth</string>
+    <string name="carplay_error_link">The Bluetooth link to the iPhone broke</string>
+    <string name="carplay_error_identification">The iPhone refused this receiver</string>
+    <string name="carplay_error_authentication">CarPlay authentication failed</string>
+    <string name="carplay_error_timed_out">The iPhone took too long to answer</string>
+    <string name="carplay_error_disconnected">The iPhone disconnected</string>
+    <string name="carplay_error_unexpected">Unexpected error</string>
+    <!-- For the engine errors that arrive with CarPlay C2's engine part (PermissionMissing, WifiOff, Stalled): the
+         coordinator wires them into ui/carplay/CarPlayLine.kt errorText() at merge. Unused until then. -->
+    <string name="carplay_error_permission" tools:ignore="UnusedResources">Allow Nearby devices for CarPlay</string>
+    <string name="carplay_error_wifi_off" tools:ignore="UnusedResources">Turn on Wi-Fi</string>
+    <string name="carplay_error_stalled_not_joined" tools:ignore="UnusedResources">The iPhone didn\'t join the Wi-Fi</string>
+    <string name="carplay_error_stalled_no_start" tools:ignore="UnusedResources">The iPhone didn\'t start CarPlay</string>
+    <string name="carplay_error_stalled_no_tcp" tools:ignore="UnusedResources">The iPhone didn\'t connect</string>
+
     <!-- Settings -->
     <string name="settings_appearance">Appearance</string>
     <string name="settings_theme">Theme</string>
@@ -294,6 +333,8 @@
         <item quantity="one">Allow the last one</item>
         <item quantity="other">Allow all %d</item>
     </plurals>
+    <string name="permission_carplay">CarPlay (beta)</string>
+    <string name="permission_carplay_why">Wi-Fi Direct and the local network to your iPhone, for Handlebar Link CarPlay. Nothing is located with it</string>
     <string name="permission_brightness">Modify system settings</string>
     <string name="permission_brightness_why">Only for screen brightness: lets the handlebar make the screen brighter or dimmer</string>
     <string name="permission_media_why">Lets the handlebar play, pause and skip songs in CarPlay. Your notifications are never read</string>

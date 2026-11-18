@@ -24,6 +24,10 @@ import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.NearbyDevice
+import com.abid.handlebarlink.ui.carplay.CarPlayScreen
+import com.abid.handlebarlink.ui.carplay.CarPlayUiState
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnecting
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayOff
 import com.abid.handlebarlink.ui.devices.AddDeviceActions
 import com.abid.handlebarlink.ui.devices.AddDeviceScreen
 import com.abid.handlebarlink.ui.devices.AddDeviceUiState
@@ -129,6 +133,58 @@ fun EmptyTabNight() = Garage(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun EmptyTabBento() = Garage(HlThemeVariant.BENTO)
+
+// The CarPlay tab: the beta switch off (CarLink runs CarPlay) at every size, and on while connecting.
+@Composable
+private fun CarPlay(
+    variant: HlThemeVariant,
+    state: CarPlayUiState,
+) = TabFrame(variant, selected = 2) { CarPlayScreen(state, onToggle = {}, contentPadding = it) }
+
+@PreviewTest
+@ScreenSizes
+@LargeText
+@Composable
+fun CarPlayOffNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayOff)
+
+@PreviewTest
+@ScreenSizes
+@LargeText
+@Composable
+fun CarPlayOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayOff)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayConnectingNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayConnecting)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayConnectingBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayConnecting)
+
+// Home's CarPlay card with our own receiver connecting (off, it keeps CarLink's line: HomeNight, HomeBento).
+@Composable
+private fun HomeCarPlay(variant: HlThemeVariant) =
+    TabFrame(variant, selected = 0) {
+        HomeScreen(
+            HomeUiState(LinkStatus.CONNECTED, carPlay = PreviewCarPlayConnecting.line),
+            onSettings = {},
+            contentPadding = it,
+        )
+    }
+
+@PreviewTest
+@Artboard
+@Composable
+fun HomeCarPlayNight() = HomeCarPlay(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@Composable
+fun HomeCarPlayBento() = HomeCarPlay(HlThemeVariant.BENTO)
 
 @PreviewTest
 @ScreenSizes

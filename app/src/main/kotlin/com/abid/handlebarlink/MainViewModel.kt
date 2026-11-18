@@ -2,6 +2,7 @@ package com.abid.handlebarlink
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.AppearanceSettings
 import com.abid.handlebarlink.data.BikeSettings
@@ -23,6 +24,7 @@ class MainViewModel
         appearance: AppearanceSettings,
         bikes: BikeSettings,
         private val coordinator: RideCoordinator,
+        private val carPlay: CarPlayCoordinator,
     ) : ViewModel() {
         /** The rider's theme (Night until loaded). */
         val theme: StateFlow<AppTheme> =
@@ -47,9 +49,10 @@ class MainViewModel
             skipped.value = true
         }
 
-        /** The app came to the foreground: the Bluetooth permission may have changed meanwhile. */
+        /** The app came to the foreground: the Bluetooth and CarPlay permissions may have changed meanwhile. */
         fun onResumed() {
             coordinator.recheckPermission()
+            carPlay.recheckPermission()
         }
 
         private companion object {

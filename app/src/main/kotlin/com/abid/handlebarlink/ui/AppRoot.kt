@@ -47,6 +47,7 @@ import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
+import com.abid.handlebarlink.ui.carplay.CarPlayEntry
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
@@ -77,6 +78,7 @@ import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.permissions.AccessState
 import com.abid.handlebarlink.ui.permissions.rememberAllowAll
 import com.abid.handlebarlink.ui.permissions.rememberBrightnessAccess
+import com.abid.handlebarlink.ui.permissions.rememberCarPlayAccess
 import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
@@ -152,7 +154,7 @@ private fun BoxScope.Tabs() {
                 )
             }
             entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
-            entry<CarPlayRoute> { LaterScreen(HlIcons.CarPlay, R.string.tab_carplay, R.string.later_carplay, barSpace) }
+            entry<CarPlayRoute> { CarPlayEntry(barSpace) }
             entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
             intercomEntries(navigator, barSpace)
             settingsEntries(navigator)
@@ -233,7 +235,9 @@ private fun EntryProviderScope<NavKey>.settingsEntries(navigator: Navigator) {
         )
     }
     entry<PermissionsRoute> {
-        val access = rememberAllAccess()
+        val viewModel: SettingsViewModel = hiltViewModel()
+        val settings by viewModel.uiState.collectAsStateWithLifecycle()
+        val access = rememberAllAccess(carPlay = settings.carPlay)
         val allowAll = rememberAllowAll(access.inOrder)
         PermissionsScreen(
             access.statuses(),
@@ -264,7 +268,7 @@ private fun SettingsEntry(
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val access = rememberAllAccess()
+    val access = rememberAllAccess(carPlay = state.carPlay)
     val nearby = access.nearby.status
     // The meters can only be listed with Nearby devices; read them again whenever that or the page resumes.
     LifecycleResumeEffect(nearby) {
@@ -285,38 +289,51 @@ private fun SettingsEntry(
     )
 }
 
-/** The four permissions Settings shows (each re-read on every resume). */
+/**
+ * The permissions Settings shows (each re-read on every resume); [carPlay] only while the CarPlay beta switch is on,
+ * so nothing is asked for a receiver that does not run (least privilege).
+ */
 private class AllAccess(
-    val nearby: AccessState,
-    val notifications: AccessState,
-    val media: AccessState,
-    val location: AccessState,
-    val overlay: AccessState,
-    val brightness: AccessState,
+    /** In Settings' order, the index [PermissionsScreen] acts on: SettingsAccess.all(). */
+    val inOrder: List<AccessState>,
 ) {
-    /** In Settings' order, the index [PermissionsScreen] acts on. */
-    val inOrder: List<AccessState> get() = listOf(nearby, notifications, media, location, overlay, brightness)
+    val nearby: AccessState get() = inOrder[NEARBY]
 
     fun statuses() =
         SettingsAccess(
-            nearby.status,
-            notifications.status,
-            media.status,
-            location.status,
-            overlay.status,
-            brightness.status,
+            inOrder[NEARBY].status,
+            inOrder[NOTIFICATIONS].status,
+            inOrder[MEDIA].status,
+            inOrder[LOCATION].status,
+            inOrder[OVERLAY].status,
+            inOrder[BRIGHTNESS].status,
+            inOrder.getOrNull(CARPLAY)?.status,
         )
+
+    /** Positions in [inOrder]; CarPlay's only while its beta switch is on. */
+    private companion object {
+        const val NEARBY = 0
+        const val NOTIFICATIONS = 1
+        const val MEDIA = 2
+        const val LOCATION = 3
+        const val OVERLAY = 4
+        const val BRIGHTNESS = 5
+        const val CARPLAY = 6
+    }
 }
 
 @Composable
-private fun rememberAllAccess() =
+private fun rememberAllAccess(carPlay: Boolean) =
     AllAccess(
-        rememberNearbyAccess(),
-        rememberNotificationAccess(),
-        rememberMediaAccess(),
-        rememberLocationAccess(),
-        rememberOverlayAccess(),
-        rememberBrightnessAccess(),
+        listOfNotNull(
+            rememberNearbyAccess(),
+            rememberNotificationAccess(),
+            rememberMediaAccess(),
+            rememberLocationAccess(),
+            rememberOverlayAccess(),
+            rememberBrightnessAccess(),
+            if (carPlay) rememberCarPlayAccess() else null,
+        ),
     )
 
 /**

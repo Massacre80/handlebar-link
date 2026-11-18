@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.callaudio.IntercomCallRoute
 import com.abid.handlebarlink.callaudio.VoipCallWatcher
+import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.core.common.log.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -38,6 +39,9 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class RideService : LifecycleService() {
     @Inject lateinit var coordinator: RideCoordinator
+
+    /** Our own CarPlay receiver, beside the bike link behind its beta switch (docs/PLAN.md "CarPlay in the app"). */
+    @Inject lateinit var carPlay: CarPlayCoordinator
 
     @Inject lateinit var notifications: RideNotifications
 
@@ -153,7 +157,7 @@ class RideService : LifecycleService() {
             }
         val callAudio = lifecycleScope.launch { routeCalls() }
         try {
-            coordinator.ride(presentHint)?.let(notifications::showProblem)
+            coordinator.ride(presentHint, carPlay)?.let(notifications::showProblem)
         } finally {
             callAudio.cancel()
             updates.cancel()

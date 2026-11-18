@@ -100,7 +100,7 @@ internal fun HomeBento(
             }
             BentoBikeCard(state.rideData)
             if (state.rideData) BentoStats()
-            CarPlayCard()
+            CarPlayCard(state.carPlay)
             CardRow {
                 val device = state.device
                 DeviceRow(

@@ -51,6 +51,8 @@ import com.abid.handlebarlink.core.designsystem.component.TickBar
 import com.abid.handlebarlink.core.designsystem.component.TickRing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.carplay.CarPlayLine
+import com.abid.handlebarlink.ui.carplay.words
 
 /** Home in the rider's look. [contentPadding]: room for the floating tab bar. */
 @Composable
@@ -82,15 +84,13 @@ internal fun Pill(status: LinkStatus) {
     StatusPill(stringResource(pillText(status)), on = status == LinkStatus.CONNECTED)
 }
 
-/** CarPlay has no source of its own yet (CarLink runs it): an idle card, no button. */
+/** CarPlay's card: CarLink's interim line while the beta switch is off, else our receiver's status; no button. */
 @Composable
-internal fun CarPlayCard(modifier: Modifier = Modifier) {
-    SignalCard(
-        stringResource(R.string.carplay_title),
-        stringResource(R.string.carplay_interim),
-        SignalTone.IDLE,
-        modifier,
-    )
+internal fun CarPlayCard(
+    line: CarPlayLine,
+    modifier: Modifier = Modifier,
+) {
+    SignalCard(stringResource(R.string.carplay_title), line.words(), line.tone, modifier)
 }
 
 /** The pill's text for [status]. */

@@ -31,6 +31,25 @@
          use. Precise and approximate together, as the location-permissions guide asks. -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Our own CarPlay receiver (carplay/, docs/PLAN.md "CarPlay receiver", permissions table decided
+         2026-11-19). It runs in RideService under the same connectedDevice type: CHANGE_WIFI_STATE alone meets
+         that type's runtime prerequisite, and BLUETOOTH_CONNECT does too (FGS service types), so no type changes.
+         BLUETOOTH_CONNECT: the RFCOMM dial to the iPhone (also declared by :bike:link-android for the meter).
+         NEARBY_WIFI_DEVICES: the Wi-Fi Direct group on API 33+; nothing is located with it, so neverForLocation
+         (API 31-32 use ACCESS_FINE_LOCATION, declared below). ACCESS_LOCAL_NETWORK: Android 17 blocks the local
+         network for apps targeting SDK 37 without it (local-network-permission guide); unknown, so ignored,
+         before. INTERNET: Android requires it for every socket, also the local ones to the iPhone; the Poco has
+         no internet connection of its own. ACCESS_WIFI_STATE and CHANGE_WIFI_STATE: Wi-Fi Direct (wifi-direct
+         guide). The runtime ones are asked for in the app's permission flow (Permissions page, Allow all, the
+         CarPlay page's switch). -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!-- Linking the meter through Android's companion-device consent (companion-device-pairing). -->
     <uses-feature android:name="android.software.companion_device_setup" />
     <!-- Auto-start on ignition (docs/PLAN.md M4): Android watches for the linked meter and binds

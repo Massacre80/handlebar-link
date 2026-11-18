@@ -331,7 +331,8 @@ was wrong in almost every byte (docs/LESSONS.md 46).
 
 **Permissions** (owner, 2026-11-19: whatever CarPlay needs; checked against the official docs
 `kb://android/privacy-and-security/local-network-permission`, `…/connectivity/wifi/wifi-permissions` and
-`…/wifi/wifi-direct`). Declared by `:carplay:engine-android` (C2), requested in the app's existing permission flow:
+`…/wifi/wifi-direct`). Declared in `:app`'s manifest (C2 app part; `:carplay:engine-android` may declare its own, the
+merged manifest keeps one of each), requested in the app's existing permission flow:
 
 | Permission | Why | Kind |
 |---|---|---|
@@ -351,7 +352,7 @@ nearby Wi-Fi without another prompt (local-network-permission guide, "Pre-grante
 | Step | What | Done when |
 |---|---|---|
 | **C1** ✅ (2026-11-18, uncommitted in worktree `carplay-base`) | `:carplay:protocol`: iAP2 link (marker, SYN, checksums, ACK/EAK, retransmission) and control messages; TLV8, SRP-6a pair-setup, pair-verify, control cipher, MFi auth-setup; binary plist; RTSP. `:carplay:engine`: runtime (generations, jittered backoff, cleanup), Bluetooth bootstrap, AirPlay control connection to pair-verify and auth-setup. | 104 protocol + 19 engine tests against RFC vectors, DiPlay test literals, plistlib, BouncyCastle's SRP client and Apple's HomeKitADK SRP proof; independent review 2026-11-19 (docs/LESSONS.md 53-55), every planted bug caught; `check` green. |
-| **C2** | `:carplay:engine-android`: RFCOMM dial (secure, UUID `00000000-deca-fade-deca-deafdecacafe`), Wi-Fi Direct group (5 GHz, stable name/passphrase), AirPlay `ServerSocket`, mDNS on the group interface, identity and pairing storage, MFi files injected at build time; RideService runs CarPlay next to the bike link. Permissions (decided 2026-11-19, see below) in its manifest. Connection design and device checks: `research/carplay-spec/E-connection.md` (engine items E1-E9 built 2026-11-19: StartSession nudge, Bonjour off the critical path, Bluetooth-on retry, quick dial retries, IPv4 first, fail-fast link watch; E6 deferred to P4/P5). | On the Poco with the owner's iPhone: state reaches Connected (pair-verify and auth-setup pass) and the log shows each step. |
+| **C2** | `:carplay:engine-android`: RFCOMM dial (secure, UUID `00000000-deca-fade-deca-deafdecacafe`), Wi-Fi Direct group (5 GHz, stable name/passphrase), AirPlay `ServerSocket`, mDNS on the group interface, identity and pairing storage, MFi files injected at build time; RideService runs CarPlay next to the bike link. Permissions (decided 2026-11-19, see below) in its manifest. Connection design and device checks: `research/carplay-spec/E-connection.md` (engine items E1-E9 built 2026-11-19: StartSession nudge, Bonjour off the critical path, Bluetooth-on retry, quick dial retries, IPv4 first, fail-fast link watch; E6 deferred to P4/P5). | On the Poco with the owner's iPhone: state reaches Connected (pair-verify and auth-setup pass) and the log shows each step. App part: see "CarPlay in the app" below. |
 | **C3** | Complete `/info` (audio formats and latencies, HID devices with descriptors, icons), session SETUP (event channel, NTP timing, keep-alive), stream SETUP, RECORD, `/command`, `/feedback`. | The iPhone keeps the session and sends video. |
 | **C4** | Video and touch: screen stream (128-byte header, per-frame ChaCha20), MediaCodec → SurfaceView, touch HID over the event channel. | CarPlay on the Poco, measured latency and frame rate on a release build. |
 | **C5** | Audio (AudioTrack, AAC via MediaCodec), Siri microphone, handlebar keys as CarPlay HID (replaces CarLink's media session route), iAP2 tunnel hand-over (type 130). | Ride test: music, navigation prompts, Siri, handlebar controls. |
@@ -372,6 +373,45 @@ device checks P1–P12 list the log lines this module writes):
   preferences (the app sets `allowBackup=false`).
 - Ids: Android hides this phone's Bluetooth and interface MACs from apps, so identification and `deviceID` use the id
   DiPlay derives from the AirPlay identity (`DiPlayBootstrap.deviceId`), which is what CarLink sends on the Poco.
+
+### CarPlay in the app (C2, app part, 2026-11-19)
+
+Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay/` (page, status line), `di/CarPlayModule`.
+
+- **Seam to the Android ports:** `fun interface CarPlayPortsSource { fun create(): CarPlayPorts? }`
+  (`carplay/CarPlayPortsSource.kt`), bound in `di/CarPlayModule.carPlayPortsSource()` to a placeholder returning null
+  until `:carplay:engine-android` exists; merging it changes only that binding. `create()` is called once when Hilt
+  first builds the link, possibly on the main thread (a view model builds the coordinators), so it only constructs
+  objects (docs/LESSONS.md 60). Null: CarPlay shows "Not in this version of the app yet" and never runs.
+- **Engine:** `CarPlayLink?` is a `@Singleton` from `createCarPlayLink(...)` on its own single-threaded dispatcher
+  (`@CarPlayDispatcher`, `limitedParallelism(1, "carplay")`, separate from the bike link's), the app's
+  `TimeProvider` and `Logger` (`child("carplay")`), `Random.Default` (as the bike engine), and `CarPlayConfig()`.
+- **Beta switch:** "Handlebar Link CarPlay (beta)", key `carplay_beta` in the app's settings DataStore, default off.
+- **Coordinator** (`CarPlayCoordinator`, a `RideCompanion`): `RideService` passes it to `RideCoordinator.ride(presentHint,
+  beside)`, which runs it in its own child job beside the bike link (a parameter, not a seventh constructor argument: detekt LongParameterList).
+  While the switch is on, the permissions are granted and ports exist, it runs `CarPlayLink.run()` in a child job and
+  calls `start()`; switch off (or a permission withdrawn) calls `stop()` and cancels that job, which releases the
+  radio, Bluetooth and sockets. Its `run()` never throws: any failure (also a `CancellationException` that is not
+  our own cancellation, docs/LESSONS.md 54) is logged as `carplay.failed` and shown as "Stopped after an error";
+  the bike link is untouched. Ending a ride (`RideCoordinator.stop`) stops CarPlay too.
+- **keepAlive:** the ride (and so `RideService`, still `connectedDevice` only: `CHANGE_WIFI_STATE` and
+  `BLUETOOTH_CONNECT` both meet that type's prerequisite) lasts while the bike link **or** CarPlay needs it. CarPlay
+  counts from the start of its run until it knows it will not start, while it is meant to run, and until the
+  engine's own `keepAlive` ends after a stop.
+- **Permissions:** `carPlayPermissions(sdk)`: `BLUETOOTH_CONNECT`; `NEARBY_WIFI_DEVICES` on API 33+ (else
+  `ACCESS_FINE_LOCATION`); `ACCESS_LOCAL_NETWORK` on API 37+. The engine has no permission error on this base, so a
+  missing one is app-side (`CarPlayStatus.NeedsPermission`, "Needs Nearby devices: allow it in Settings ›
+  Permissions"), checked fresh on every resume and permission answer. Asked through the existing flow: a "CarPlay
+  (beta)" row on the Permissions page and in Allow all, shown only while the switch is on (least privilege), and the
+  dialog when the switch is turned on. `ACCESS_NETWORK_STATE` and `CHANGE_WIFI_MULTICAST_STATE` are left to the
+  Android ports' NSD-or-raw-mDNS choice.
+- **UI:** the CarPlay tab (was an empty page) shows the switch as an `HlValueRow` (hint On/Off, status line under its
+  name) and, off, today's "CarPlay runs in CarLink until our own receiver is ready"; Home's CarPlay card keeps "Runs in
+  CarLink for now" while off, else shows the status line. Status line: Off → "Runs in CarLink for now"; Starts with
+  the next ride (no ride); Starting; "Connecting · <step>"; Connected; "<error> · Retrying in N s" (ticking each
+  second); the error alone when only the rider can fix it. On-bike check (owner): with the Android ports merged,
+  turn the switch on and watch the line reach Connected, as the C2 row says.
+
 
 ## Things only the phone or bike can settle
 

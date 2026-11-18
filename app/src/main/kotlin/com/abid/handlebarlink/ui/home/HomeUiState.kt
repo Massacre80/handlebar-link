@@ -9,7 +9,9 @@ import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.ui.carplay.CarPlayLine
 import com.abid.handlebarlink.ui.devices.kindName
 
 /** What the status pill says about the bike link. */
@@ -42,7 +44,10 @@ enum class LinkStatus {
     NEEDS_PAIRING,
 }
 
-/** Home's state. Odometer, trip, service, intercom and CarPlay have no data source yet: empty states. */
+/**
+ * Home's state. Odometer, trip, service and intercom have no data source yet: empty states. CarPlay's card shows
+ * CarLink's interim line while the beta switch is off, else our own receiver's status.
+ */
 data class HomeUiState(
     /** The pill. */
     val link: LinkStatus,
@@ -55,6 +60,8 @@ data class HomeUiState(
     val rideData: Boolean = false,
     /** What each handlebar press does (the Handlebar card). */
     val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS.getValue(CallSituation.RIDING),
+    /** The CarPlay card's line ("Runs in CarLink for now" while the beta switch is off). */
+    val carPlay: CarPlayLine = CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE),
 )
 
 /** An added device on Home. [battery] in percent, null until it reports one. */
