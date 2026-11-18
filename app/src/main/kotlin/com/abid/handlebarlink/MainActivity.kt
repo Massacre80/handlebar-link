@@ -17,6 +17,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.ride.EXTRA_RIDE
+import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.AppRoot
 import com.abid.handlebarlink.ui.BikeRender
 import com.abid.handlebarlink.ui.LocalBikeRender
@@ -35,6 +36,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         skipSetupIfAsked(intent)
+        startRideIfAsked(intent)
         showForRideIfAsked(intent)
     }
 
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
         WindowCompat.enableEdgeToEdge(window)
         super.onCreate(savedInstanceState)
         skipSetupIfAsked(intent)
+        startRideIfAsked(intent)
         showForRideIfAsked(intent)
         // Decoded in the background while the first frames draw, then shared by every screen.
         lifecycleScope.launch { bikeRender.load() }
@@ -77,6 +80,18 @@ private fun MainActivity.skipSetupIfAsked(intent: Intent?) {
 }
 
 private const val EXTRA_SKIP_SETUP = "skip_setup"
+
+/**
+ * Temporary, for testing CarPlay away from the bike (owner, 2026-11-19): `--ez start_ride true` on the same command
+ * starts the ride service without a saved bike. The bike link finds nothing to do; CarPlay (when its beta switch is
+ * on) keeps the ride alive through its own keepAlive. Started from the visible activity, so the foreground service
+ * start is allowed.
+ */
+private fun MainActivity.startRideIfAsked(intent: Intent?) {
+    if (intent?.getBooleanExtra(EXTRA_START_RIDE, false) == true) RideService.start(this)
+}
+
+private const val EXTRA_START_RIDE = "start_ride"
 
 /** Applies the rider's theme and matches the system bar icons to it (edge-to-edge skill). */
 @Composable

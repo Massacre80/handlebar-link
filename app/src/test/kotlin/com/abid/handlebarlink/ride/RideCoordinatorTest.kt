@@ -25,6 +25,7 @@ import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.SelectedBike
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -157,6 +158,61 @@ class RideCoordinatorTest {
             assertThat(created).isEmpty()
             assertThat(link.commands).isEmpty()
         }
+
+    @Test
+    fun `without a bike CarPlay rides alone until it no longer needs the service`() =
+        runTest {
+            val coordinator = coordinator()
+            val carPlay = Companion()
+
+            val ride = backgroundScope.async { coordinator.ride(presentHint = false, beside = carPlay) }
+            runCurrent()
+
+            assertThat(carPlay.running).isTrue()
+            assertThat(ride.isActive).isTrue()
+            assertThat(created).isEmpty()
+            assertThat(link.commands).isEmpty()
+
+            carPlay.keepAlive.value = false
+            runCurrent()
+
+            assertThat(ride.await()).isNull()
+            assertThat(carPlay.running).isFalse()
+        }
+
+    @Test
+    fun `stopping a ride without a bike stops CarPlay`() =
+        runTest {
+            val coordinator = coordinator()
+            val carPlay = Companion()
+            backgroundScope.async { coordinator.ride(presentHint = false, beside = carPlay) }
+            runCurrent()
+
+            coordinator.stop()
+
+            assertThat(carPlay.stops).isEqualTo(1)
+        }
+
+    /** CarPlay beside the ride: keeps the service while it runs, until told otherwise. */
+    private class Companion : RideCompanion {
+        override val keepAlive = MutableStateFlow(false)
+        var running = false
+        var stops = 0
+
+        override suspend fun run() {
+            keepAlive.value = true
+            running = true
+            try {
+                awaitCancellation()
+            } finally {
+                running = false
+            }
+        }
+
+        override fun stop() {
+            stops++
+        }
+    }
 
     @Test
     fun `one link per bike, kept across rides`() =

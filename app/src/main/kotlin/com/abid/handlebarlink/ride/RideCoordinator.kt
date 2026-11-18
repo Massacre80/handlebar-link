@@ -86,39 +86,61 @@ class RideCoordinator
          * Runs the ride: starts the link and routes presses, with [beside] (CarPlay) in its own child job, until
          * neither the link (stopped, blocked, or idle after the bike left) nor [beside] needs the service kept alive,
          * or until cancelled. A failure of [beside] never ends the ride ([RideCompanion.run] does not throw). Returns
-         * the problem the rider has to act on, if any. Returns at once when no bike is selected. [presentHint]: there
-         * is a fresh sign the bike is in range (connect directly instead of waiting for it).
+         * the problem the rider has to act on, if any. Without a selected bike only [beside] rides, for as long as it
+         * needs the service (CarPlay away from the bike); with neither, it returns at once. [presentHint]: there is a
+         * fresh sign the bike is in range (connect directly instead of waiting for it).
          */
         suspend fun ride(
             presentHint: Boolean,
             beside: RideCompanion? = null,
         ): LinkProblem? {
-            if (settings.bike.first() == null) {
+            val bikeSelected = settings.bike.first() != null
+            if (!bikeSelected && beside == null) {
                 log.warn("ride.no_bike")
                 return null
             }
             check(riding.compareAndSet(false, true)) { "a ride is already running" }
             try {
-                val current = link.filterNotNull().first()
-                log.info("ride.start")
                 companion.set(beside)
-                coroutineScope {
-                    launch(io) { current.buttons.collect(::route) }
-                    launch { current.run() }
-                    // Undispatched, so the companion counts as keeping the service before the bike can report anything.
-                    beside?.let { launch(start = CoroutineStart.UNDISPATCHED) { it.run() } }
-                    current.start(presentHint)
-                    // keepAlive is current whenever a state arrives (BikeLink.keepAlive).
-                    val bikeDone = current.state.dropWhile { it == LinkState.Stopped }.map { !current.keepAlive.value }
-                    val besideAlive = beside?.keepAlive ?: flowOf(false)
-                    combine(bikeDone, besideAlive) { done, alive -> done && !alive }.first { it }
-                    coroutineContext.cancelChildren()
-                }
-                return current.problem.value.also { log.info("ride.end", "problem" to it) }
+                return if (bikeSelected) rideWithBike(presentHint, beside) else rideWithoutBike(checkNotNull(beside))
             } finally {
                 companion.set(null)
                 riding.set(false)
             }
+        }
+
+        /** No bike selected: only [beside] runs, until it no longer needs the service or the ride is cancelled. */
+        private suspend fun rideWithoutBike(beside: RideCompanion): LinkProblem? {
+            log.info("ride.start_without_bike")
+            coroutineScope {
+                // Undispatched, so the companion counts as keeping the service from the start (as in rideWithBike).
+                launch(start = CoroutineStart.UNDISPATCHED) { beside.run() }
+                beside.keepAlive.first { !it }
+                coroutineContext.cancelChildren()
+            }
+            log.info("ride.end", "problem" to null)
+            return null
+        }
+
+        private suspend fun rideWithBike(
+            presentHint: Boolean,
+            beside: RideCompanion?,
+        ): LinkProblem? {
+            val current = link.filterNotNull().first()
+            log.info("ride.start")
+            coroutineScope {
+                launch(io) { current.buttons.collect(::route) }
+                launch { current.run() }
+                // Undispatched, so the companion counts as keeping the service before the bike can report anything.
+                beside?.let { launch(start = CoroutineStart.UNDISPATCHED) { it.run() } }
+                current.start(presentHint)
+                // keepAlive is current whenever a state arrives (BikeLink.keepAlive).
+                val bikeDone = current.state.dropWhile { it == LinkState.Stopped }.map { !current.keepAlive.value }
+                val besideAlive = beside?.keepAlive ?: flowOf(false)
+                combine(bikeDone, besideAlive) { done, alive -> done && !alive }.first { it }
+                coroutineContext.cancelChildren()
+            }
+            return current.problem.value.also { log.info("ride.end", "problem" to it) }
         }
 
         /** Asks a running ride to end; [ride] returns once the link and its companion have stopped. */
