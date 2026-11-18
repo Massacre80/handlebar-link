@@ -33,20 +33,20 @@ fun PermissionsScreen(
                 PermissionItem(row.first, row.second, status, onAct = { onAct(index) })
             },
         )
-        // While anything is missing, Allow all (under the list, with what it will do) walks through it
+        // While anything is missing, Allow all (under the list, what it will do below it) walks through it
         // (rememberAllowAll); gone once all are allowed.
         val missing = access.all().count { it != Access.GRANTED }
         if (missing > 0) {
-            HlText(
-                stringResource(R.string.permissions_allow_all_how),
-                HlTheme.typography.body,
-                HlTheme.colors.inkMuted,
-            )
             HlButton(
                 pluralStringResource(R.plurals.permissions_allow_all, missing, missing),
                 onAllowAll,
                 Modifier.fillMaxWidth(),
                 brand = true,
+            )
+            HlText(
+                stringResource(R.string.permissions_allow_all_how),
+                HlTheme.typography.body,
+                HlTheme.colors.inkMuted,
             )
         }
     }

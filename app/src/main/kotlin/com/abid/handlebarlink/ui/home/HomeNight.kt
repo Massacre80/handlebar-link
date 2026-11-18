@@ -109,7 +109,7 @@ internal fun HomeNight(
             NightHeader(state, actions.onSettings, column)
             // Without the gauges the bike still starts clear of the header (its mirrors covered the status pill
             // on the phone, owner 2026-11-18).
-            if (state.rideData) NightGauges(column) else Spacer(Modifier.height(HlTheme.spacing.s24))
+            if (state.rideData) NightGauges(column) else Spacer(Modifier.height(HlTheme.spacing.s24 * 2))
             Box(column.height(heroHeight)) {
                 HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
                 NightDevices(
