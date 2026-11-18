@@ -252,6 +252,7 @@ class TokenDriftTest {
             "size-gauge-inset" to z.gaugeInset,
             "size-ring" to z.ring,
             "size-signal" to z.signal,
+            "size-handlebar-render" to z.handlebarRender,
             "size-avatar" to z.avatar,
             "size-action" to z.action,
             "size-icon-small" to z.iconSmall,

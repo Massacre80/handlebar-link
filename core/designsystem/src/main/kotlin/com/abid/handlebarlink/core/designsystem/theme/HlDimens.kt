@@ -70,6 +70,8 @@ public data class HlSizes(
     val ring: Dp = 112.dp,
     /** The CarPlay signal ring. */
     val signal: Dp = 56.dp,
+    /** The handlebar switch render on Home's Handlebar card (the CarPlay badge's row, larger to read the keys). */
+    val handlebarRender: Dp = 88.dp,
     /** Icon circles, round buttons, option icons. */
     val avatar: Dp = 44.dp,
     /** The CarPlay card's button. */

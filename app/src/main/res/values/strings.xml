@@ -70,7 +70,7 @@
     <string name="assistant_play_pause_detail">CarPlay\'s music</string>
     <string name="assistant_next">Next track</string>
     <string name="assistant_next_detail">Skips in CarPlay</string>
-    <string name="handlebar_title">Handlebar buttons</string>
+    <string name="handlebar_title">Handlebar controls</string>
     <string name="handlebar_press">Press</string>
     <string name="handlebar_hold">Press and hold</string>
     <string name="handlebar_up">Up</string>
@@ -83,11 +83,15 @@
     <string name="handlebar_press_right">Press right</string>
     <string name="handlebar_hold_down">Hold down</string>
     <string name="handlebar_hold_left">Hold left</string>
+    <string name="handlebar_defaults">Using defaults</string>
+    <plurals name="handlebar_changed">
+        <item quantity="one">%d press changed</item>
+        <item quantity="other">%d presses changed</item>
+    </plurals>
     <string name="handlebar_kept">Used by the meter</string>
     <string name="handlebar_reset">Reset to default</string>
     <string name="handlebar_sheet_detail">What this press on the left handlebar switch does while you ride.</string>
-    <string name="handlebar_holds">Hold down: %1$s · Hold left: %2$s</string>
-    <string name="handlebar_pad_description">Handlebar buttons. Up: %1$s. Down: %2$s. Left: %3$s. Right: %4$s.</string>
+    <string name="handlebar_pad_description">Handlebar controls. Up: %1$s. Down: %2$s. Left: %3$s. Right: %4$s.</string>
     <string name="assistant_previous">Previous track</string>
     <string name="assistant_previous_detail">Goes back in CarPlay</string>
     <string name="assistant_battery">Announce battery</string>

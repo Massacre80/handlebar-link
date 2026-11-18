@@ -21,10 +21,10 @@ import com.abid.handlebarlink.ui.navigation.containerPage
 import com.abid.handlebarlink.ui.navigation.sheet
 import kotlinx.coroutines.launch
 
-/** Shared-bounds key: Home's Handlebar card and the Handlebar buttons page. */
+/** Shared-bounds key: Home's Handlebar card and the Handlebar controls page. */
 const val HANDLEBAR = "handlebar"
 
-/** Handlebar buttons (grows out of Home's card) and the chooser for one press (a sheet). */
+/** Handlebar controls (grows out of Home's card) and the chooser for one press (a sheet). */
 fun EntryProviderScope<NavKey>.handlebarEntries(
     navigator: Navigator,
     motion: HlMotion,

@@ -117,6 +117,7 @@
   --size-gauge-inset: 12px;    /* arc centre line inside the gauge box (r = 63 of 150) */
   --size-ring: 112px;          /* Bento tick ring */
   --size-signal: 56px;         /* CarPlay signal ring */
+  --size-handlebar-render: 88px; /* Home's Handlebar card: the switch render */
   --size-avatar: 44px;         /* icon circles, round buttons, option icons */
   --size-action: 48px;         /* CarPlay card button */
   --size-icon-small: 20px;
