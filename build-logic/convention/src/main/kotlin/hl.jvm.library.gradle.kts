@@ -54,6 +54,24 @@ tasks.named<JacocoReport>("jacocoTestReport") {
     }
 }
 
+// JaCoCo skips its verification when there is no execution data, so a module with a minimum but no
+// tests passed `check` (docs/LESSONS.md 45: all three :carplay modules, 2026-11-18). This task fails instead.
+val requireCoverageData =
+    tasks.register("requireCoverageData") {
+        val minimum = coverage.minimumLines
+        val execFile = layout.buildDirectory.file("jacoco/test.exec")
+        val modulePath = path
+        dependsOn(tasks.named("test"))
+        inputs.property("minimumLines", minimum)
+        doLast {
+            check(minimum.get().signum() == 0 || execFile.get().asFile.exists()) {
+                "$modulePath sets a coverage minimum of ${minimum.get()} but has no unit tests to measure."
+            }
+        }
+    }
+
+tasks.named("jacocoTestCoverageVerification") { dependsOn(requireCoverageData) }
+
 tasks.named("check") { dependsOn(tasks.named("jacocoTestCoverageVerification")) }
 
 dependencies {

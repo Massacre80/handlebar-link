@@ -53,6 +53,8 @@ hard-coded `Dispatchers.*` and new `CoroutineScope(...)` (both allowed only in `
 | `:core` | 90 % | 95.0 % (M2.1) |
 | `:bike:protocol` | 90 % | 98.9 % (M1) |
 | `:bike:link` | 90 % | 97.0 % (pure Kotlin since the split) |
+| `:carplay:protocol` | 90 % | 96.9 % (C1): RFC 8439/5869/7748/8032 vectors, DiPlay test literals, plistlib, BouncyCastle SRP client |
+| `:carplay:engine` | 90 % | 93.1 % (C1): runtime against a simulated iPhone (its own iAP2 framing, DiPlay's acknowledging or zero-acknowledgement link parameters) over fake ports |
 | `:bike:link-android` | none | thin Android adapters: unit tests for their pure parts (`GattStatus`); verified on the bike in M3 (docs/research/02 §6.5 checklist) |
 
 JaCoCo, as Google's testing-setup skill prescribes (it replaced Kover from the research). A module

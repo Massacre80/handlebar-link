@@ -22,6 +22,11 @@ internal object ModuleRules {
             ":bike:link-android" to setOf(":bike:link"),
             // Test doubles of :bike:link's public API (test-only).
             ":bike:link-test" to setOf(":bike:link"),
+            ":carplay:protocol" to emptySet(),
+            // Engines never depend on each other, on the design system, or on test modules.
+            ":carplay:engine" to setOf(":core:common", ":carplay:protocol"),
+            // Test doubles of :carplay:engine's public API (test-only).
+            ":carplay:engine-test" to setOf(":carplay:engine"),
         )
 
     /** Modules only tests may use: `:core:testing` and every `*-test` module. */

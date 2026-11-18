@@ -13,6 +13,7 @@ androidxLifecycle = "2.11.0"
 androidxNavigation3 = "1.2.1"
 androidxTestRunner = "1.7.0"
 assertk = "0.28.1"
+bouncycastleBcprov = "1.87"
 # Supported Android: minSdk 31 (Android 12) up to compile/target 37 (docs/PLAN.md, "Fixed decisions").
 compileSdk = "37"
 coroutines = "1.11.0"
@@ -33,7 +34,7 @@ kotlin = "2.4.21"
 ksp = "2.3.14"
 ktlint = "1.8.0"
 minSdk = "31"
-robolectric = "4.18"
+robolectric = "4.18.1"
 # Compose Preview Screenshot Testing has no stable release yet (added with --allow-prerelease);
 # the engine (screenshot-validation-junit-engine) is released with this API under the same version.
 screenshotValidationApi = "0.0.1-alpha17"
@@ -63,6 +64,7 @@ androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runt
 androidx-navigation3-ui = { module = "androidx.navigation3:navigation3-ui", version.ref = "androidxNavigation3" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }
 assertk = { module = "com.willowtreeapps.assertk:assertk", version.ref = "assertk" }
+bouncycastle-bcprov = { module = "org.bouncycastle:bcprov-jdk18on", version.ref = "bouncycastleBcprov" }
 compose-gradlePlugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
 detekt-gradlePlugin = { module = "io.gitlab.arturbosch.detekt:detekt-gradle-plugin", version.ref = "detekt" }
 hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }

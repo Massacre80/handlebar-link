@@ -16,7 +16,9 @@ One app of our own on the Poco F1 (Android 17) mounted on the Honda CB350:
    reference only (`docs/research/05-carlink-reference.md`), never a dependency or a fork.
 
 Fixed decisions: everything plays on the iPhone through CarPlay; the Poco never plays its own media
-and has no internet. Voice = Siri through CarPlay ("… on YouTube Music").
+and has no internet connection of its own: everything online comes from the iPhone through CarPlay.
+Voice = Siri through CarPlay ("… on YouTube Music"). Any permission CarPlay needs on the Poco is fine
+(owner, 2026-11-19), including `INTERNET`: Android requires it for every socket, also the local ones to the iPhone.
 
 **Supported: Android 12 (API 31) and newer** (decided 2026-11-16). The current API is used where it
 exists, with a version branch to the older API only where a supported release needs it (e.g. the
@@ -75,7 +77,8 @@ Key rules (details in 01 §5, 03 §7):
 - Connection lifecycle = a pure reducer `(State, Event) → (State, Effects)`, tested as a table.
 - All BLE work runs on one thread. A CarPlay failure (later) can never take down the bike link.
 - Logs go through our own `Logger`: logcat, an on-screen ring, a rotating file. Crashes and Android's
-  exit reasons are recorded; diagnostics can be shared. No third-party SDKs, no `INTERNET` permission.
+  exit reasons are recorded; diagnostics can be shared. No third-party SDKs, and nothing is sent anywhere:
+  the `INTERNET` permission exists only for CarPlay's local sockets to the iPhone (owner, 2026-11-19).
 - UI: the owner's design (Paper file "CB350RS"). Colours, sizes, type and motion come only from
   `:core:designsystem` tokens (`design/*.css`, checked by `TokenDriftTest`); detekt rejects raw numbers
   elsewhere. Two themes the rider picks in settings, never switched automatically: **Night** (default:
@@ -247,7 +250,53 @@ No milestone starts before the previous one is done.
 | **M3** | `:app` ride service: logging and diagnostics, button routing to CarPlay (interim: CarLink's media session, as in the prototype). | Same behaviour as the prototype on the bike, checked with the on-device checklist. |
 | **M4** | Auto-start on ignition: pairing through the companion-device dialog, presence service, boot and update receivers. Steps: M4.1 setup ✅, M4.2 presence observing and service ✅, M4.3 update and restart recovery ✅ (built; the on-bike check in "Auto-start on ignition" is open). | Ignition on → connected with the phone screen off and the app not open, timed on the bike (02 §6.5 D4/D5). |
 | **M5** | UI: tokens and components in `:core:designsystem`; setup, status, button mapping, diagnostics and settings screens. **Moved before M3.3** at the owner's request (2026-11-17), because the design is ready: M3.3's screens are built from it. Steps: UI.1 tokens and themes ✅, UI.2 components ✅, UI.3 pages and navigation ✅, UI.4 screenshot tests ✅. | Screenshot tests for every component and screen in both themes; glove and sunlight check on the bike. |
-| **—** | CarPlay receiver: a separate plan once M0–M5 are done. | — |
+| **C** | CarPlay receiver, started 2026-11-18 at the owner's request: see "CarPlay receiver" below. | Per step below. |
+
+## CarPlay receiver
+
+Our own wireless CarPlay receiver in the app (replacing CarLink), started 2026-11-18 at the owner's request.
+The owner's MFi identity comes from their old CarPlay display (`~/.carlink-private/offline-mfi`, never in git).
+
+**Source of truth for bytes:** DiPlay's working receiver (github.com/shihabal3amri/DiPlay, read through
+CarLink's `vendor/diplay` on `upstream/main`, which carries four DiPlay hardening PRs). The specs with
+file:line citations are in `docs/research/carplay-spec/` (README there: provenance and the PRs we follow).
+The earlier summaries `research/06-*.md` are background only: the first WIP engine was written from them and
+was wrong in almost every byte (docs/LESSONS.md 46).
+
+**Performance rules (owner: "native, GPU, fast"):**
+- Video: MediaCodec hardware decoder rendering straight into a `SurfaceView` surface (hardware composer
+  overlay, no GPU copy as with `TextureView`), `KEY_LOW_LATENCY` (API 30+, always on our minSdk 31), H.264 and
+  HEVC; no software decoding, no frame copies between socket and decoder beyond the decrypt.
+- Crypto per frame: ChaCha20-Poly1305 through the platform JCA (Conscrypt/BoringSSL, native from API 28),
+  never BouncyCastle; decrypt into reused buffers. BouncyCastle only for X25519/Ed25519 at pairing (Android
+  has them from API 33, we support 31).
+- No NDK code unless a measured bottleneck needs it: decode, crypto and composition are already native.
+
+**Permissions** (owner, 2026-11-19: whatever CarPlay needs; checked against the official docs
+`kb://android/privacy-and-security/local-network-permission`, `…/connectivity/wifi/wifi-permissions` and
+`…/wifi/wifi-direct`). Declared by `:carplay:engine-android` (C2), requested in the app's existing permission flow:
+
+| Permission | Why | Kind |
+|---|---|---|
+| `INTERNET` | Any socket: the AirPlay listener, the iPhone's streams. The Poco has no internet connection; nothing leaves the bike. | normal |
+| `ACCESS_LOCAL_NETWORK` | Android 17 blocks the local network for apps targeting SDK 37 (ours) unless granted; covers inbound connections from the iPhone and mDNS. | runtime (API 37+), *Nearby devices* group |
+| `NEARBY_WIFI_DEVICES` with `neverForLocation` | `WifiP2pManager.createGroup()` and group info on API 33+. | runtime, *Nearby devices* group |
+| `ACCESS_FINE_LOCATION` (already declared) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). | runtime |
+| `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | Wi-Fi Direct (required by the Wi-Fi Direct guide). | normal |
+| `ACCESS_NETWORK_STATE`, `CHANGE_WIFI_MULTICAST_STATE` | Binding to the group interface and the multicast lock for mDNS; confirmed or dropped when C2 picks NSD vs. a raw mDNS socket. | normal |
+| `BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` (already declared) | RFCOMM dial to the iPhone; CarPlay runs in RideService. | runtime / normal |
+| `RECORD_AUDIO`, `FOREGROUND_SERVICE_MICROPHONE` | Siri's microphone (C5). | runtime / normal |
+
+The *Nearby devices* group already holds Bluetooth, which the app requests; Android then grants local network and
+nearby Wi-Fi without another prompt (local-network-permission guide, "Pre-granted scenario").
+
+| Step | What | Done when |
+|---|---|---|
+| **C1** ✅ (2026-11-18, uncommitted in worktree `carplay-base`) | `:carplay:protocol`: iAP2 link (marker, SYN, checksums, ACK/EAK, retransmission) and control messages; TLV8, SRP-6a pair-setup, pair-verify, control cipher, MFi auth-setup; binary plist; RTSP. `:carplay:engine`: runtime (generations, jittered backoff, cleanup), Bluetooth bootstrap, AirPlay control connection to pair-verify and auth-setup. | 104 protocol + 19 engine tests against RFC vectors, DiPlay test literals, plistlib, BouncyCastle's SRP client and Apple's HomeKitADK SRP proof; independent review 2026-11-19 (docs/LESSONS.md 53-55), every planted bug caught; `check` green. |
+| **C2** | `:carplay:engine-android`: RFCOMM dial (secure, UUID `00000000-deca-fade-deca-deafdecacafe`), Wi-Fi Direct group (5 GHz, stable name/passphrase), AirPlay `ServerSocket`, mDNS on the group interface, identity and pairing storage, MFi files injected at build time; RideService runs CarPlay next to the bike link. Permissions (decided 2026-11-19, see below) in its manifest. | On the Poco with the owner's iPhone: state reaches Connected (pair-verify and auth-setup pass) and the log shows each step. |
+| **C3** | Complete `/info` (audio formats and latencies, HID devices with descriptors, icons), session SETUP (event channel, NTP timing, keep-alive), stream SETUP, RECORD, `/command`, `/feedback`. | The iPhone keeps the session and sends video. |
+| **C4** | Video and touch: screen stream (128-byte header, per-frame ChaCha20), MediaCodec → SurfaceView, touch HID over the event channel. | CarPlay on the Poco, measured latency and frame rate on a release build. |
+| **C5** | Audio (AudioTrack, AAC via MediaCodec), Siri microphone, handlebar keys as CarPlay HID (replaces CarLink's media session route), iAP2 tunnel hand-over (type 130). | Ride test: music, navigation prompts, Siri, handlebar controls. |
 
 ## Things only the phone or bike can settle
 

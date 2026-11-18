@@ -3,7 +3,8 @@
 Read `docs/PLAN.md` first: goal, decisions, modules, milestones. Then read `docs/LESSONS.md`: every
 mistake made so far and the rule that prevents it. **When you find a mistake, add it there** (what
 happened → rule) in the same commit as the fix. Do not start a milestone before the
-previous one is done, and never work on CarPlay before M5.
+previous one is done. CarPlay follows docs/PLAN.md "CarPlay receiver" (started at the owner's request
+2026-11-18), one step at a time. One agent session per worktree (docs/LESSONS.md 52).
 
 ## Hard rules
 
@@ -11,6 +12,9 @@ previous one is done, and never work on CarPlay before M5.
   or write down the reason next to the setting (see `config/lint/lint.xml`, `config/detekt/detekt.yml`).
 - Every protocol byte comes from `docs/protocol/SAB_PROTOCOL.md` (section cited in the KDoc) or from
   a capture on the bike. Never guess; read RoadSync's decompiled source when the spec is unclear.
+- CarPlay bytes come from DiPlay's source (`docs/research/carplay-spec/`, file:line in the KDoc), and every
+  codec is tested against an independent implementation (RFC vectors, DiPlay test literals, plistlib,
+  BouncyCastle) — never against values computed by the code under test (docs/LESSONS.md 46).
 - Never write to the meter's DFU service or send data command 0x0B: `SabSafety` must approve every
   write and subscription.
 - Engines (`:bike:*`, later `:carplay:*`) never depend on each other or on `:core:designsystem`; only
