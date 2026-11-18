@@ -11,6 +11,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
+import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
@@ -32,6 +35,7 @@ import com.abid.handlebarlink.ui.devices.PairDeviceActions
 import com.abid.handlebarlink.ui.devices.PairDeviceScreen
 import com.abid.handlebarlink.ui.devices.PairDeviceUiState
 import com.abid.handlebarlink.ui.devices.SheetDevice
+import com.abid.handlebarlink.ui.handlebar.HandlebarScreen
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
@@ -299,6 +303,32 @@ fun PairDeviceNight() = PairDevice(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun PairDeviceBento() = PairDevice(HlThemeVariant.BENTO)
+
+@Composable
+private fun Handlebar(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        HlBackground(Modifier.fillMaxSize()) {
+            // A remapped left press and a free hold, so both the set and the dimmed look show.
+            HandlebarScreen(
+                HANDLEBAR_DEFAULTS + (HandlebarSwitch.LEFT to RiderAction.BATTERY),
+                onPress = {},
+                onReset = {},
+                onBack = {},
+            )
+        }
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarNight() = Handlebar(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarBento() = Handlebar(HlThemeVariant.BENTO)
 
 @Composable
 private fun Intercom(

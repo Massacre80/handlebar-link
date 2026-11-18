@@ -5,6 +5,9 @@ import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
+import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.ui.devices.kindName
 
@@ -44,6 +47,13 @@ data class HomeUiState(
     val link: LinkStatus,
     /** The device tile: the intercom if one is added, else the first added; null for the empty tile. */
     val device: HomeDevice? = null,
+    /**
+     * The meter reports speed and odometer: shows the service and trip gauges. False on the CB350 (it sends
+     * neither, SAB_PROTOCOL.md), so the gauges stay hidden until a meter sends them.
+     */
+    val rideData: Boolean = false,
+    /** What each handlebar press does (the Handlebar card). */
+    val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS,
 )
 
 /** An added device on Home. [battery] in percent, null until it reports one. */

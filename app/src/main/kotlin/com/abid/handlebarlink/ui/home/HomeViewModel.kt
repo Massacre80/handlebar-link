@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abid.handlebarlink.controls.HandlebarMapping
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.DeviceSettings
@@ -26,6 +27,7 @@ class HomeViewModel
         settings: BikeSettings,
         devices: DeviceSettings,
         bluetooth: BluetoothDevices,
+        handlebar: HandlebarMapping,
     ) : ViewModel() {
         /** Home's state; "no bike" until loaded. */
         @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
@@ -35,13 +37,14 @@ class HomeViewModel
                 coordinator.link.flatMapLatest { it?.state ?: flowOf(null) },
                 combine(devices.devices, devices.primary, ::Pair),
                 bluetooth.statuses(),
-            ) { bike, state, (saved, chosen), statuses ->
+                handlebar.current,
+            ) { bike, state, (saved, chosen), statuses, mapping ->
                 val device =
                     saved.primary(chosen)?.let {
                         val status = statuses[it.address]
                         HomeDevice(it.name, it.model, it.kind, status?.connected == true, status?.battery)
                     }
-                HomeUiState(linkStatus(bike != null, state), device)
+                HomeUiState(linkStatus(bike != null, state), device, handlebar = mapping)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HomeUiState(LinkStatus.NO_BIKE))
 
         private companion object {

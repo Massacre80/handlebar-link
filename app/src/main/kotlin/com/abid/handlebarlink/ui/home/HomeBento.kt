@@ -61,6 +61,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
+import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
 import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
@@ -69,10 +70,8 @@ import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 @Composable
 internal fun HomeBento(
     state: HomeUiState,
-    onSettings: () -> Unit,
+    actions: HomeActions,
     contentPadding: PaddingValues,
-    onAddDevice: () -> Unit,
-    onDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     // The page scrolls full width; wide windows centre a column of at most HlSizes.contentMax.
@@ -97,10 +96,10 @@ internal fun HomeBento(
             ) {
                 Pill(state.link)
                 Spacer(Modifier.weight(1f))
-                HlIconButton(HlIcons.Settings, stringResource(R.string.settings), onSettings)
+                HlIconButton(HlIcons.Settings, stringResource(R.string.settings), actions.onSettings)
             }
-            BentoBikeCard()
-            BentoStats()
+            BentoBikeCard(state.rideData)
+            if (state.rideData) BentoStats()
             CarPlayCard()
             CardRow {
                 val device = state.device
@@ -110,7 +109,7 @@ internal fun HomeBento(
                     connected = device?.connected,
                     modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
                     // The device's page; with none added, Add device.
-                    onClick = if (device != null) onDevice else onAddDevice,
+                    onClick = if (device != null) actions.onDevice else actions.onAddDevice,
                 )
                 // Bento's slot has no second line in the artboard (it would not fit its narrow column).
                 // Grows into the Add device page; the slot keeps its own size inside (no stretching).
@@ -120,18 +119,19 @@ internal fun HomeBento(
                         stringResource(R.string.add_device_short),
                         detail = null,
                         Modifier.containerContent(addDevice).fillMaxSize(),
-                        onClick = onAddDevice,
+                        onClick = actions.onAddDevice,
                     )
                 }
             }
+            HandlebarCard(state.handlebar, actions.onHandlebar)
             Spacer(Modifier.height(spacing.s8))
         }
     }
 }
 
-/** The bike card: name and details, the render, the odometer (empty until the Garage exists). */
+/** The bike card: name and details, the render, and the odometer once the meter reports it ([rideData]). */
 @Composable
-private fun BentoBikeCard() {
+private fun BentoBikeCard(rideData: Boolean) {
     val spacing = HlTheme.spacing
     val colors = HlTheme.colors
     val type = HlTheme.typography
@@ -152,12 +152,14 @@ private fun BentoBikeCard() {
             HlText(stringResource(R.string.bike_full_name), type.lead, colors.ink)
             HlText(stringResource(R.string.bike_details), type.label, colors.inkMuted)
         }
-        Column(
-            Modifier.align(Alignment.BottomStart).padding(spacing.s16),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
-            Caps(R.string.odometer)
-            HlText(stringResource(R.string.no_value), type.figureSmall, colors.ink)
+        if (rideData) {
+            Column(
+                Modifier.align(Alignment.BottomStart).padding(spacing.s16),
+                verticalArrangement = Arrangement.spacedBy(spacing.s2),
+            ) {
+                Caps(R.string.odometer)
+                HlText(stringResource(R.string.no_value), type.figureSmall, colors.ink)
+            }
         }
     }
 }

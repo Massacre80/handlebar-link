@@ -60,11 +60,13 @@ fun HomeScreen(
     contentPadding: PaddingValues,
     onAddDevice: () -> Unit = {},
     onDevice: () -> Unit = {},
+    onHandlebar: () -> Unit = {},
 ) {
+    val actions = HomeActions(onSettings, onAddDevice, onDevice, onHandlebar)
     if (HlTheme.variant == HlThemeVariant.NIGHT) {
-        HomeNight(state, onSettings, contentPadding, onAddDevice, onDevice)
+        HomeNight(state, actions, contentPadding)
     } else {
-        HomeBento(state, onSettings, contentPadding, onAddDevice, onDevice)
+        HomeBento(state, actions, contentPadding)
     }
 }
 
@@ -129,3 +131,11 @@ private fun HomeBentoPreview() {
         }
     }
 }
+
+/** What Home can open. */
+internal data class HomeActions(
+    val onSettings: () -> Unit,
+    val onAddDevice: () -> Unit,
+    val onDevice: () -> Unit,
+    val onHandlebar: () -> Unit,
+)

@@ -48,6 +48,7 @@ import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.ui.devices.deviceEntries
+import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.intercom.intercomEntries
@@ -55,6 +56,7 @@ import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
+import com.abid.handlebarlink.ui.navigation.HandlebarRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
 import com.abid.handlebarlink.ui.navigation.LocalSharedTransitionScope
@@ -142,6 +144,7 @@ private fun BoxScope.Tabs() {
                     contentPadding = barSpace,
                     onAddDevice = { navigator.navigate(AddDeviceRoute) },
                     onDevice = { navigator.navigate(IntercomRoute) },
+                    onHandlebar = { navigator.navigate(HandlebarRoute) },
                 )
             }
             entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
@@ -150,6 +153,7 @@ private fun BoxScope.Tabs() {
             intercomEntries(navigator, barSpace)
             settingsEntries(navigator)
             deviceEntries(navigator, motion)
+            handlebarEntries(navigator, motion)
         }
     // The pages are the tab bar's backdrop: recorded with their ground, frosted under the bar.
     val barBackdrop = rememberBackdrop()

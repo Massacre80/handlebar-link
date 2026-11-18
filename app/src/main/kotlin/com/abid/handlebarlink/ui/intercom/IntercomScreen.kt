@@ -39,6 +39,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.devices.AssistantHandler
+import com.abid.handlebarlink.ui.controls.actionName
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
@@ -223,7 +224,7 @@ private fun AssistantButton(
     HlSection(stringResource(R.string.intercom_buttons)) {
         HlValueRow(
             stringResource(R.string.assistant_button),
-            hint = stringResource(assistantName(state.assistant)),
+            hint = stringResource(actionName(state.assistant)),
             onClick = onChoose,
             container = Color.Transparent,
             chevron = true,

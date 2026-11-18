@@ -93,6 +93,16 @@ data class RemoveDeviceRoute(
     val name: String,
 ) : OverlayRoute
 
+/** Handlebar buttons: what each press does; grows out of Home's Handlebar card. */
+@Serializable
+data object HandlebarRoute : NavKey
+
+/** The chooser for one handlebar press ([switch]: a HandlebarSwitch name), a sheet over Handlebar buttons. */
+@Serializable
+data class HandlebarPressRoute(
+    val switch: String,
+) : OverlayRoute
+
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(
     /** The tab's root route; each tab keeps its own back stack. */

@@ -67,6 +67,7 @@ import com.abid.handlebarlink.ui.BikeImage
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
+import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
 import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
@@ -79,10 +80,8 @@ import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 @Composable
 internal fun HomeNight(
     state: HomeUiState,
-    onSettings: () -> Unit,
+    actions: HomeActions,
     contentPadding: PaddingValues,
-    onAddDevice: () -> Unit,
-    onDevice: () -> Unit,
 ) {
     val spacing = HlTheme.spacing
     val column = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
@@ -107,21 +106,22 @@ internal fun HomeNight(
                 ).padding(contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NightHeader(state, onSettings, column)
-            NightGauges(column)
+            NightHeader(state, actions.onSettings, column)
+            if (state.rideData) NightGauges(column)
             Box(column.height(heroHeight)) {
                 HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
                 NightDevices(
                     state.device,
                     backdrop,
-                    onAddDevice,
-                    onDevice,
+                    actions.onAddDevice,
+                    actions.onDevice,
                     Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
                 )
             }
+            HandlebarCard(state.handlebar, actions.onHandlebar, column.padding(spacing.s16))
             // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.
             Spacer(Modifier.weight(1f))
-            CarPlayCard(column.padding(spacing.s16))
+            CarPlayCard(column.padding(horizontal = spacing.s16).padding(bottom = spacing.s16))
         }
     }
 }
