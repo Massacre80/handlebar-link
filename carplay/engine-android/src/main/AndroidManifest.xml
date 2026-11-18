@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What CarPlay needs (docs/PLAN.md "CarPlay receiver", permissions table). CarPlayPermissions lists the runtime
+     ones for the app's permission flow; every port checks its own before use. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Sockets: the AirPlay listener and the iPhone's connections. Nothing leaves the bike. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17 blocks the local network for apps targeting 37 unless granted (local-network-permission):
+         inbound AirPlay connections and mDNS. Nearby devices group. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- The RFCOMM dial to the bonded iPhone and its bond list. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- cancelDiscovery() before the dial ("Connect Bluetooth devices"), when granted; the app declares and requests it
+         for its own scans, with the same flag. Not needed for CarPlay, so not in CarPlayPermissions. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- WifiP2pManager.createGroup / requestGroupInfo on Android 13+ (wifi-permissions); no location is derived.
+         On Android 12/12L the same calls need ACCESS_FINE_LOCATION, which the app already declares for ride
+         recording (without maxSdkVersion), so it is not repeated here. -->
+    <uses-permission
+        android:name="android.permission.NEARBY_WIFI_DEVICES"
+        android:usesPermissionFlags="neverForLocation" />
+    <!-- Wi-Fi Direct (wifi-direct guide). -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <uses-feature android:name="android.hardware.wifi.direct" android:required="true" />
+    <uses-feature android:name="android.hardware.bluetooth" android:required="true" />
+</manifest>

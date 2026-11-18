@@ -153,6 +153,34 @@ Each check names the log or command that settles it. All after the flash, on a r
 - **P11. Dial timing.** Cold page vs. ACL already up; `BluetoothSocketException` codes on failures (API 34+).
 - **P12. Bluetooth on.** Turn Bluetooth off, start, turn it on: time to the next attempt (target < 1 s, DiPlay 0.66 s).
 
+## Log lines for the device checks (`:carplay:engine-android`, C2)
+
+Every line goes through our `Logger` to logcat with tag `HandlebarLink`, one logfmt line per entry:
+`<time> <level letter> <logger tag> <event> key=value …` (values with spaces or `=` are quoted). The logger tag is
+the one the app passes to `createAndroidCarPlayPorts` (`carplay` if it binds `logger.child("carplay")`). Read with
+`adb logcat -s HandlebarLink:V | grep -E 'carplay\.'` (captured to a file from the start, lesson 36). Lines marked
+*engine* come from `:carplay:engine` (names as in snapshot 10afbd3; check them against branch `carplay-c2`).
+
+| Check | Lines to read | What settles it |
+|---|---|---|
+| P1 timeline | `carplay.android.iphone.selected name= address= chosen= bonded_iphones= linked=` → `carplay.android.rfcomm.dialing address= acl_up=` → `carplay.android.wifi.plan iphone= ssid= plan=` → `carplay.android.wifi.create request= outcome=` (one per request) → `carplay.android.wifi.group_ready ssid= stable= requested= frequency= channel= security= interface= addresses=` → `carplay.android.listener.bound port= preferred= addresses=` → `carplay.android.mdns.registered type= name= port=` → `carplay.android.rfcomm.connected after_ms= acl_up=` → *engine* `carplay.bluetooth.dialed`, `carplay.step`, `carplay.wifi.clients joined= leased=`, `carplay.airplay.accepted peer=`, `carplay.airplay.verified`, `carplay.connected` | Logcat timestamps between the first and the last line, 10 cold and 10 warm starts |
+| P2 5 GHz | `carplay.android.wifi.create request=Frequency(megahertz=5180) outcome=created\|BUSY\|ERROR\|…` and `carplay.android.wifi.group_ready … frequency=5180 channel=36` | Which request succeeded and the frequency the framework reports (`WifiP2pGroup.getFrequency()`) |
+| P3 auto-join | `carplay.android.wifi.group_ready … stable=true` (same `ssid=` every attempt), then *engine* `carplay.wifi.clients joined=1` | Time from group_ready to joined=1 after a Bluetooth reconnect, without touching the iPhone |
+| P4 receiver id | `carplay.android.wifi.receiver_id id= source=HARDWARE\|GROUP_OWNER\|IDENTITY interface_mac= owner_address=` and `carplay.android.bluetooth.local_address source=IDENTITY address=` | Expected on a normal build: `source=IDENTITY`, `interface_mac=null`, `owner_address=02:00:00:00:00:00`, and the same `id` on every group (it comes from the stored AirPlay identity, not the interface) |
+| P5 group reuse | `carplay.android.wifi.group_reused ssid= mhz=` or `carplay.android.wifi.group_reclaimed ssid= mhz=`; on stop `carplay.android.wifi.group_removed ssid= gone=true\|false`, `carplay.android.wifi.remove_skipped ssid=`, `carplay.android.wifi.remove_timeout after_ms=` | Whether a live group is read as it stands, and how long removal takes |
+| P6 station scans | none of ours | `dumpsys wifiscanner`, `dumpsys wifi` during a session |
+| P7 DHCP | *engine* `carplay.wifi.clients joined=1 leased=0`, then `leased=1` (Android 15+), then `carplay.airplay.accepted peer=` | Time joined → leased → first TCP |
+| P8 nudge | *engine* lines of the 0x5703/0x4301 re-send, then `carplay.airplay.accepted` | How often the first TCP needs the nudge |
+| P9 NSD | `carplay.android.mdns.registered type=_airplay._tcp name= port=` or `carplay.android.mdns.failed type= code=` | Plus `dumpsys mdns` (is it announced on `p2p-wlan0-*`?) |
+| P10 RFCOMM after Connected | *engine* `carplay.connected`, later `carplay.bootstrap.ended reason=` | That no TEARDOWN follows in 2 minutes while the RFCOMM reads continue |
+| P11 dial timing | `carplay.android.rfcomm.dialing address= acl_up=true\|false`, then `carplay.android.rfcomm.connected after_ms= acl_up=` or `carplay.android.rfcomm.failed address= after_ms= code= error=` (`code` is `BluetoothSocketException.getErrorCode()`, API 34+) | Cold page vs ACL already up; failure codes |
+| P12 Bluetooth on | `carplay.android.bluetooth.on`, then *engine* `carplay.bluetooth.on_retry` and the next `carplay.android.rfcomm.dialing` | Time from Bluetooth on to the next dial (target < 1 s) |
+
+Also useful: `carplay.android.mfi.loaded certificate_bytes=607` (the owner's identity is in the build) or
+`carplay.android.mfi.missing key= certificate=` (it is not: `carplay.mfi.dir` unset), `carplay.android.identity.created
+pairing_id=` (first run only), `carplay.android.wifi.channel_remembered iphone= mhz=` (after Connected),
+`carplay.android.wifi.channel_lost` (the framework dropped our Wi-Fi Direct channel), `carplay.android.tcp.tuning_failed`.
+
 ## Not acted on (and why)
 
 - **IPv6-first guess** (CarLink `ipv6Guess`): faster first TCP but a slower handshake on CarLink's tablet; off.

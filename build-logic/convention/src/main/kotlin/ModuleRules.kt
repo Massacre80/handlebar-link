@@ -25,6 +25,8 @@ internal object ModuleRules {
             ":carplay:protocol" to emptySet(),
             // Engines never depend on each other, on the design system, or on test modules.
             ":carplay:engine" to setOf(":core:common", ":carplay:protocol"),
+            // The Android implementation of :carplay:engine's spi (RFCOMM, Wi-Fi Direct, sockets, mDNS, files).
+            ":carplay:engine-android" to setOf(":carplay:engine", ":carplay:protocol", ":core:common"),
             // Test doubles of :carplay:engine's public API (test-only).
             ":carplay:engine-test" to setOf(":carplay:engine"),
         )

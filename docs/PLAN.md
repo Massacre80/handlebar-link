@@ -340,7 +340,8 @@ was wrong in almost every byte (docs/LESSONS.md 46).
 | `NEARBY_WIFI_DEVICES` with `neverForLocation` | `WifiP2pManager.createGroup()` and group info on API 33+. | runtime, *Nearby devices* group |
 | `ACCESS_FINE_LOCATION` (already declared) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). | runtime |
 | `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | Wi-Fi Direct (required by the Wi-Fi Direct guide). | normal |
-| `ACCESS_NETWORK_STATE`, `CHANGE_WIFI_MULTICAST_STATE` | Binding to the group interface and the multicast lock for mDNS; confirmed or dropped when C2 picks NSD vs. a raw mDNS socket. | normal |
+| ~~`ACCESS_NETWORK_STATE`, `CHANGE_WIFI_MULTICAST_STATE`~~ | Dropped in C2: mDNS goes through `NsdManager`, which needs only `INTERNET` (AOSP `NsdService.connect`, Connectivity main :2310) and advertises on the group interface itself; no socket binds to a `Network`. | — |
+| `BLUETOOTH_SCAN` (`neverForLocation`, already declared by the app) | `cancelDiscovery()` before the RFCOMM dial when granted ("Connect Bluetooth devices"); the app's pairing flow runs a classic discovery. Not required for CarPlay. | runtime |
 | `BLUETOOTH_CONNECT`, `FOREGROUND_SERVICE_CONNECTED_DEVICE` (already declared) | RFCOMM dial to the iPhone; CarPlay runs in RideService. | runtime / normal |
 | `RECORD_AUDIO`, `FOREGROUND_SERVICE_MICROPHONE` | Siri's microphone (C5). | runtime / normal |
 
@@ -354,6 +355,23 @@ nearby Wi-Fi without another prompt (local-network-permission guide, "Pre-grante
 | **C3** | Complete `/info` (audio formats and latencies, HID devices with descriptors, icons), session SETUP (event channel, NTP timing, keep-alive), stream SETUP, RECORD, `/command`, `/feedback`. | The iPhone keeps the session and sends video. |
 | **C4** | Video and touch: screen stream (128-byte header, per-frame ChaCha20), MediaCodec → SurfaceView, touch HID over the event channel. | CarPlay on the Poco, measured latency and frame rate on a release build. |
 | **C5** | Audio (AudioTrack, AAC via MediaCodec), Siri microphone, handlebar keys as CarPlay HID (replaces CarLink's media session route), iAP2 tunnel hand-over (type 130). | Ride test: music, navigation prompts, Siri, handlebar controls. |
+
+**C2 `:carplay:engine-android`** (2026-11-19; design and evidence in `docs/research/carplay-spec/E-connection.md`, its
+device checks P1–P12 list the log lines this module writes):
+- Factory `createAndroidCarPlayPorts(context, time, logger)`; it only constructs objects (main-thread safe, lesson 60).
+  The app binds `CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay")) }` and asks
+  for `CarPlayPermissions.runtime()`. `CarPlayIphone.choose(context, address)` stores the rider's choice of iPhone.
+- **MFi files at build time:** the Gradle property or `local.properties` key `carplay.mfi.dir` names a directory with
+  `identity.pk8` and `certificate.p7b` (the owner's: `carplay.mfi.dir=~/.carlink-private/offline-mfi`; `~/` is
+  expanded). `hl.carplay.mfi` copies them into generated assets under
+  `carplay/engine-android/build/generated/carplay-mfi/assets/offline-mfi/` (never `src/`, never git; `*.pk8`/`*.p7b`
+  stay ignored). Without the key the build works and CarPlay reports `IdentityUnavailable`; a key pointing at a
+  directory without both files fails the build.
+- Stored: the AirPlay identity and up to 16 pairings (oldest evicted) in `noBackupFilesDir/carplay/`; the rider's iPhone,
+  one Wi-Fi Direct name/passphrase per iPhone and the channel that last reached Connected in the `carplay_android`
+  preferences (the app sets `allowBackup=false`).
+- Ids: Android hides this phone's Bluetooth and interface MACs from apps, so identification and `deviceID` use the id
+  DiPlay derives from the AirPlay identity (`DiPlayBootstrap.deviceId`), which is what CarLink sends on the Poco.
 
 ## Things only the phone or bike can settle
 
