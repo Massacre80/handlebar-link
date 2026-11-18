@@ -40,7 +40,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.ui.controls.actionName
-import com.abid.handlebarlink.ui.devices.ADD_DEVICE
+import com.abid.handlebarlink.ui.devices.ADD_DEVICE_FROM_DEVICES
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
 import com.abid.handlebarlink.ui.navigation.containerContent
@@ -91,7 +91,7 @@ fun IntercomScreen(
 
 @Composable
 private fun Empty(onAdd: () -> Unit) {
-    val transform = rememberContainerTransform(ADD_DEVICE, expanded = false)
+    val transform = rememberContainerTransform(ADD_DEVICE_FROM_DEVICES, expanded = false)
     Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12)) {
         HlText(stringResource(R.string.intercom_none), HlTheme.typography.lead, HlTheme.colors.ink)
         HlText(stringResource(R.string.intercom_empty_detail), HlTheme.typography.body, HlTheme.colors.inkMuted)

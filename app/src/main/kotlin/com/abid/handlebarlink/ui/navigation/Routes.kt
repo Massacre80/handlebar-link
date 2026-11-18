@@ -50,9 +50,15 @@ data object ModeRoute : NavKey
 @Serializable
 data object PermissionsRoute : NavKey
 
-/** Add device: the phone's paired Bluetooth devices, pushed over the current tab. */
+/**
+ * Add device: the phone's paired Bluetooth devices, pushed over the current tab. [origin] is the shared-bounds
+ * key of what it grows out of (Home's tile, the Devices page's button): one key per origin, so switching tabs
+ * never morphs one into the other.
+ */
 @Serializable
-data object AddDeviceRoute : NavKey
+data class AddDeviceRoute(
+    val origin: String,
+) : NavKey
 
 /** Pair a new device: searches for devices in pairing mode and pairs inside the app; over Add device. */
 @Serializable

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Drawn for the app in the design file's icon style (24 grid, 1.5 round stroke): brightness down. Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M12 8.5a3.5 3.5 0 1 0 0 7a3.5 3.5 0 1 0 0-7zM12 5v.5M12 18.5v.5M5 12h.5M18.5 12h.5M7.1 7.1l.4.4M16.5 16.5l.4.4M7.1 16.9l.4-.4M16.5 7.5l.4-.4" android:strokeColor="#FF000000" android:strokeWidth="1.5" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

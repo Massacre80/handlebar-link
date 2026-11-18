@@ -92,12 +92,12 @@ class Navigator(
     }
 
     /**
-     * Back past [route]: pops the current tab down to the page under its last [route] (after saving a device,
-     * both the sheet and Add device close). Only one page when [route] is not open; never the tab's root.
+     * Back past the last page that is [route] (after saving a device, both the sheet and Add device close,
+     * whichever tab Add device grew from). Only one page when none is open; never the tab's root.
      */
-    fun goBackPast(route: NavKey) {
+    fun goBackPast(route: (NavKey) -> Boolean) {
         val stack = state.stack(state.topLevelRoute)
-        val index = stack.lastIndexOf(route)
+        val index = stack.indexOfLast(route)
         state.lastMove = Move.POP
         if (index <= 0) {
             stack.removeLastOrNull()

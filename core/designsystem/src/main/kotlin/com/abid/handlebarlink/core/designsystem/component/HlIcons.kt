@@ -68,6 +68,51 @@ public object HlIcons {
     /** This phone (as an audio choice). */
     @DrawableRes public val Phone: Int = R.drawable.hl_ic_phone
 
+    /** A speaker with sound: the CB350 switch's up key. */
+    @DrawableRes public val Speaker: Int = R.drawable.hl_ic_speaker
+
+    /** A phone handset with signal: the CB350 switch's left key. */
+    @DrawableRes public val Call: Int = R.drawable.hl_ic_call
+
+    /** Play or pause. */
+    @DrawableRes public val PlayPause: Int = R.drawable.hl_ic_play_pause
+
+    /** Next track. */
+    @DrawableRes public val Next: Int = R.drawable.hl_ic_next
+
+    /** Previous track. */
+    @DrawableRes public val Previous: Int = R.drawable.hl_ic_previous
+
+    /** Volume up: a speaker with a plus. */
+    @DrawableRes public val VolumeUp: Int = R.drawable.hl_ic_volume_up
+
+    /** Volume down: a speaker with a minus. */
+    @DrawableRes public val VolumeDown: Int = R.drawable.hl_ic_volume_down
+
+    /** Mute: a speaker crossed out. */
+    @DrawableRes public val Mute: Int = R.drawable.hl_ic_mute
+
+    /** Brightness up: a sun with long rays. */
+    @DrawableRes public val BrightnessUp: Int = R.drawable.hl_ic_brightness_up
+
+    /** Brightness down: a sun with short rays. */
+    @DrawableRes public val BrightnessDown: Int = R.drawable.hl_ic_brightness_down
+
+    /** Switch screen: two arrows passing each other. */
+    @DrawableRes public val SwitchScreen: Int = R.drawable.hl_ic_switch_screen
+
+    /** A clock (announce time). */
+    @DrawableRes public val Time: Int = R.drawable.hl_ic_time
+
+    /** A battery (announce battery). */
+    @DrawableRes public val Battery: Int = R.drawable.hl_ic_battery
+
+    /** Does nothing. */
+    @DrawableRes public val None: Int = R.drawable.hl_ic_none
+
+    /** A voice assistant (a microphone). */
+    @DrawableRes public val Voice: Int = R.drawable.hl_ic_voice
+
     /** A Bluetooth device. */
     @DrawableRes public val Bluetooth: Int = R.drawable.hl_ic_bluetooth
 

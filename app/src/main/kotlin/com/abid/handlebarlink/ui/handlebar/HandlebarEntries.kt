@@ -10,7 +10,6 @@ import androidx.navigation3.runtime.NavKey
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.controls.RiderAction
-import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.theme.HlMotion
 import com.abid.handlebarlink.ui.controls.RiderActionSheet
 import com.abid.handlebarlink.ui.navigation.ContainerPage
@@ -47,7 +46,7 @@ fun EntryProviderScope<NavKey>.handlebarEntries(
         val mapping by viewModel.current.collectAsStateWithLifecycle()
         val scope = rememberCoroutineScope()
         RiderActionSheet(
-            HlIcons.ChevronRight,
+            SwitchKey.of(switch).icon,
             stringResource(pressName(switch)),
             stringResource(R.string.handlebar_sheet_detail),
             mapping[switch] ?: RiderAction.NOTHING,

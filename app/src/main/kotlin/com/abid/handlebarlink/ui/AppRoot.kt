@@ -47,6 +47,7 @@ import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
+import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
@@ -74,10 +75,13 @@ import com.abid.handlebarlink.ui.navigation.rememberNavigationState
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
 import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.permissions.AccessState
+import com.abid.handlebarlink.ui.permissions.rememberAllowAll
+import com.abid.handlebarlink.ui.permissions.rememberBrightnessAccess
 import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
+import com.abid.handlebarlink.ui.permissions.rememberOverlayAccess
 import com.abid.handlebarlink.ui.settings.ModeScreen
 import com.abid.handlebarlink.ui.settings.PermissionsScreen
 import com.abid.handlebarlink.ui.settings.SettingsAccess
@@ -142,7 +146,7 @@ private fun BoxScope.Tabs() {
                     home,
                     onSettings = { navigator.navigate(SettingsRoute) },
                     contentPadding = barSpace,
-                    onAddDevice = { navigator.navigate(AddDeviceRoute) },
+                    onAddDevice = { navigator.navigate(AddDeviceRoute(ADD_DEVICE)) },
                     onDevice = { navigator.navigate(IntercomRoute) },
                     onHandlebar = { navigator.navigate(HandlebarRoute) },
                 )
@@ -230,7 +234,13 @@ private fun EntryProviderScope<NavKey>.settingsEntries(navigator: Navigator) {
     }
     entry<PermissionsRoute> {
         val access = rememberAllAccess()
-        PermissionsScreen(access.statuses(), onAct = { access.inOrder[it].act() }, onBack = navigator::goBack)
+        val allowAll = rememberAllowAll(access.inOrder)
+        PermissionsScreen(
+            access.statuses(),
+            onAct = { access.inOrder[it].act() },
+            onBack = navigator::goBack,
+            onAllowAll = allowAll,
+        )
     }
     entry<ThemeRoute> {
         val viewModel: SettingsViewModel = hiltViewModel()
@@ -281,16 +291,33 @@ private class AllAccess(
     val notifications: AccessState,
     val media: AccessState,
     val location: AccessState,
+    val overlay: AccessState,
+    val brightness: AccessState,
 ) {
     /** In Settings' order, the index [PermissionsScreen] acts on. */
-    val inOrder: List<AccessState> get() = listOf(nearby, notifications, media, location)
+    val inOrder: List<AccessState> get() = listOf(nearby, notifications, media, location, overlay, brightness)
 
-    fun statuses() = SettingsAccess(nearby.status, notifications.status, media.status, location.status)
+    fun statuses() =
+        SettingsAccess(
+            nearby.status,
+            notifications.status,
+            media.status,
+            location.status,
+            overlay.status,
+            brightness.status,
+        )
 }
 
 @Composable
 private fun rememberAllAccess() =
-    AllAccess(rememberNearbyAccess(), rememberNotificationAccess(), rememberMediaAccess(), rememberLocationAccess())
+    AllAccess(
+        rememberNearbyAccess(),
+        rememberNotificationAccess(),
+        rememberMediaAccess(),
+        rememberLocationAccess(),
+        rememberOverlayAccess(),
+        rememberBrightnessAccess(),
+    )
 
 /**
  * Starts the ride while the app is on screen (a foreground service may only start then): it is shown once a

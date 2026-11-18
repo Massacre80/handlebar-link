@@ -30,6 +30,15 @@ class VoipCallWatcher
     ) {
         private val log = logger.child("callaudio")
 
+        /** Whether a voice call runs right now (one read of the same audio state as [inCall]). */
+        fun inCallNow(): Boolean {
+            val audio = context.getSystemService(AudioManager::class.java) ?: return false
+            return isCall(
+                audio.activeRecordingConfigurations.map { it.clientAudioSource },
+                audio.activePlaybackConfigurations.mapNotNull { it.audioAttributes?.usage },
+            )
+        }
+
         /** True while a voice call runs; the callbacks are registered while collected. */
         fun inCall(): Flow<Boolean> =
             callbackFlow {

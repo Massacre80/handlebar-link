@@ -19,6 +19,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlDialog
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.ui.devices.ADD_DEVICE_FROM_DEVICES
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.AssistantRoute
 import com.abid.handlebarlink.ui.navigation.CallsRoute
@@ -69,7 +70,7 @@ private fun IntercomEntry(
     IntercomScreen(
         state,
         IntercomActions(
-            onAdd = { navigator.navigate(AddDeviceRoute) },
+            onAdd = { navigator.navigate(AddDeviceRoute(ADD_DEVICE_FROM_DEVICES)) },
             onEdit = { device ->
                 navigator.navigate(
                     DeviceSheetRoute(

@@ -6,8 +6,10 @@ import com.abid.handlebarlink.controls.DataStoreHandlebarMapping
 import com.abid.handlebarlink.controls.HandlebarMapping
 import com.abid.handlebarlink.controls.MappedButtonPresses
 import com.abid.handlebarlink.controls.MediaSessionControlTarget
+import com.abid.handlebarlink.controls.PressFeedback
 import com.abid.handlebarlink.ride.AndroidBikeLinkProvider
 import com.abid.handlebarlink.ride.BikeLinkProvider
+import com.abid.handlebarlink.ui.overlay.PressBanner
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -31,4 +33,7 @@ abstract class BikeModule {
 
     @Binds
     abstract fun handlebarMapping(mapping: DataStoreHandlebarMapping): HandlebarMapping
+
+    @Binds
+    abstract fun pressFeedback(banner: PressBanner): PressFeedback
 }

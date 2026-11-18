@@ -37,6 +37,22 @@ enum class Access {
     BLOCKED,
 }
 
+/** How a permission is asked for: Android's runtime dialog, or the Android screen that switches it on. */
+internal sealed interface AccessRequest {
+    /** Runtime [permissions], asked in one request with the others (Android shows its dialogs in turn). */
+    data class Runtime(
+        val permissions: List<String>,
+    ) : AccessRequest
+
+    /** Special access, switched on in the Android screen [intent] opens. */
+    class Screen(
+        val intent: () -> Intent,
+    ) : AccessRequest
+
+    /** Nothing to ask (always allowed on this Android version). */
+    data object None : AccessRequest
+}
+
 /** A permission's [status] (re-read whenever the app resumes) and the one right action for it. */
 class AccessState internal constructor(
     status: Access,
@@ -47,6 +63,15 @@ class AccessState internal constructor(
 
     /** Set by the composable that owns this state, each composition. */
     internal var onAct: () -> Unit = {}
+
+    /** How Allow all asks for it (rememberAllowAll); set with [onAct]. */
+    internal var request: AccessRequest = AccessRequest.None
+
+    /** Reads the status from Android now; set with [onAct]. */
+    internal var read: () -> Access = { this.status }
+
+    /** The status read from Android now (results can arrive before the resume that re-reads it). */
+    internal fun refresh(): Access = read().also { status = it }
 
     /** Asks (ASK), or opens the settings page (BLOCKED). */
     fun act() = onAct()
@@ -85,6 +110,8 @@ fun rememberRuntimeAccess(
             state.status = read()
             onResult(answers.values.all { it } && answers.keys.containsAll(permissions))
         }
+    state.request = AccessRequest.Runtime(permissions)
+    state.read = ::read
     state.onAct = {
         when (state.status) {
             Access.ASK -> {
@@ -154,6 +181,8 @@ fun rememberMediaAccess(): AccessState {
             Access.ASK
         }
     val state = remember { AccessState(read()) }
+    state.request = AccessRequest.Screen { listenerSettings(context) }
+    state.read = ::read
     state.onAct = { context.startActivity(listenerSettings(context)) }
     LifecycleResumeEffect(Unit) {
         state.status = read()

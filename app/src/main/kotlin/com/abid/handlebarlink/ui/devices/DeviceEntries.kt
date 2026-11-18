@@ -44,7 +44,7 @@ fun EntryProviderScope<NavKey>.deviceEntries(
     motion: HlMotion,
 ) {
     // Add device grows out of Home's tile, Pair a new device out of its row (container transforms).
-    entry<AddDeviceRoute>(metadata = containerPage(motion)) { AddDeviceEntry(navigator) }
+    entry<AddDeviceRoute>(metadata = containerPage(motion)) { route -> AddDeviceEntry(navigator, route.origin) }
     entry<PairDeviceRoute>(
         metadata = containerPage(motion),
     ) { ContainerPage(PAIR_DEVICE) { PairDeviceEntry(navigator) } }
@@ -53,7 +53,7 @@ fun EntryProviderScope<NavKey>.deviceEntries(
         val saved by viewModel.saved.collectAsStateWithLifecycle()
         var kind by rememberSaveable { mutableStateOf(route.kind) }
         val name = rememberTextFieldState(route.savedName ?: route.deviceName)
-        LaunchedEffect(saved) { if (saved) navigator.goBackPast(AddDeviceRoute) }
+        LaunchedEffect(saved) { if (saved) navigator.goBackPast { it is AddDeviceRoute } }
         DeviceSheet(
             SheetDevice(route.deviceName, route.audio, route.connected),
             kind,
@@ -67,7 +67,10 @@ fun EntryProviderScope<NavKey>.deviceEntries(
 
 /** Add device: the paired devices, read again whenever the page comes back. */
 @Composable
-private fun AddDeviceEntry(navigator: Navigator) {
+private fun AddDeviceEntry(
+    navigator: Navigator,
+    origin: String,
+) {
     val viewModel: AddDeviceViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val nearby = rememberNearbyAccess()
@@ -79,7 +82,7 @@ private fun AddDeviceEntry(navigator: Navigator) {
         viewModel.refresh()
         onPauseOrDispose {}
     }
-    ContainerPage(ADD_DEVICE) {
+    ContainerPage(origin) {
         AddDeviceScreen(
             state,
             nearby.status,
@@ -170,4 +173,7 @@ internal fun openBluetoothSettings(context: Context) {
 
 /** Shared-bounds keys: Home's Add device tile and the page; Add device's pair row and its page. */
 const val ADD_DEVICE = "add-device"
+
+/** Shared-bounds key: the Devices page's Add device button and the Add device page grown from it. */
+const val ADD_DEVICE_FROM_DEVICES = "add-device-devices"
 const val PAIR_DEVICE = "pair-device"
