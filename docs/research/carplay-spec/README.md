@@ -10,6 +10,7 @@ protocol bytes: when the code and a spec disagree, re-read the cited DiPlay line
 | `B-iap2-messages.md` | control-session (0x4040) messages: identification, MFi auth, Wi-Fi config, StartSession |
 | `C-airplay-pairing.md` | TLV8, SRP-6a pair-setup, pair-verify, control-channel cipher, MFi SAP auth-setup, stream keys |
 | `D-airplay-session.md` | wireless start order and timeouts, RTSP routes, binary plist, `/info`, SETUP, Bonjour, Wi-Fi Direct |
+| `E-connection.md` | C2 connection design: what to build in the engine (E1-E9, built), the Android ports and the ROM to connect faster and recover alone, from DiPlay, CarLink, AllPlay, Apple's spec and AOSP; device checks P1-P12 |
 
 ## Provenance
 

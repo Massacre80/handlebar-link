@@ -5,6 +5,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.runtime.RuntimeEnv
+import com.abid.handlebarlink.carplay.engine.spi.BonjourService
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
@@ -12,13 +13,16 @@ import com.abid.handlebarlink.carplay.engine.spi.TcpListener
 import com.abid.handlebarlink.carplay.engine.spi.WifiGroup
 import com.abid.handlebarlink.carplay.protocol.iap2.AccessoryIdentity
 import com.abid.handlebarlink.carplay.protocol.iap2.StartSession
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -33,6 +37,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  * cancellation). Everything it opened is closed in reverse order, also when cancelled. Losing Bluetooth
  * after the AirPlay connection is verified is normal (the iPhone moves iAP2 into the Wi-Fi session) and is
  * only logged.
+ *
+ * Connection improvements from docs/research/carplay-spec/E-connection.md: Bonjour runs beside the bootstrap and
+ * never blocks it (#4), the addresses go IPv4 first (#7), StartSession is nudged when no TCP follows (#3), and a
+ * [LinkWatch] fails a stalled start in seconds (#10).
  */
 internal class WirelessAttempt(
     private val ports: CarPlayPorts,
@@ -46,6 +54,8 @@ internal class WirelessAttempt(
 
     /** AirPlay control connections being served. */
     private var open = 0
+
+    private val watch = LinkWatcher(ports.wifiDirect.clients(), env.time, env.log)
 
     suspend fun run(): Nothing {
         try {
@@ -64,18 +74,26 @@ internal class WirelessAttempt(
         // Registered first: a group created just as the timeout fires is still removed (removeGroup is idempotent).
         cleanup.add("wifi-direct") { ports.wifiDirect.removeGroup() }
         val group = step(GROUP_TIMEOUT, ConnectStep.PREPARING) { ports.wifiDirect.createGroup() }
-        val listener = ports.network.listen(group.ownerAddress, AIRPLAY_PORT)
+        val addresses = ipv4First(group.addresses)
+        env.log.info("carplay.wifi.group", "network" to group.network, "addresses" to addresses)
+        val listener = ports.network.listen(addresses, AIRPLAY_PORT)
         cleanup.add("listener") { listener.close() }
+        env.log.info("carplay.airplay.listening", "port" to listener.port)
         val receiver = receiver(credentials, group)
-        ports.bonjour.publish(receiver.bonjour(group.ownerAddress, listener.port))
+        // Registered before publishing starts: a publish that is still running when the attempt ends is undone.
         cleanup.add("bonjour") { ports.bonjour.unpublish() }
+        launch { publish(receiver.bonjour(addresses.first().substringBefore('%'), listener.port)) }
+        launch { watch.followClients() }
+        launch { watch.run() }
 
         onStep(ConnectStep.DIALING_PHONE)
         val dialLeft = DIAL_TIMEOUT - (env.time.elapsedMillis() - dialStart)
         // A dial that finished while the group came up is used even when the group took the whole dial time.
         val stream = if (dial.isCompleted) dial.await() else step(dialLeft, ConnectStep.DIALING_PHONE) { dial.await() }
+        env.log.info("carplay.bluetooth.dialed", "after_ms" to env.time.elapsedMillis() - dialStart)
         val channel = Iap2Channel(stream, env.time, env.log)
         val startSessionSent = CompletableDeferred<Unit>()
+        val tcpArrived = CompletableDeferred<Unit>()
         launch {
             bootstrap(
                 channel,
@@ -83,22 +101,40 @@ internal class WirelessAttempt(
                     identity(credentials),
                     ports.bluetooth.localAddress(),
                     credentials.mfi,
-                    startSession(group, listener, credentials),
+                    startSession(group, addresses, listener, credentials),
                 ),
                 startSessionSent,
+                tcpArrived,
             )
         }
 
         step(START_SESSION_TIMEOUT, ConnectStep.AUTHENTICATING) { startSessionSent.await() }
         onStep(ConnectStep.WAITING_FOR_PHONE)
         val first = step(FIRST_TCP_TIMEOUT, ConnectStep.WAITING_FOR_PHONE) { listener.accept() }
+        tcpArrived.complete(Unit)
+        watch.tcpAccepted()
         onStep(ConnectStep.PAIRING)
         val ended = CompletableDeferred<CarPlayException>()
         launch { serve(first, credentials, receiver, ended) }
         launch { acceptMore(listener, credentials, receiver, ended) }
         val phone = step(PAIRING_TIMEOUT, ConnectStep.PAIRING) { verified.await() }
+        watch.connected()
+        ports.wifiDirect.groupWorked()
         onConnected(phone)
         throw ended.await()
+    }
+
+    /** Bonjour beside the bootstrap (DiPlay PR #972; AllPlay CHANGELOG.md:331-338): a failure is only logged. */
+    private suspend fun publish(service: BonjourService) {
+        try {
+            ports.bonjour.publish(service)
+            env.log.info("carplay.bonjour.published", "port" to service.port)
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive() // Ours: the attempt ends. Otherwise the port's own timeout.
+            env.log.warn("carplay.bonjour.failed", "error" to e.toString())
+        } catch (e: CarPlayException) {
+            env.log.warn("carplay.bonjour.failed", "error" to e.error)
+        }
     }
 
     /** iAP2 over Bluetooth until the iPhone hands over to Wi-Fi; fatal only before AirPlay is verified. */
@@ -106,11 +142,21 @@ internal class WirelessAttempt(
         channel: Iap2Channel,
         setup: BootstrapSetup,
         startSessionSent: CompletableDeferred<Unit>,
+        tcpArrived: CompletableDeferred<Unit>,
     ) {
+        val milestones =
+            object : BootstrapMilestones {
+                override fun wifiOffered() = watch.wifiOffered()
+
+                override fun startSessionSent() {
+                    watch.startSessionSent()
+                    startSessionSent.complete(Unit)
+                }
+            }
         try {
             coroutineScope {
                 launch { channel.run() }
-                val control = BootstrapControl(channel, setup, env.log)
+                val control = BootstrapControl(channel, setup, env.time, env.log, milestones)
                 onStep(ConnectStep.IDENTIFYING)
                 step(IDENTIFY_TIMEOUT, ConnectStep.IDENTIFYING) {
                     channel.connected.await()
@@ -118,7 +164,8 @@ internal class WirelessAttempt(
                 }
                 onStep(ConnectStep.AUTHENTICATING)
                 step(AUTHENTICATE_TIMEOUT, ConnectStep.AUTHENTICATING) { control.authenticate() }
-                control.serve { startSessionSent.complete(Unit) }
+                launch { control.nudge(tcpArrived) }
+                control.serve()
             }
         } catch (e: CarPlayException) {
             if (!verified.isCompleted) throw e
@@ -214,11 +261,13 @@ internal class WirelessAttempt(
 
     private fun startSession(
         group: WifiGroup,
+        addresses: List<String>,
         listener: TcpListener,
         credentials: CarPlayCredentials,
     ) = StartSession(
         network = group.network,
-        ipAddresses = listOf(group.ownerAddress),
+        // Every bound address, IPv4 first, without the IPv6 scope (DiPlay CarPlayController.kt:1753-1755, 3404-3410).
+        ipAddresses = addresses.map { it.substringBefore('%') }.distinct(),
         airPlayPort = listener.port,
         deviceId = group.interfaceMac,
         publicKeyHex = credentials.airPlay.publicKeyHex,
@@ -235,6 +284,14 @@ internal class WirelessAttempt(
             ?: throw CarPlayException(CarPlayError.TimedOut(step))
 
     companion object {
+        /**
+         * IPv4 first, then the rest in the platform's order (DiPlay HotspotAddressPolicy.kt:19-30 prefers a usable
+         * IPv4; CarLink WirelessAddressFamilyPlan.kt:29-36 measured IPv6 first as slower; DiPlay #242, #1344).
+         */
+        fun ipv4First(addresses: List<String>): List<String> = addresses.sortedBy { if (IPV4.matches(it)) 0 else 1 }
+
+        private val IPV4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
+
         /** DiPlay's timings (spec D §1.2, §1.6). */
         const val GROUP_TIMEOUT = 20_000L
         const val DIAL_TIMEOUT = 15_000L

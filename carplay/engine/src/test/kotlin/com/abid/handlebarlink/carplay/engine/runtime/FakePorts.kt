@@ -8,6 +8,7 @@ import com.abid.handlebarlink.carplay.engine.spi.BonjourService
 import com.abid.handlebarlink.carplay.engine.spi.ByteStream
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
+import com.abid.handlebarlink.carplay.engine.spi.GroupClients
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
@@ -20,9 +21,14 @@ import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.AirPlayIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.InMemoryPairingStore
 import com.abid.handlebarlink.carplay.protocol.pairing.PairingStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.withTimeout
 import java.security.SecureRandom
 
@@ -82,6 +88,27 @@ internal class FakePorts(
     val rfcomm = mutableListOf<Pipe>()
     var dialError: CarPlayError? = null
     var dialMillis = 100L
+
+    /** Dials that were cancelled while connecting, and whether each one's socket was closed (the port contract). */
+    var dialsCancelled = 0
+    var dialSocketsOpen = 0
+
+    /** When each dial started (virtual time), set by the test's clock. */
+    val dialStarts = mutableListOf<Long>()
+    var now: () -> Long = { 0L }
+    var createGroupError: CarPlayError? = null
+    var publishHangs = false
+
+    /** Bluetooth turning on. */
+    val radioOn = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+
+    /** The group's clients as the platform reports them; null: the platform reports nothing (an old Android). */
+    val clients = MutableStateFlow<GroupClients?>(null)
+
+    /** The group is lost while collected (our Wi-Fi Direct channel dropped). */
+    var groupLost: CarPlayError? = null
+    var groupsWorked = 0
+    var listenedOn: List<String> = emptyList()
     var credentialsError: CarPlayError? = null
 
     var groupsCreated = 0
@@ -99,10 +126,14 @@ internal class FakePorts(
     val published = mutableListOf<BonjourService>()
     var unpublished = 0
 
+    /** How long publish takes (DiPlay PR #972: a slow resolver), and whether it then fails. */
+    var publishMillis = 0L
+    var publishError: CarPlayError? = null
+
     val group =
         WifiGroup(
             WifiNetwork("DIRECT-hl-Handlebar", "passphrase16chrs", WifiSecurity.WPA_WPA2, channel = 149),
-            ownerAddress = "192.168.49.1",
+            addresses = listOf("fe80::1%p2p-wlan0-0", "192.168.49.1"),
             interfaceMac = "aa:bb:cc:dd:ee:01",
         )
 
@@ -111,7 +142,17 @@ internal class FakePorts(
             bluetooth =
                 object : BluetoothPort {
                     override suspend fun dialIap2(): ByteStream {
-                        delay(dialMillis)
+                        // A socket is open while connecting; the contract says cancellation closes it.
+                        dialSocketsOpen++
+                        dialStarts += now()
+                        try {
+                            delay(dialMillis)
+                        } catch (e: CancellationException) {
+                            dialsCancelled++
+                            throw e
+                        } finally {
+                            dialSocketsOpen--
+                        }
                         dialError?.let { throw CarPlayException(it) }
                         val pipe = Pipe().also { rfcomm += it }
                         dialed.send(pipe.phone)
@@ -119,14 +160,30 @@ internal class FakePorts(
                     }
 
                     override fun localAddress(): ByteArray = byteArrayOf(0x22, 0x33, 0x44, 0x55, 0x66, 0x77)
+
+                    override val radioOn: Flow<Unit> = this@FakePorts.radioOn
                 },
             wifiDirect =
                 object : WifiDirectPort {
                     override suspend fun createGroup(): WifiGroup {
                         delay(createGroupMillis)
                         if (groupTimesOutInside) withTimeout(1) { awaitCancellation() }
+                        createGroupError?.let { throw CarPlayException(it) }
                         groupsCreated++
                         return group
+                    }
+
+                    override fun clients(): Flow<GroupClients> =
+                        flow {
+                            groupLost?.let { throw CarPlayException(it) }
+                            clients.collect { snapshot ->
+                                groupLost?.let { throw CarPlayException(it) }
+                                if (snapshot != null) emit(snapshot)
+                            }
+                        }
+
+                    override fun groupWorked() {
+                        groupsWorked++
                     }
 
                     override suspend fun removeGroup() {
@@ -137,13 +194,19 @@ internal class FakePorts(
             network =
                 object : NetworkPort {
                     override suspend fun listen(
-                        address: String,
+                        addresses: List<String>,
                         preferredPort: Int,
-                    ): TcpListener = FakeListener(preferredPort).also { listeners += it }
+                    ): TcpListener {
+                        listenedOn = addresses
+                        return FakeListener(preferredPort).also { listeners += it }
+                    }
                 },
             bonjour =
                 object : BonjourPort {
                     override suspend fun publish(service: BonjourService) {
+                        delay(publishMillis)
+                        if (publishHangs) awaitCancellation()
+                        publishError?.let { throw CarPlayException(it) }
                         published += service
                     }
 

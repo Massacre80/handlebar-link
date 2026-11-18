@@ -34,6 +34,10 @@ import kotlin.math.roundToLong
  * Each attempt has a generation; events from an older one are ignored, so a failure that arrives after
  * [stop] can never start a new attempt. A new attempt first waits for the previous one to finish closing
  * its radio and sockets. [keepAlive] stays true until that teardown is done.
+ *
+ * Retries (docs/research/carplay-spec/E-connection.md): a dial the iPhone did not answer is retried after 1.5 s
+ * up to [QUICK_DIALS] failures in a row (#6); a retry that waits only because Bluetooth was off runs as soon as it
+ * turns on (#5); everything else backs off 2 s doubling to 30 s.
  */
 internal class CarPlayRuntime(
     private val ports: CarPlayPorts,
@@ -76,15 +80,22 @@ internal class CarPlayRuntime(
         var job: Job? = null
         var current = 0
         var failures = 0
+
+        /** Why the last attempt failed, and when its retry starts (elapsed time); null once connected. */
+        var lastError: CarPlayError? = null
+        var retryAt = 0L
     }
 
     private suspend fun loop(loop: Loop) {
         stateFlow.value = CarPlayState.Idle
         env.log.info("carplay.run.start")
+        // A platform signal: only trySend, the loop decides (AGENTS.md, engine architecture).
+        val radio = loop.scope.launch { ports.bluetooth.radioOn.collect { inbox.trySend(Event.BluetoothOn) } }
         try {
             for (event in inbox) handle(event, loop)
         } finally {
             withContext(NonCancellable) {
+                radio.cancel()
                 loop.job?.cancel()
                 loop.job?.join()
                 keepAliveFlow.value = false
@@ -121,12 +132,27 @@ internal class CarPlayRuntime(
             is Event.Ended -> {
                 if (event.generation == loop.current) ended(loop, event.error)
             }
+
+            Event.BluetoothOn -> {
+                bluetoothOn(loop)
+            }
         }
+    }
+
+    /** Bluetooth turned on: a retry that only waits because Bluetooth was off starts now (DiPlay PR #914). */
+    private fun bluetoothOn(loop: Loop) {
+        val waiting = env.time.elapsedMillis() < loop.retryAt
+        if (!loop.started || loop.lastError !is CarPlayError.BluetoothUnavailable || !waiting) return
+        env.log.info("carplay.bluetooth.on_retry", "attempt" to loop.failures + 1)
+        loop.job?.cancel()
+        loop.retryAt = 0L
+        launchAttempt(loop, pause = 0)
     }
 
     private fun begin(loop: Loop) {
         loop.started = true
         loop.failures = 0
+        loop.lastError = null
         keepAliveFlow.value = true
         launchAttempt(loop, pause = 0)
     }
@@ -143,6 +169,7 @@ internal class CarPlayRuntime(
         phone: String,
     ) {
         loop.failures = 0
+        loop.lastError = null
         stateFlow.value = CarPlayState.Connected(phone, env.time.clock.instant())
         env.log.info("carplay.connected", "phone" to phone)
     }
@@ -157,7 +184,9 @@ internal class CarPlayRuntime(
             return
         }
         loop.failures++
-        val pause = backoffMillis(loop.failures)
+        loop.lastError = error
+        val pause = pauseAfter(error, loop.failures)
+        loop.retryAt = env.time.elapsedMillis() + pause
         stateFlow.value =
             CarPlayState.Recovering(
                 error,
@@ -218,9 +247,21 @@ internal class CarPlayRuntime(
             CarPlayError.Unexpected(e)
         }
 
-    /** 2 s doubling to 30 s (DiPlay HOST:6298), ±20 % jitter so a flapping link does not retry in lockstep. */
-    private fun backoffMillis(failures: Int): Long {
-        val base = min(BASE_PAUSE * (1L shl min(failures - 1, MAX_SHIFT)), MAX_PAUSE)
+    /**
+     * 2 s doubling to 30 s (DiPlay HOST:6298); an unanswered dial 1.5 s for the first [QUICK_DIALS] failures in a
+     * row (CarLink HOST:6288-6296, 7247-7251: "~5 s per try and often succeeds on the next one; the doubling
+     * backoff turned four misses into ~55 s"). ±20 % jitter so a flapping link does not retry in lockstep.
+     */
+    private fun pauseAfter(
+        error: CarPlayError,
+        failures: Int,
+    ): Long {
+        val base =
+            if (error is CarPlayError.DialFailed && failures <= QUICK_DIALS) {
+                QUICK_DIAL_PAUSE
+            } else {
+                min(BASE_PAUSE * (1L shl min(failures - 1, MAX_SHIFT)), MAX_PAUSE)
+            }
         return (base * (1 + JITTER * (2 * env.random.nextDouble() - 1))).roundToLong()
     }
 
@@ -243,6 +284,8 @@ internal class CarPlayRuntime(
             val generation: Int,
             val error: CarPlayError?,
         ) : Event
+
+        data object BluetoothOn : Event
     }
 
     private companion object {
@@ -250,5 +293,7 @@ internal class CarPlayRuntime(
         const val MAX_PAUSE = 30_000L
         const val MAX_SHIFT = 4
         const val JITTER = 0.2
+        const val QUICK_DIAL_PAUSE = 1_500L
+        const val QUICK_DIALS = 8
     }
 }

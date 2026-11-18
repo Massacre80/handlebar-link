@@ -21,7 +21,29 @@ public sealed interface CarPlayError {
         override val needsUser: Boolean get() = true
     }
 
-    /** The Wi-Fi Direct group could not be created (Wi-Fi off, permission, busy radio). */
+    /** A runtime permission CarPlay needs is not granted (Nearby devices, local network). */
+    public data class PermissionMissing(
+        /** The Android permission's name. */
+        val permission: String,
+    ) : CarPlayError {
+        override val needsUser: Boolean get() = true
+    }
+
+    /** Wi-Fi is off on this phone, so no Wi-Fi Direct group can be created. */
+    public data object WifiOff : CarPlayError {
+        override val needsUser: Boolean get() = true
+    }
+
+    /**
+     * The start stalled after the iPhone got the Wi-Fi details: failed in seconds instead of waiting for a 30 s
+     * step timeout (CarLink CarPlayLinkWatch.kt:5-26; E-connection.md #10).
+     */
+    public data class Stalled(
+        /** Where it stalled. */
+        val verdict: StallVerdict,
+    ) : CarPlayError
+
+    /** The Wi-Fi Direct group could not be created (busy radio, unsupported channel, no answer). */
     public data class WifiDirectFailed(
         /** What the system reported. */
         val reason: String,
@@ -68,6 +90,18 @@ public sealed interface CarPlayError {
         /** The exception. */
         val cause: Throwable,
     ) : CarPlayError
+}
+
+/** Where a start stalled (CarLink CarPlayLinkWatch.Verdict). */
+public enum class StallVerdict {
+    /** The iPhone was given the Wi-Fi details but did not join the group within 9 s (its Wi-Fi may be off). */
+    NOT_JOINED,
+
+    /** The iPhone joined the group but did not ask to start CarPlay within 4 s. */
+    NO_START_REQUEST,
+
+    /** The iPhone joined, holds a DHCP lease and was sent StartSession, but opened no AirPlay connection in 8 s. */
+    NO_TCP,
 }
 
 /**

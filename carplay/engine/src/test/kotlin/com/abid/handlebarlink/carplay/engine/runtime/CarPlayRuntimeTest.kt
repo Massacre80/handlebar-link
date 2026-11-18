@@ -17,6 +17,8 @@ import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.StallVerdict
+import com.abid.handlebarlink.carplay.engine.spi.GroupClients
 import com.abid.handlebarlink.carplay.protocol.crypto.Ed25519KeyPair
 import com.abid.handlebarlink.carplay.protocol.crypto.X25519KeyPair
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2Message
@@ -49,6 +51,7 @@ class CarPlayRuntimeTest {
 
     private fun TestScope.runtime(): CarPlayRuntime {
         val time = TestTimeProvider(testScheduler)
+        fake.now = { testScheduler.currentTime }
         val env = RuntimeEnv(time, Random(SEED), random, testLogger(sink, time))
         return CarPlayRuntime(fake.ports, StandardTestDispatcher(testScheduler), env, CarPlayConfig())
     }
@@ -64,6 +67,13 @@ class CarPlayRuntimeTest {
 
     /** The iPhone's Bluetooth bootstrap up to StartSession, as DiPlay's peer runs it (spec B §3). */
     private suspend fun bootstrap(phone: PhoneIap2): Iap2Message {
+        bootstrapToWifi(phone)
+        phone.send(iap2Message(0x4300))
+        return phone.expect(0x4301)
+    }
+
+    /** The bootstrap up to the Wi-Fi details (0x5703); the iPhone does not ask to start CarPlay yet. */
+    private suspend fun bootstrapToWifi(phone: PhoneIap2) {
         phone.handshake()
         phone.send(iap2Message(0x1D00))
         phone.expect(0x1D01)
@@ -75,9 +85,10 @@ class CarPlayRuntimeTest {
         phone.send(iap2Message(0xAA05))
         phone.send(iap2Message(0x5702))
         phone.expect(0x5703)
-        phone.send(iap2Message(0x4300))
-        return phone.expect(0x4301)
     }
+
+    private fun TestScope.failure(link: CarPlayRuntime): CarPlayError? =
+        (link.state.value as? CarPlayState.Recovering)?.error
 
     /** Bootstrap, join, connect and pair-verify; returns the AirPlay connection. */
     private suspend fun TestScope.connect(): PhoneAirPlay {
@@ -98,7 +109,10 @@ class CarPlayRuntimeTest {
             val startSession = bootstrap(phone)
             val wireless = startSession.parameter(1)!!.group()
             assertThat(wireless.first { it.id == 0 }.string()).isEqualTo(fake.group.network.ssid)
-            assertThat(wireless.first { it.id == 3 }.string()).isEqualTo("192.168.49.1")
+            // IPv4 first, then the link-local address without its scope (E-connection.md #7).
+            assertThat(wireless.filter { it.id == 3 }.map { it.string() }).containsExactly("192.168.49.1", "fe80::1")
+            assertThat(fake.listenedOn).containsExactly("192.168.49.1", "fe80::1%p2p-wlan0-0")
+            assertThat(fake.published.single().address).isEqualTo("192.168.49.1")
             assertThat(startSession.parameter(2)!!.payload.toList()).isEqualTo(listOf<Byte>(0, 0, 0x1B, 0x58))
             assertThat(startSession.parameter(3)!!.string()).isEqualTo("aa:bb:cc:dd:ee:01")
             assertThat(startSession.parameter(4)!!.string()).isEqualTo(fake.airPlayIdentity.publicKeyHex)
@@ -164,27 +178,61 @@ class CarPlayRuntimeTest {
         }
 
     @Test
-    fun `a failed dial is retried with growing pauses, and what was opened is closed each time`() =
+    fun `a failed group is retried with growing pauses, and what was opened is closed each time`() =
         runTest(timeout = TEST_TIMEOUT) {
-            fake.dialError = CarPlayError.DialFailed("page timeout")
+            fake.createGroupError = CarPlayError.WifiDirectFailed("busy")
             val (link, seen) = started()
 
             advanceTimeBy(30_000)
 
             val failures = seen.filterIsInstance<CarPlayState.Recovering>()
-            assertThat(failures.first().error).isEqualTo(CarPlayError.DialFailed("page timeout"))
+            assertThat(failures.first().error).isEqualTo(CarPlayError.WifiDirectFailed("busy"))
             assertThat(failures.map { it.attempt }.take(3)).containsExactly(1, 2, 3)
-            // Each pause doubles: 2 s, 4 s, 8 s, each ±20 % (retryAt to retryAt also holds the 100 ms dial).
-            val gaps =
-                failures.zipWithNext { a, b ->
-                    b.retryAt.toEpochMilli() - a.retryAt.toEpochMilli() -
-                        fake.dialMillis
-                }
-            assertThat(gaps[0]).isBetween(3_200L, 4_800L)
-            assertThat(gaps[1]).isBetween(6_400L, 9_600L)
+            // Each pause doubles: 2 s, 4 s, 8 s, each ±20 %.
+            assertThat(pauses()[0]).isBetween(1_600L, 2_400L)
+            assertThat(pauses()[1]).isBetween(3_200L, 4_800L)
+            assertThat(pauses()[2]).isBetween(6_400L, 9_600L)
+            // The dial ran beside each failed group and was cancelled with it; the group's removal still ran.
+            assertThat(fake.dialSocketsOpen).isEqualTo(0)
+            assertThat(fake.groupsRemoved).isEqualTo(failures.size)
+            assertThat(link.keepAlive.value).isTrue()
+        }
+
+    /** The pause before each retry, in order, from the log. */
+    private fun pauses(): List<Long> = sink.events("carplay.recovering").map { it.fields.toMap()["pause_ms"] as Long }
+
+    @Test
+    fun `an unanswered dial is retried after a second and a half eight times, then backs off, closing each time`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialError = CarPlayError.DialFailed("page timeout")
+            val (link, _) = started()
+
+            advanceTimeBy(9 * (fake.dialMillis + 1_800) + 1)
+
+            val pauses = pauses()
+            assertThat(pauses.size).isEqualTo(9)
+            pauses.take(8).forEach { assertThat(it).isBetween(1_200L, 1_800L) }
+            assertThat(pauses[8]).isBetween(24_000L, 36_000L)
             assertThat(fake.groupsRemoved).isEqualTo(fake.groupsCreated)
             assertThat(fake.listeners.all { it.closed }).isTrue()
             assertThat(link.keepAlive.value).isTrue()
+        }
+
+    @Test
+    fun `a connection resets the quick dial retries`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialError = CarPlayError.DialFailed("page timeout")
+            val (link, _) = started()
+            while (pauses().size < 8) advanceTimeBy(10)
+            fake.dialError = null
+            val airPlay = connect()
+            check(link.state.value is CarPlayState.Connected)
+
+            airPlay.close()
+            runCurrent()
+
+            // After a connection the count starts again: a disconnection is failure 1 (2 s), not failure 9 (30 s).
+            assertThat(pauses().last()).isBetween(1_600L, 2_400L)
         }
 
     @Test
@@ -452,6 +500,239 @@ class CarPlayRuntimeTest {
             assertThat(link.state.value).isEqualTo(CarPlayState.Connecting(ConnectStep.PAIRING))
             assertThat(sink.events("carplay.airplay.dropped").size).isEqualTo(1)
             assertThat(sink.events("carplay.airplay.verified")).isEmpty()
+        }
+
+    // E1 (E-connection.md #3): AllPlay's StartSession nudge.
+
+    @Test
+    fun `with no AirPlay connection the Wi-Fi details and StartSession go again at 3 s and 6 s, and no more`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 1, leased = 0)
+            started()
+            val phone = PhoneIap2(fake.dialed.receive())
+            bootstrap(phone)
+            val sentAt = currentTime
+
+            val nudges = List(4) { phone.receive().id to currentTime - sentAt }
+            advanceTimeBy(20_000)
+
+            assertThat(nudges).containsExactly(0x5703 to 3_000L, 0x4301 to 3_000L, 0x5703 to 6_000L, 0x4301 to 6_000L)
+            assertThat(sink.events("carplay.iap2.start_session").size).isEqualTo(3)
+        }
+
+    @Test
+    fun `a StartSession the iPhone asks for again re-arms the nudge`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 1, leased = 0)
+            started()
+            val phone = PhoneIap2(fake.dialed.receive())
+            bootstrap(phone)
+            val sentAt = currentTime
+            advanceTimeBy(2_000)
+
+            phone.send(iap2Message(0x4300))
+            phone.expect(0x4301)
+            val nudge = phone.receive()
+
+            assertThat(nudge.id to currentTime - sentAt).isEqualTo(0x5703 to 5_000L)
+        }
+
+    @Test
+    fun `an AirPlay connection within 3 s means no nudge`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            bootstrap(PhoneIap2(fake.dialed.receive()))
+            advanceTimeBy(1_000)
+
+            fake.listeners.single().connect()
+            advanceTimeBy(20_000)
+
+            assertThat(sink.events("carplay.iap2.start_session").size).isEqualTo(1)
+        }
+
+    // E2 (#4): Bonjour beside the bootstrap.
+
+    @Test
+    fun `a Bonjour publish that never returns does not hold up the connection, and is undone at stop`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.publishHangs = true
+            val (link, _) = started()
+
+            connect()
+            val state = link.state.value
+            link.stop()
+            runCurrent()
+
+            assertThat(state).isInstanceOf<CarPlayState.Connected>()
+            assertThat(fake.unpublished).isEqualTo(1)
+        }
+
+    @Test
+    fun `a Bonjour publish that fails is logged and the connection goes on`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.publishError = CarPlayError.NetworkFailed("mDNS refused")
+            val (link, _) = started()
+
+            connect()
+
+            assertThat(link.state.value).isInstanceOf<CarPlayState.Connected>()
+            assertThat(sink.events("carplay.bonjour.failed").size).isEqualTo(1)
+        }
+
+    // E3 (#5): Bluetooth turning on.
+
+    @Test
+    fun `Bluetooth turning on retries at once when the attempt failed because Bluetooth was off`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialError = CarPlayError.BluetoothUnavailable("Bluetooth is off")
+            val (link, _) = started()
+            advanceTimeBy(fake.dialMillis + 1)
+            check(failure(link) is CarPlayError.BluetoothUnavailable)
+            fake.dialError = null
+            advanceTimeBy(300)
+            val onAt = currentTime
+
+            fake.radioOn.emit(Unit)
+            runCurrent()
+
+            assertThat(fake.dialStarts).containsExactly(0L, onAt)
+        }
+
+    @Test
+    fun `Bluetooth turning on does not cut short the pause after another failure`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialError = CarPlayError.DialFailed("page timeout")
+            started()
+            advanceTimeBy(fake.dialMillis + 300)
+
+            fake.radioOn.emit(Unit)
+            runCurrent()
+
+            assertThat(fake.dialStarts).containsExactly(0L)
+        }
+
+    @Test
+    fun `Bluetooth turning on after stop starts nothing`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialError = CarPlayError.BluetoothUnavailable("Bluetooth is off")
+            val (link, _) = started()
+            advanceTimeBy(fake.dialMillis + 1)
+
+            link.stop()
+            runCurrent()
+            fake.radioOn.emit(Unit)
+            advanceTimeBy(60_000)
+
+            assertThat(fake.dialStarts).containsExactly(0L)
+            assertThat(link.state.value).isEqualTo(CarPlayState.Idle)
+        }
+
+    // E8: the port contract, cancellation ends a dial and closes its socket.
+
+    @Test
+    fun `stopping during a long dial cancels it and leaves no socket open`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.dialMillis = 10_000
+            val (link, _) = started()
+            advanceTimeBy(1_000)
+
+            link.stop()
+            runCurrent()
+
+            assertThat(fake.dialsCancelled).isEqualTo(1)
+            assertThat(fake.dialSocketsOpen).isEqualTo(0)
+            assertThat(link.keepAlive.value).isFalse()
+        }
+
+    // E9 (#10): the link watch's verdicts.
+
+    @Test
+    fun `an iPhone that does not join the Wi-Fi fails the start 9 s after the Wi-Fi details`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 0, leased = 0)
+            val (link, _) = started()
+            bootstrapToWifi(PhoneIap2(fake.dialed.receive()))
+
+            advanceTimeBy(8_999)
+            val before = failure(link)
+            advanceTimeBy(2)
+
+            assertThat(before).isEqualTo(null)
+            assertThat(failure(link)).isEqualTo(CarPlayError.Stalled(StallVerdict.NOT_JOINED))
+        }
+
+    @Test
+    fun `an iPhone that joins but never asks to start fails 4 s after joining`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 0, leased = 0)
+            val (link, _) = started()
+            bootstrapToWifi(PhoneIap2(fake.dialed.receive()))
+            advanceTimeBy(1_000)
+
+            fake.clients.value = GroupClients(joined = 1, leased = 0)
+            advanceTimeBy(3_999)
+            val before = failure(link)
+            advanceTimeBy(2)
+
+            assertThat(before).isEqualTo(null)
+            assertThat(failure(link)).isEqualTo(CarPlayError.Stalled(StallVerdict.NO_START_REQUEST))
+        }
+
+    @Test
+    fun `an iPhone with a lease that opens no connection fails 8 s after the last nudge`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 1, leased = 1)
+            val (link, _) = started()
+            bootstrap(PhoneIap2(fake.dialed.receive()))
+
+            advanceTimeBy(13_999) // nudges at 3 s and 6 s, then 8 s
+            val before = failure(link)
+            advanceTimeBy(2)
+
+            assertThat(before).isEqualTo(null)
+            assertThat(failure(link)).isEqualTo(CarPlayError.Stalled(StallVerdict.NO_TCP))
+        }
+
+    @Test
+    fun `an iPhone that leaves the group ends the session after 2 s, and a quick rejoin does not`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.clients.value = GroupClients(joined = 1, leased = 1)
+            val (link, _) = started()
+            connect()
+
+            fake.clients.value = GroupClients(joined = 0, leased = 0)
+            advanceTimeBy(1_500)
+            fake.clients.value = GroupClients(joined = 1, leased = 1)
+            advanceTimeBy(1_000)
+            val afterRejoin = link.state.value
+            fake.clients.value = GroupClients(joined = 0, leased = 0)
+            advanceTimeBy(2_001)
+
+            assertThat(afterRejoin).isInstanceOf<CarPlayState.Connected>()
+            assertThat(failure(link)).isEqualTo(CarPlayError.PhoneDisconnected("iPhone left the Wi-Fi"))
+            assertThat(fake.groupsWorked).isEqualTo(1)
+        }
+
+    @Test
+    fun `without client reports from the platform no verdict cuts a slow start short`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val (link, _) = started()
+            bootstrapToWifi(PhoneIap2(fake.dialed.receive()))
+
+            advanceTimeBy(20_000)
+
+            assertThat(link.state.value).isEqualTo(CarPlayState.Connecting(ConnectStep.AUTHENTICATING))
+        }
+
+    @Test
+    fun `a lost Wi-Fi Direct group fails the attempt`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.groupLost = CarPlayError.WifiDirectFailed("channel lost")
+            val (link, _) = started()
+
+            runCurrent()
+
+            assertThat(failure(link)).isEqualTo(CarPlayError.WifiDirectFailed("channel lost"))
         }
 
     private companion object {

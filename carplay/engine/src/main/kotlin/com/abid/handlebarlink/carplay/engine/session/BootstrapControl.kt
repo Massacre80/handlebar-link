@@ -10,6 +10,10 @@ import com.abid.handlebarlink.carplay.protocol.iap2.StartSession
 import com.abid.handlebarlink.carplay.protocol.iap2.WirelessCarPlayMessages
 import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.withTimeoutOrNull
 
 /** What the bootstrap tells the iPhone. */
 internal class BootstrapSetup(
@@ -19,6 +23,15 @@ internal class BootstrapSetup(
     val startSession: StartSession,
 )
 
+/** What the bootstrap reports while it serves the iPhone (for the link watch and the attempt's steps). */
+internal interface BootstrapMilestones {
+    /** A Wi-Fi configuration (0x5703) went out. */
+    fun wifiOffered()
+
+    /** A StartSession (0x4301) went out. */
+    fun startSessionSent()
+}
+
 /**
  * The iAP2 control client of the Bluetooth bootstrap, in DiPlay's order (Iap2WirelessControlClient.kt:23-235,
  * spec B §3): identification (one corrected retry after a 0x1D03), MFi authentication, five subscriptions,
@@ -26,13 +39,19 @@ internal class BootstrapSetup(
  * most 3), 0x4E0E → Wi-Fi configuration again.
  *
  * Unlike DiPlay, a message we do not expect during identification or authentication is logged and skipped
- * instead of aborting (spec B §7.10): a stray 0x4E0D must not cost a whole reconnect.
+ * instead of aborting (spec B §7.10): a stray 0x4E0D must not cost a whole reconnect. [nudge] re-sends the Wi-Fi
+ * configuration and StartSession when no AirPlay connection follows (AllPlay, E-connection.md #3).
  */
 internal class BootstrapControl(
     private val channel: Iap2Channel,
     private val setup: BootstrapSetup,
+    private val time: TimeProvider,
     private val log: Logger,
+    private val milestones: BootstrapMilestones,
 ) {
+    private val firstStartSession = CompletableDeferred<Unit>()
+    private var lastStartSessionAt = 0L
+
     /** Identification; returns when the iPhone accepted it. */
     suspend fun identify() {
         var omitted = emptySet<Int>()
@@ -97,8 +116,8 @@ internal class BootstrapControl(
         WirelessCarPlayMessages.subscriptions().forEach { channel.send(it) }
     }
 
-    /** Answers the iPhone until the link ends; calls [onStartSessionSent] after each StartSession. */
-    suspend fun serve(onStartSessionSent: () -> Unit): Nothing {
+    /** Answers the iPhone until the link ends. */
+    suspend fun serve(): Nothing {
         val offers = WifiOffers()
         var startSessions = 0
         while (true) {
@@ -115,9 +134,7 @@ internal class BootstrapControl(
                 Iap2MessageId.CARPLAY_AVAILABILITY -> {
                     if (startSessions < MAX_START_SESSIONS) {
                         startSessions++
-                        channel.send(WirelessCarPlayMessages.startSession(setup.startSession))
-                        log.info("carplay.iap2.start_session", "count" to startSessions)
-                        onStartSessionSent()
+                        sendStartSession("request $startSessions")
                     }
                 }
 
@@ -132,9 +149,40 @@ internal class BootstrapControl(
         }
     }
 
+    /**
+     * AllPlay's nudge (wireless_client.cpp:446-462, constants :66-70, reason wireless_client.h:76-80): when no
+     * AirPlay connection ([tcp]) has arrived [NUDGE_AFTER] ms after the latest StartSession, send the Wi-Fi
+     * configuration again and then StartSession, at most [MAX_NUDGES] times; every StartSession re-arms the wait.
+     * The Wi-Fi configuration goes first because the iPhone most likely missed the join. Not counted against the
+     * reply caps (AllPlay keeps separate counters). Returns when the connection came or the nudges are spent.
+     */
+    suspend fun nudge(tcp: Deferred<Unit>) {
+        firstStartSession.await()
+        var nudges = 0
+        while (nudges < MAX_NUDGES && !tcp.isCompleted) {
+            val wait = lastStartSessionAt + NUDGE_AFTER - time.elapsedMillis()
+            if (wait > 0) {
+                withTimeoutOrNull(wait) { tcp.await() }
+            } else {
+                nudges++
+                offerWifi("nudge $nudges")
+                sendStartSession("nudge $nudges")
+            }
+        }
+    }
+
+    private suspend fun sendStartSession(reason: String) {
+        channel.send(WirelessCarPlayMessages.startSession(setup.startSession))
+        lastStartSessionAt = time.elapsedMillis()
+        log.info("carplay.iap2.start_session", "reason" to reason)
+        milestones.startSessionSent()
+        firstStartSession.complete(Unit)
+    }
+
     private suspend fun offerWifi(reason: String) {
         channel.send(WirelessCarPlayMessages.wifiConfiguration(setup.startSession.network))
         log.info("carplay.iap2.wifi_offered", "reason" to reason)
+        milestones.wifiOffered()
     }
 
     private fun identification(omitted: Set<Int>): Iap2Message =
@@ -188,6 +236,10 @@ internal class BootstrapControl(
     private companion object {
         const val CHALLENGE_BYTES = 32
         const val MAX_START_SESSIONS = 3
+
+        /** AllPlay kAirPlayRetryMs and kAirPlayRetryMax (wireless_client.cpp:66-70). */
+        const val NUDGE_AFTER = 3_000L
+        const val MAX_NUDGES = 2
 
         fun hex(id: Int) = "0x%04X".format(id)
     }
