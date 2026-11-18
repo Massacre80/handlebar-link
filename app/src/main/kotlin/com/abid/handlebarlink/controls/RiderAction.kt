@@ -2,7 +2,10 @@ package com.abid.handlebarlink.controls
 
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 
-/** What a button can do: a handlebar press or the intercom's assistant button. Siri comes with our CarPlay. */
+/**
+ * What a button can do: a handlebar press or the intercom's assistant button. Which actions each
+ * [CallSituation] offers: [allowedActions]; which work with today's CarPlay: [ActionAvailability].
+ */
 enum class RiderAction {
     /** Play or pause CarPlay. */
     PLAY_PAUSE,
@@ -42,6 +45,21 @@ enum class RiderAction {
 
     /** Speaks the time in the helmet. */
     TIME,
+
+    /** Picks up a ringing call (needs our own CarPlay: [Unavailable.NEEDS_OUR_CARPLAY]). */
+    ANSWER_CALL,
+
+    /** Turns a ringing call down (needs our own CarPlay). */
+    DECLINE_CALL,
+
+    /** Hangs up the call (needs our own CarPlay). */
+    END_CALL,
+
+    /** Mutes or unmutes the phone's microphone during a call; unmuted again when the call ends ([CarPlayControls]). */
+    MUTE_MIC,
+
+    /** Starts Siri on the iPhone (needs our own CarPlay). */
+    SIRI,
 
     /** Nothing. */
     NOTHING,

@@ -11,49 +11,104 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
-import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.controls.CallSituation
+import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
-import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
+import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlNotice
+import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
+import com.abid.handlebarlink.core.designsystem.component.HlSegment
+import com.abid.handlebarlink.core.designsystem.component.HlSegmentedControl
+import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.ui.controls.ActionChoice
 import com.abid.handlebarlink.ui.controls.actionName
+import com.abid.handlebarlink.ui.controls.isDestructive
+import com.abid.handlebarlink.ui.controls.unavailableText
 import com.abid.handlebarlink.ui.settings.SubPage
 
 /**
- * Handlebar controls (like the earbuds apps' control pages): the switch with each key's press called out
- * ([SwitchDiagram]); then one block per key, its icon as on the switch, with its press and its hold
- * together, each opening the chooser (a hold the meter keeps is shown dimmed); Reset to default.
+ * Handlebar controls with smart buttons (Paper "Handlebar — Smart buttons"; like the earbuds apps' control
+ * pages): the situation switch (riding, ringing, on a call) with a line on it and, when today's CarPlay limits
+ * it, a notice; the switch with what its keys do in that situation ([SwitchDiagram]); one block per key, its
+ * icon as on the switch, with its press and its hold, each opening the chooser (a hold the meter keeps is
+ * dimmed; an action that needs our own CarPlay is tagged "Soon"); Reset to default ([onReset] only asks: the
+ * confirmation dialog resets).
  */
 @Composable
 fun HandlebarScreen(
-    mapping: Map<HandlebarSwitch, RiderAction>,
+    state: HandlebarUiState,
+    onSituation: (CallSituation) -> Unit,
     onPress: (HandlebarSwitch) -> Unit,
     onReset: () -> Unit,
     onBack: () -> Unit,
 ) {
     SubPage(stringResource(R.string.handlebar_title), onBack) {
-        SwitchDiagram(mapping, Modifier.fillMaxWidth())
-        SwitchKey.entries.forEach { key -> KeyBlock(key, mapping, onPress) }
-        HlQuietButton(stringResource(R.string.handlebar_reset), onReset, Modifier.fillMaxWidth())
+        SituationBlock(state, onSituation)
+        val callouts = remember(state) { keyCallouts(state.situation) { state.press(it).action } }
+        SwitchDiagram(callouts, Modifier.fillMaxWidth())
+        SwitchKey.entries.forEach { key -> KeyBlock(key, state, onPress) }
+        HlSecondaryButton(stringResource(R.string.handlebar_reset), onReset, Modifier.fillMaxWidth())
     }
 }
 
-/** A key: its icon (dark, as the key looks) and direction, then Press and Press and hold. */
+/** The situation switch, a line on the situation shown, and its notice. */
+@Composable
+private fun SituationBlock(
+    state: HandlebarUiState,
+    onSituation: (CallSituation) -> Unit,
+) {
+    val spacing = HlTheme.spacing
+    val segments =
+        SITUATIONS.map { (_, icon, label) -> HlSegment(icon, stringResource(label)) }
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.s10)) {
+        HlSegmentedControl(
+            segments,
+            selected = SITUATIONS.indexOfFirst { it.situation == state.situation },
+            onSelect = { onSituation(SITUATIONS[it].situation) },
+        )
+        Note(stringResource(situationHint(state.situation, state.atDefaults)))
+        when (state.notice) {
+            HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY -> {
+                HlNotice(
+                    HlIcons.Info,
+                    stringResource(R.string.handlebar_notice_ringing_title),
+                    stringResource(R.string.handlebar_notice_ringing_body),
+                )
+            }
+
+            HandlebarNotice.HANG_UP_NEEDS_OUR_CARPLAY -> {
+                HlNotice(
+                    HlIcons.Info,
+                    stringResource(R.string.handlebar_notice_call_title),
+                    stringResource(R.string.handlebar_notice_call_body),
+                )
+            }
+
+            null -> {}
+        }
+    }
+}
+
+/** A key: its icon (dark, as the key looks) and direction, then Press and Press and hold, then a footnote. */
 @Composable
 private fun KeyBlock(
     key: SwitchKey,
-    mapping: Map<HandlebarSwitch, RiderAction>,
+    state: HandlebarUiState,
     onPress: (HandlebarSwitch) -> Unit,
 ) {
     val spacing = HlTheme.spacing
@@ -63,11 +118,11 @@ private fun KeyBlock(
             HlSectionLabel(stringResource(key.label))
         }
         HlGroup {
-            ActionRow(R.string.handlebar_press, key.press, mapping, onPress)
+            ActionRow(R.string.handlebar_press, key.press, state.press(key.press), onPress)
             HlGroupDivider()
             val hold = key.hold
             if (hold != null) {
-                ActionRow(R.string.handlebar_hold, hold, mapping, onPress)
+                ActionRow(R.string.handlebar_hold, hold, state.press(hold), onPress)
             } else {
                 HlValueRow(
                     stringResource(R.string.handlebar_hold),
@@ -77,6 +132,11 @@ private fun KeyBlock(
                 )
             }
         }
+        // Why a press here does nothing today; a situation with a notice has said it already.
+        if (state.notice == null) {
+            val reason = listOfNotNull(key.press, key.hold).firstNotNullOfOrNull { state.press(it).unavailable }
+            reason?.let { Note(stringResource(footnote(it))) }
+        }
     }
 }
 
@@ -84,15 +144,28 @@ private fun KeyBlock(
 private fun ActionRow(
     @StringRes gesture: Int,
     switch: HandlebarSwitch,
-    mapping: Map<HandlebarSwitch, RiderAction>,
+    choice: ActionChoice,
     onPress: (HandlebarSwitch) -> Unit,
 ) {
     HlValueRow(
         stringResource(gesture),
-        hint = stringResource(actionName(mapping[switch] ?: RiderAction.NOTHING)),
+        hint = stringResource(actionName(choice.action)),
         onClick = { onPress(switch) },
         container = Color.Transparent,
         chevron = true,
+        tag = if (choice.soon) stringResource(R.string.handlebar_soon) else null,
+        hintColor = if (isDestructive(choice.action)) HlTheme.colors.danger else Color.Unspecified,
+    )
+}
+
+/** A muted line under a block, set in from the edge as the design's hints are. */
+@Composable
+private fun Note(text: String) {
+    HlText(
+        text,
+        HlTheme.typography.label.copy(fontWeight = FontWeight.Normal),
+        HlTheme.colors.inkMuted,
+        Modifier.padding(horizontal = HlTheme.spacing.s6),
     )
 }
 
@@ -113,6 +186,47 @@ internal fun KeyIcon(
         HlIcon(key.icon, colors.inkInverse, size = HlTheme.sizes.iconMicro)
     }
 }
+
+/** A situation on the switch: its icon and name. */
+internal data class SituationTab(
+    val situation: CallSituation,
+    val icon: Int,
+    @param:StringRes val label: Int,
+)
+
+/** The situations, in the switch's order. */
+internal val SITUATIONS =
+    listOf(
+        SituationTab(CallSituation.RIDING, HlIcons.Bike, R.string.handlebar_situation_riding),
+        SituationTab(CallSituation.RINGING, HlIcons.Bell, R.string.handlebar_situation_ringing),
+        SituationTab(CallSituation.ON_CALL, HlIcons.Handset, R.string.handlebar_situation_on_call),
+    )
+
+/** A situation's name ("On a call"). */
+@StringRes
+internal fun situationName(situation: CallSituation): Int = SITUATIONS.first { it.situation == situation }.label
+
+/**
+ * The line under the switch: what the situation does by default; once the rider changed its layer, only what
+ * it is (the rows show the rest).
+ */
+@StringRes
+private fun situationHint(
+    situation: CallSituation,
+    atDefaults: Boolean,
+): Int =
+    when {
+        situation == CallSituation.RIDING -> R.string.handlebar_hint_riding
+        situation == CallSituation.RINGING && atDefaults -> R.string.handlebar_hint_ringing
+        situation == CallSituation.RINGING -> R.string.handlebar_hint_ringing_set
+        atDefaults -> R.string.handlebar_hint_on_call
+        else -> R.string.handlebar_hint_on_call_set
+    }
+
+/** The footnote under a key whose press cannot work today. */
+@StringRes
+private fun footnote(reason: Unavailable): Int =
+    if (reason == Unavailable.NEEDS_OUR_CARPLAY) R.string.handlebar_soon_footnote else unavailableText(reason)
 
 /** A press in full, for the chooser's title ("Press up", "Hold down"). */
 @StringRes

@@ -6,6 +6,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.devices.DeviceKind
@@ -53,7 +54,7 @@ data class HomeUiState(
      */
     val rideData: Boolean = false,
     /** What each handlebar press does (the Handlebar card). */
-    val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS,
+    val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS.getValue(CallSituation.RIDING),
 )
 
 /** An added device on Home. [battery] in percent, null until it reports one. */

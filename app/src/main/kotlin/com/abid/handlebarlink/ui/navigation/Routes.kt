@@ -103,11 +103,19 @@ data class RemoveDeviceRoute(
 @Serializable
 data object HandlebarRoute : NavKey
 
-/** The chooser for one handlebar press ([switch]: a HandlebarSwitch name), a sheet over Handlebar controls. */
+/**
+ * The chooser for one handlebar press in one situation ([switch]: a HandlebarSwitch name; [situation]: a
+ * CallSituation name), a sheet over Handlebar controls.
+ */
 @Serializable
 data class HandlebarPressRoute(
     val switch: String,
+    val situation: String,
 ) : OverlayRoute
+
+/** "Reset all buttons?": a dialog over Handlebar controls confirming that every situation goes back to its defaults. */
+@Serializable
+data object HandlebarResetRoute : OverlayRoute
 
 /** A tab: its route, icon and label. */
 data class TopLevelDestination(

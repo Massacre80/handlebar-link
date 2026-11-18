@@ -237,6 +237,63 @@ CI: one GitHub Actions job running
 One application id, `com.abid.handlebarlink`: v2 simply replaces the prototype on the phone. The
 prototype stays available on branch `prototype`.
 
+### Smart buttons (handlebar actions per call situation, 2026-11-19)
+
+Code: `app/.../controls/` (`CallSituation.kt`, `CarPlayControls.kt`, `HandlebarMapping.kt`, `RiderActions.kt`).
+Each press does the action the rider set for the **situation** it happens in: `RIDING` (no call), `RINGING`
+(a call rings) or `ON_CALL` (active, held or dialling). `MappedButtonPresses` reads `CallSituations.current`
+and picks that layer of `HandlebarMapping`.
+
+- **Defaults.** Riding: up previous, down next, right play/pause, hold down play/pause, left nothing, hold
+  left Siri. Calls live on the left key, which has a phone symbol on the CB350 (owner's UX review): ringing,
+  left answers and hold left declines; on a call, left mutes the microphone, hold left ends the call, up and
+  down set the call's volume. Every other press does nothing during calls.
+- **Choices per situation** (`allowedActions`; `assign` refuses the rest): riding offers everything except
+  the call actions; ringing offers answer and decline, on a call end and mute microphone, both plus volume,
+  brightness, screens and nothing. Music keys, spoken battery/time, Mute (the call volume cannot reach zero)
+  and Siri (a stray hold would start it over the conversation) are not offered during calls.
+- **Storage.** Riding keeps the keys from before (`handlebar_<SWITCH>`), so riders keep their settings;
+  `handlebar_ringing_<SWITCH>` and `handlebar_call_<SWITCH>` for the others. Unknown or disallowed stored
+  names fall back to the default.
+- **With CarLink today** (`AudioCallSituations`, `MediaSessionControlTarget`): the situation comes from the
+  phone's audio (`VoipCallWatcher`), so it is riding or on a call, never ringing (`seesRinging = false`;
+  presses while a call rings use the riding layer). Answer, decline, end and Siri come back
+  `NEEDS_OUR_CARPLAY`: CarLink takes call keys only from a car's key events or a broadcast that needs the
+  system DUMP permission (CarLink `CarPlayCallKeys.kt:52`; docs/LESSONS.md 44). The banner says so
+  (`PressFeedback.unavailable`). Music keys, volume and **mute microphone** work.
+- **With our CarPlay** (the seams, `situationOfCalls` and `ControlAction`): the situation from iAP2
+  CallStateUpdate 0x4155 (0 disconnected, 1 sending, 2 ringing, 3 connecting, 4 active, 5 held,
+  6 disconnecting; DiPlay `BydCarPlayCall.kt:22-24`; a ringing call wins); answer = telephony HID hook switch,
+  decline/end = HID drop (DiPlay `CarPlayController.kt:750-753`); Siri = AirPlay `requestSiri` (siriAction 2
+  then 3, DiPlay `AirPlaySession.kt:391-392`).
+- **Mute microphone** = `AudioManager.setMicrophoneMute` (MODIFY_AUDIO_SETTINGS, a normal permission; AOSP
+  `AudioService.setMicrophoneMute` has no API-level gate and refuses only unmuting under the OP_MUTE_MICROPHONE
+  app op; not part of Android 17's background audio hardening). The mute is global (it also mutes CarLink's
+  call) and outlives our process. Safety: it works only on a call, is read back after each change
+  (`MIC_REFUSED` if Android ignored it), and if we muted it, it is unmuted as soon as the situation leaves
+  `ON_CALL` (`control.mic.unmuted_after_call`). A "we muted it" flag (`mic_muted_by_app` in the app's
+  DataStore) is stored before muting and cleared once unmuted; at every process start
+  (`HandlebarLinkApp` → `CarPlayControls.start`) a set flag with no call unmutes
+  (`control.mic.unmuted_after_restart`), and a set flag mid-call keeps the mute until that call ends. The
+  audio situation is seeded with one synchronous read, so a restart mid-call is not taken for riding. A mic we
+  did not mute is never touched. A flag that cannot be stored stops the mute; a failed flag read or write is
+  logged and never ends the watch (docs/LESSONS.md 59). **Open:** our held Telecom call (callaudio/) may also change the mute; on-bike
+  check.
+- **Handlebar page** (`ui/handlebar/`, Paper "Handlebar — Smart buttons", artboards 2–5): a Riding / Ringing /
+  On a call switch (`HlSegmentedControl`) chooses the layer shown; under it a line on the situation (its
+  defaults while the layer is unchanged, else just what it is) and, where today's CarPlay limits it, a notice
+  (`HlNotice`: ringing needs our CarPlay; on a call, hanging up does). The switch's callouts follow the
+  situation: riding calls out every key; ringing and on a call only the keys that do something, the call key as
+  a brand chip with its hold on a second line ("Answer · Hold to decline"). Each row says why its action cannot
+  work today: "Soon" (`HlTag`) for `NEEDS_OUR_CARPLAY`, with a footnote under the key when no notice says it.
+  The chooser (`HandlebarPressRoute(switch, situation)`) lists `allowedActions(situation)` under Call, Music,
+  Sound, Voice and Screen headings, Nothing last, the chosen one in brand, with a line on what each situation
+  leaves out. **An action that needs our own CarPlay may be chosen** (`HandlebarMapping.assign` accepts it and
+  the defaults already use Siri, answer, decline and end): it is tagged "Soon" and does nothing until then; the
+  intercom's assistant button keeps Siri shown but not choosable. Reset to default (`HlSecondaryButton`) only
+  opens a "Reset all buttons?" dialog (`HandlebarResetRoute`, Paper "Handlebar 7"); its Reset puts all three
+  layers back.
+
 ## Milestones
 
 Each milestone is small, ends with a commit on `v2`, and has a check that proves it is done.

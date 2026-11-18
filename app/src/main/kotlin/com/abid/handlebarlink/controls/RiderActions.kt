@@ -5,7 +5,6 @@ import android.media.AudioManager
 import android.text.format.DateFormat
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
-import com.abid.handlebarlink.callaudio.VoipCallWatcher
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.devices.BatteryAnnouncer
@@ -20,47 +19,102 @@ import kotlinx.coroutines.launch
 import java.util.Date
 import javax.inject.Inject
 
-/** Does a [RiderAction]: CarPlay's media through [ControlTarget], the battery out loud, or nothing. */
+/**
+ * Does a [RiderAction]: CarPlay's music, calls and Siri, and the microphone during a call, through
+ * [CarPlayControls]; volume, brightness, screens and the battery or time out loud on the phone; or nothing.
+ */
 class RiderActions
     @Inject
     constructor(
         @param:ApplicationContext private val context: Context,
-        private val target: ControlTarget,
+        private val controls: CarPlayControls,
         private val announcements: Announcements,
         private val brightness: ScreenBrightness,
         private val screens: ScreenSwitcher,
         logger: Logger,
-    ) {
+    ) : ActionPerformer {
         private val log = logger.child("control")
 
         /**
-         * Does [action]; never throws. Returns a short note on the result for the on-screen banner: the new
-         * brightness, what was said; null when there is nothing to add to the action's name.
+         * Does [action]; never throws. When done, its note on the result for the on-screen banner: the new
+         * brightness, what was said, the microphone's mute; null when there is nothing to add to the action's name.
          */
-        suspend fun perform(action: RiderAction): String? {
-            val media = MEDIA[action] ?: return performHere(action)
-            when (val result = target.perform(media)) {
-                ControlResult.Done -> log.info("control.done", "action" to action)
-                is ControlResult.NotDone -> log.warn("control.not_done", "action" to action, "reason" to result.reason)
+        override suspend fun perform(action: RiderAction): ActionOutcome {
+            val result =
+                when (action) {
+                    in CONTROLS, RiderAction.MUTE_MIC -> controls.perform(action)
+                    else -> return ActionOutcome.Done(performHere(action))
+                }
+            return when (result) {
+                ControlResult.Done -> {
+                    log.info("control.done", "action" to action)
+                    ActionOutcome.Done(if (action == RiderAction.MUTE_MIC) micNote() else null)
+                }
+
+                is ControlResult.NotDone -> {
+                    log.warn("control.not_done", "action" to action, "reason" to result.reason)
+                    ActionOutcome.NotDone(result.reason)
+                }
             }
-            return null
         }
+
+        private fun micNote(): String =
+            context.getString(if (controls.micMuted) R.string.action_mic_muted else R.string.action_mic_unmuted)
 
         /** An action done on the phone itself (not CarPlay's media); its note, as [perform]. */
         private suspend fun performHere(action: RiderAction): String? {
             var note: String? = null
             when (action) {
-                RiderAction.VOLUME_UP -> adjustVolume(AudioManager.ADJUST_RAISE)
-                RiderAction.VOLUME_DOWN -> adjustVolume(AudioManager.ADJUST_LOWER)
-                RiderAction.MUTE -> adjustVolume(AudioManager.ADJUST_TOGGLE_MUTE)
-                RiderAction.BRIGHTNESS_UP -> note = stepBrightness(up = true)
-                RiderAction.BRIGHTNESS_DOWN -> note = stepBrightness(up = false)
-                RiderAction.SWITCH_SCREEN -> screens.switch()
-                RiderAction.OPEN_CARPLAY -> screens.openCarPlay()
-                RiderAction.OPEN_APP -> screens.openApp()
-                RiderAction.BATTERY -> note = announcements.battery()
-                RiderAction.TIME -> note = announcements.time()
-                RiderAction.PLAY_PAUSE, RiderAction.NEXT, RiderAction.PREVIOUS, RiderAction.NOTHING -> Unit
+                RiderAction.VOLUME_UP -> {
+                    adjustVolume(AudioManager.ADJUST_RAISE)
+                }
+
+                RiderAction.VOLUME_DOWN -> {
+                    adjustVolume(AudioManager.ADJUST_LOWER)
+                }
+
+                RiderAction.MUTE -> {
+                    adjustVolume(AudioManager.ADJUST_TOGGLE_MUTE)
+                }
+
+                RiderAction.BRIGHTNESS_UP -> {
+                    note = stepBrightness(up = true)
+                }
+
+                RiderAction.BRIGHTNESS_DOWN -> {
+                    note = stepBrightness(up = false)
+                }
+
+                RiderAction.SWITCH_SCREEN -> {
+                    screens.switch()
+                }
+
+                RiderAction.OPEN_CARPLAY -> {
+                    screens.openCarPlay()
+                }
+
+                RiderAction.OPEN_APP -> {
+                    screens.openApp()
+                }
+
+                RiderAction.BATTERY -> {
+                    note = announcements.battery()
+                }
+
+                RiderAction.TIME -> {
+                    note = announcements.time()
+                }
+
+                RiderAction.PLAY_PAUSE,
+                RiderAction.NEXT,
+                RiderAction.PREVIOUS,
+                RiderAction.ANSWER_CALL,
+                RiderAction.DECLINE_CALL,
+                RiderAction.END_CALL,
+                RiderAction.MUTE_MIC,
+                RiderAction.SIRI,
+                RiderAction.NOTHING,
+                -> {}
             }
             return note
         }
@@ -134,17 +188,28 @@ interface PressFeedback {
         note: String?,
     )
 
-    /** [action] was held back because a call is on. */
-    fun heldForCall(action: RiderAction)
+    /**
+     * [action] was not done because of [reason] (e.g. answering needs our own CarPlay, or no music has played
+     * yet). Replaces the old "held for a call": the music keys are no longer on the call layers at all.
+     */
+    fun unavailable(
+        action: RiderAction,
+        reason: Unavailable,
+    )
 }
 
-/** [ButtonPresses] through the rider's [HandlebarMapping]: each press does its action, off the link's thread. */
+/**
+ * [ButtonPresses] through the rider's [HandlebarMapping]: each press does the action of its switch in the
+ * current [CallSituation]'s layer, off the link's thread, and the banner says what it did or why it could not.
+ * With a source that cannot see ringing ([CallSituations.seesRinging] false, today with CarLink), presses while a
+ * call rings use the riding layer.
+ */
 class MappedButtonPresses
     @Inject
     constructor(
         private val mapping: HandlebarMapping,
-        private val actions: RiderActions,
-        private val calls: VoipCallWatcher,
+        private val actions: ActionPerformer,
+        private val situations: CallSituations,
         private val banner: PressFeedback,
         @ApplicationScope private val scope: CoroutineScope,
         logger: Logger,
@@ -152,31 +217,21 @@ class MappedButtonPresses
         private val log = logger.child("control")
 
         override fun press(switch: HandlebarSwitch) {
-            val action = mapping.current.value[switch] ?: RiderAction.NOTHING
-            // During a CarPlay call the music keys are held back (a press must not disturb the call); volume
-            // keys keep working and change the call's volume, the active sound.
-            if (action in MUSIC && calls.inCallNow()) {
-                log.info("control.held_for_call", "switch" to switch, "action" to action)
-                banner.heldForCall(action)
-                return
-            }
-            log.info("control.press", "switch" to switch, "action" to action)
-            if (action != RiderAction.NOTHING) {
-                scope.launch {
-                    val note = actions.perform(action)
-                    banner.done(action, note)
+            val situation = situations.current.value
+            val action = mapping.current.value[situation]?.get(switch) ?: RiderAction.NOTHING
+            log.info("control.press", "switch" to switch, "situation" to situation, "action" to action)
+            if (action == RiderAction.NOTHING) return
+            scope.launch {
+                when (val outcome = actions.perform(action)) {
+                    is ActionOutcome.Done -> {
+                        banner.done(action, outcome.note)
+                    }
+
+                    is ActionOutcome.NotDone -> {
+                        log.info("control.unavailable", "action" to action, "reason" to outcome.reason)
+                        banner.unavailable(action, outcome.reason)
+                    }
                 }
             }
         }
     }
-
-/** The actions that drive CarPlay's music, and the media key each sends. */
-private val MEDIA =
-    mapOf(
-        RiderAction.PLAY_PAUSE to ControlAction.PLAY_PAUSE,
-        RiderAction.NEXT to ControlAction.NEXT,
-        RiderAction.PREVIOUS to ControlAction.PREVIOUS,
-    )
-
-/** The actions that drive CarPlay's music. */
-private val MUSIC = MEDIA.keys

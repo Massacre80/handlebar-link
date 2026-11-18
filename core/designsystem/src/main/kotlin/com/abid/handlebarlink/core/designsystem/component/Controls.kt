@@ -17,16 +17,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -79,6 +78,40 @@ public fun HlButton(
         val style = if (brand) HlTheme.typography.lead else HlTheme.typography.value
         HlText(label, style, if (enabled) ink else colors.inkMuted, maxLines = 1)
         if (chevron) HlIcon(HlIcons.ChevronRight, if (enabled) ink else colors.inkMuted, size = HlTheme.sizes.iconTiny)
+    }
+}
+
+/**
+ * A secondary, ghost button ("Reset to default"; Paper "Handlebar 7"): [HlButton]'s height and press, a full pill
+ * with no fill, a hairline edge in line (Night: white at 10 %, as drawn) and the label in ink. Disabled: a fainter
+ * edge and a muted label.
+ */
+@Composable
+public fun HlSecondaryButton(
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    val colors = HlTheme.colors
+    val press = remember { MutableInteractionSource() }
+    Row(
+        modifier
+            .pressScale(press, HlTheme.motion)
+            .fillMaxWidth()
+            .height(HlTheme.sizes.controlLarge)
+            .clip(CircleShape)
+            .border(HlTheme.strokes.hairline, if (enabled) colors.line else colors.lineSoft, CircleShape)
+            .clickable(press, LocalIndication.current, enabled, role = Role.Button, onClick = onClick),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        HlText(
+            label,
+            HlTheme.typography.value.copy(fontWeight = FontWeight.Medium),
+            if (enabled) colors.ink else colors.inkMuted,
+            maxLines = 1,
+        )
     }
 }
 
@@ -195,13 +228,17 @@ public fun HlSheet(
     }
 }
 
-/** A sheet's or screen's header: an icon block, a title and a line. */
+/**
+ * A sheet's or screen's header: an icon block, a title and a line. [brand] fills the block in brand with brand
+ * ink (the action pickers, Paper "Handlebar 5": the key being set).
+ */
 @Composable
 public fun HlHeader(
     @DrawableRes icon: Int,
     title: String,
     subtitle: String,
     modifier: Modifier = Modifier,
+    brand: Boolean = false,
 ) {
     val colors = HlTheme.colors
     Row(
@@ -212,10 +249,10 @@ public fun HlHeader(
         Box(
             Modifier
                 .size(HlTheme.sizes.controlLarge)
-                .background(colors.raisedLo, RoundedCornerShape(HlTheme.radii.control)),
+                .background(if (brand) colors.brand else colors.raisedLo, RoundedCornerShape(HlTheme.radii.control)),
             contentAlignment = Alignment.Center,
         ) {
-            HlIcon(icon, colors.ink, size = HlTheme.sizes.iconMedium)
+            HlIcon(icon, if (brand) colors.brandInk else colors.ink, size = HlTheme.sizes.iconMedium)
         }
         Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2)) {
             HlText(title, HlTheme.typography.title, colors.ink, maxLines = 2)
@@ -239,86 +276,9 @@ public fun HlSectionLabel(
 }
 
 /**
- * One choice of a single-choice list: optional icon, title, line and a radio (a check when [selected]).
- * [container]: the unselected fill; the design's sheet uses raisedLo, a page on the screen colour uses panel.
- */
-@Composable
-public fun HlOptionRow(
-    @DrawableRes icon: Int?,
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    container: Color = HlTheme.colors.raisedLo,
-    enabled: Boolean = true,
-) {
-    val colors = HlTheme.colors
-    val spacing = HlTheme.spacing
-    val night = HlTheme.variant == HlThemeVariant.NIGHT
-    val shape = rowShape(HlTheme.radii.control)
-    val press = remember { MutableInteractionSource() }
-    Row(
-        modifier
-            .pressScale(press, HlTheme.motion)
-            // A choice that is not available yet: dimmed and not selectable.
-            .then(if (enabled) Modifier else Modifier.alpha(DISABLED_ALPHA))
-            .fillMaxWidth()
-            .clip(shape)
-            // The chosen row is marked by a grey fill and its check, no outline (owner, 2026-11-17: the
-            // artboard's ink ring read as a hard black border): Night's brighter glass; Bento's line grey,
-            // since its raisedLo is the page's own colour and the row vanished into it.
-            .background(
-                when {
-                    !selected -> container
-                    night -> colors.raisedHi
-                    else -> colors.line
-                },
-            ).selectable(selected, press, LocalIndication.current, enabled, Role.RadioButton, onClick)
-            .padding(start = spacing.s12, end = spacing.s16, top = spacing.s12, bottom = spacing.s12),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(spacing.s12),
-    ) {
-        if (icon != null) {
-            Box(
-                Modifier
-                    .size(HlTheme.sizes.avatar)
-                    .background(
-                        if (selected) colors.raisedLo else colors.raisedHi,
-                        RoundedCornerShape(HlTheme.radii.nested),
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
-            }
-        }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            HlText(title, HlTheme.typography.value, colors.ink)
-            HlText(subtitle, HlTheme.typography.meta, colors.inkMuted)
-        }
-        if (selected) {
-            Box(
-                // Bento's artboard: ink disc, brand tick. On Night's light ink a brand tick would vanish: brand disc.
-                Modifier
-                    .size(HlTheme.sizes.indicator)
-                    .background(if (night) colors.brand else colors.ink, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                HlIcon(HlIcons.Check, if (night) colors.brandInk else colors.brand, size = HlTheme.sizes.iconMicro)
-            }
-        } else {
-            Box(
-                Modifier
-                    .size(HlTheme.sizes.indicator)
-                    .border(HlTheme.strokes.outline, colors.lineStrong, CircleShape),
-            )
-        }
-    }
-}
-
-/**
  * A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the
- * right; [chevron] marks a row that opens another page.
+ * right; [chevron] marks a row that opens another page. [tag]: an [HlTag] before the hint ("SOON");
+ * [hintColor]: a hint that is a state (End call in danger), muted otherwise.
  */
 @Composable
 public fun HlValueRow(
@@ -329,6 +289,8 @@ public fun HlValueRow(
     onClick: (() -> Unit)? = null,
     container: Color = HlTheme.colors.raisedLo,
     chevron: Boolean = false,
+    tag: String? = null,
+    hintColor: Color = Color.Unspecified,
 ) {
     val colors = HlTheme.colors
     val press = remember { MutableInteractionSource() }
@@ -355,10 +317,8 @@ public fun HlValueRow(
             HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink)
             detail?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted) }
         }
-        hint?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted, maxLines = 1) }
+        tag?.let { HlTag(it) }
+        hint?.let { HlText(it, HlTheme.typography.meta, hintColor.takeOrElse { colors.inkMuted }, maxLines = 1) }
         if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
     }
 }
-
-/** How far a choice that is not available yet is dimmed. */
-private const val DISABLED_ALPHA = 0.4f

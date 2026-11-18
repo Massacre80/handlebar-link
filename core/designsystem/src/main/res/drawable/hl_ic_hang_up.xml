@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Path data verbatim from the design file "CB350RS" (Paper, "Handlebar — Smart buttons"): a handset put down (end or decline a call). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="18"
+    android:viewportHeight="18">
+    <path android:pathData="M2.2 10.6C1.7 10.1 1.7 9.3 2.2 8.8C6 5.4 12 5.4 15.8 8.8C16.3 9.3 16.3 10.1 15.8 10.6L14.6 11.8L12.2 10.6V9C10.1 8.3 7.9 8.3 5.8 9V10.6L3.4 11.8L2.2 10.6Z" android:strokeColor="#FF000000" android:strokeWidth="1.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
@@ -14,18 +15,27 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.core.designsystem.component.HlHeader
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
 import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
+import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 
 /**
- * Choosing what a button does (a handlebar press, the intercom's assistant button): every [RiderAction] with
- * a line on what it does, the current one chosen; Siri is shown for our own CarPlay, not yet choosable.
+ * Choosing what a button does (a handlebar press, the intercom's assistant button), Paper "Handlebar 5": the
+ * header (the key in brand when [brandHeader]), the [choices] under their headings ([groupedChoices]) with a line
+ * on what each does in [situation], "Nothing" on its own at the end, then [note] (why some actions are not
+ * offered). The chosen one is marked in brand; one that needs our own CarPlay carries a "Soon" tag; another
+ * reason it cannot work replaces its line.
  */
 @Composable
 fun RiderActionSheet(
@@ -35,6 +45,10 @@ fun RiderActionSheet(
     chosen: RiderAction,
     onChoose: (RiderAction) -> Unit,
     onCancel: () -> Unit,
+    choices: List<ActionChoice> = ASSISTANT_CHOICES,
+    situation: CallSituation? = null,
+    note: String? = null,
+    brandHeader: Boolean = false,
 ) {
     val spacing = HlTheme.spacing
     HlSheet(Modifier.verticalScroll(rememberScrollState())) {
@@ -42,29 +56,64 @@ fun RiderActionSheet(
             Modifier.windowInsetsPadding(WindowInsets.navigationBars),
             verticalArrangement = Arrangement.spacedBy(spacing.s20),
         ) {
-            HlHeader(icon, title, detail)
-            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
-                HlOptionRow(
-                    HlIcons.Voice,
-                    stringResource(R.string.assistant_siri),
-                    stringResource(R.string.assistant_siri_detail),
-                    selected = false,
-                    onClick = {},
-                    enabled = false,
-                )
-                RiderAction.entries.forEach { action ->
-                    HlOptionRow(
-                        actionIcon(action),
-                        stringResource(actionName(action)),
-                        stringResource(actionDetail(action)),
-                        selected = chosen == action,
-                        onClick = { onChoose(action) },
-                    )
+            HlHeader(icon, title, detail, brand = brandHeader)
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s20)) {
+                groupedChoices(choices).forEach { (group, inGroup) ->
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
+                        HlText(
+                            stringResource(group.label).uppercase(),
+                            HlTheme.typography.overline.copy(fontWeight = FontWeight.SemiBold),
+                            HlTheme.colors.inkMuted,
+                            Modifier.padding(horizontal = spacing.s4).semantics { heading() },
+                        )
+                        inGroup.forEach { ChoiceRow(it, chosen, situation, onChoose) }
+                    }
                 }
+                choices
+                    .firstOrNull {
+                        actionGroup(
+                            it.action,
+                        ) == null
+                    }?.let { ChoiceRow(it, chosen, situation, onChoose) }
+            }
+            note?.let {
+                HlText(
+                    it,
+                    HlTheme.typography.label.copy(fontWeight = FontWeight.Normal),
+                    HlTheme.colors.inkMuted,
+                    Modifier.padding(horizontal = spacing.s4),
+                )
             }
             HlQuietButton(stringResource(R.string.cancel), onCancel, Modifier.fillMaxWidth())
         }
     }
+}
+
+@Composable
+private fun ChoiceRow(
+    choice: ActionChoice,
+    chosen: RiderAction,
+    situation: CallSituation?,
+    onChoose: (RiderAction) -> Unit,
+) {
+    val action = choice.action
+    val reason = choice.unavailable
+    HlOptionRow(
+        actionIcon(action),
+        stringResource(actionName(action)),
+        // "Soon" says it all for our own CarPlay; any other reason it cannot work replaces the line.
+        if (reason == null || choice.soon) {
+            stringResource(actionDetail(action, situation))
+        } else {
+            stringResource(unavailableText(reason))
+        },
+        selected = chosen == action,
+        onClick = { onChoose(action) },
+        enabled = choice.choosable,
+        tag = if (choice.soon) stringResource(R.string.handlebar_soon) else null,
+        destructive = isDestructive(action),
+        accent = true,
+    )
 }
 
 /** An action's icon (what it does, not the key it is on). */
@@ -84,6 +133,11 @@ fun actionIcon(action: RiderAction): Int =
         RiderAction.OPEN_APP -> HlIcons.Home
         RiderAction.BATTERY -> HlIcons.Battery
         RiderAction.TIME -> HlIcons.Time
+        RiderAction.ANSWER_CALL -> HlIcons.Call
+        RiderAction.DECLINE_CALL -> HlIcons.HangUp
+        RiderAction.END_CALL -> HlIcons.HangUp
+        RiderAction.MUTE_MIC -> HlIcons.MicOff
+        RiderAction.SIRI -> HlIcons.Voice
         RiderAction.NOTHING -> HlIcons.None
     }
 
@@ -104,8 +158,30 @@ fun actionName(action: RiderAction): Int =
         RiderAction.OPEN_APP -> R.string.action_open_app
         RiderAction.BATTERY -> R.string.assistant_battery
         RiderAction.TIME -> R.string.action_time
+        RiderAction.ANSWER_CALL -> R.string.action_answer_call
+        RiderAction.DECLINE_CALL -> R.string.action_decline_call
+        RiderAction.END_CALL -> R.string.action_end_call
+        RiderAction.MUTE_MIC -> R.string.action_mute_mic
+        RiderAction.SIRI -> R.string.assistant_siri
         RiderAction.NOTHING -> R.string.assistant_nothing
     }
+
+/**
+ * What [action] does, said for [situation] where it differs there (the volume keys change the call's volume
+ * during calls).
+ */
+@StringRes
+fun actionDetail(
+    action: RiderAction,
+    situation: CallSituation? = null,
+): Int {
+    val call = situation == CallSituation.RINGING || situation == CallSituation.ON_CALL
+    return when {
+        call && action == RiderAction.VOLUME_UP -> R.string.action_volume_up_call_detail
+        call && action == RiderAction.VOLUME_DOWN -> R.string.action_volume_down_call_detail
+        else -> actionDetail(action)
+    }
+}
 
 @StringRes
 private fun actionDetail(action: RiderAction): Int =
@@ -123,5 +199,21 @@ private fun actionDetail(action: RiderAction): Int =
         RiderAction.OPEN_APP -> R.string.action_open_app_detail
         RiderAction.BATTERY -> R.string.assistant_battery_detail
         RiderAction.TIME -> R.string.action_time_detail
+        RiderAction.ANSWER_CALL -> R.string.action_answer_call_detail
+        RiderAction.DECLINE_CALL -> R.string.action_decline_call_detail
+        RiderAction.END_CALL -> R.string.action_end_call_detail
+        RiderAction.MUTE_MIC -> R.string.action_mute_mic_detail
+        RiderAction.SIRI -> R.string.assistant_siri_detail
         RiderAction.NOTHING -> R.string.assistant_nothing_detail
+    }
+
+/** Why an action was not done, for the banner and the choices. */
+@StringRes
+fun unavailableText(reason: Unavailable): Int =
+    when (reason) {
+        Unavailable.NO_MEDIA_ACCESS -> R.string.unavailable_no_media_access
+        Unavailable.NO_CARPLAY_SESSION -> R.string.unavailable_no_carplay_session
+        Unavailable.NEEDS_OUR_CARPLAY -> R.string.unavailable_needs_our_carplay
+        Unavailable.NO_CALL -> R.string.unavailable_no_call
+        Unavailable.MIC_REFUSED -> R.string.unavailable_mic_refused
     }

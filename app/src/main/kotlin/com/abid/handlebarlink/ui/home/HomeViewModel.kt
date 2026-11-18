@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ui.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.HandlebarMapping
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.devices.BluetoothDevices
@@ -44,7 +45,7 @@ class HomeViewModel
                         val status = statuses[it.address]
                         HomeDevice(it.name, it.model, it.kind, status?.connected == true, status?.battery)
                     }
-                HomeUiState(linkStatus(bike != null, state), device, handlebar = mapping)
+                HomeUiState(linkStatus(bike != null, state), device, handlebar = mapping.getValue(CallSituation.RIDING))
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HomeUiState(LinkStatus.NO_BIKE))
 
         private companion object {

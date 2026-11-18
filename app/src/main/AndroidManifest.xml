@@ -11,6 +11,9 @@
          the phoneCall foreground type while a call is held). -->
     <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <!-- Mute microphone from the handlebar during a call (controls/CarPlayControls): AudioService needs this for
+         AudioManager.setMicrophoneMute; a normal (install-time) permission. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- The ride and problem notifications; a runtime permission from Android 13 (request flow: M3.3). -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <!-- What a handlebar press did, shown over CarPlay (Display over other apps, allowed by the rider). -->

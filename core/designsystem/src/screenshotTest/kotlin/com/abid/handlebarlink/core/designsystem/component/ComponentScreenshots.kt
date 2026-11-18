@@ -61,6 +61,26 @@ fun TabBarBento() = Gallery(HlThemeVariant.BENTO) { HlTabBar(PreviewTabs, select
 @PreviewTest
 @FontScales
 @Composable
+fun SmartButtonsNight() = Gallery(HlThemeVariant.NIGHT) { SmartButtons() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun SmartButtonsBento() = Gallery(HlThemeVariant.BENTO) { SmartButtons() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun ButtonsNight() = Gallery(HlThemeVariant.NIGHT) { Buttons() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun ButtonsBento() = Gallery(HlThemeVariant.BENTO) { Buttons() }
+
+@PreviewTest
+@FontScales
+@Composable
 fun SheetNight() = HlTheme(HlThemeVariant.NIGHT) { Sheet() }
 
 @PreviewTest

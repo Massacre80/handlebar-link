@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Path data verbatim from the design file "CB350RS" (Paper, "Handlebar — Smart buttons"): a bell (the Ringing situation). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <path android:pathData="M4 11.5V7C4 4.8 5.8 3 8 3C10.2 3 12 4.8 12 7V11.5L13 12.5H3L4 11.5ZM6.5 14H9.5" android:strokeColor="#FF000000" android:strokeWidth="1.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

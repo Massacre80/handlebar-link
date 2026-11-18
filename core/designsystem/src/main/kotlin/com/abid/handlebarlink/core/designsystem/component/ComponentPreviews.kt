@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
@@ -147,6 +148,49 @@ internal fun CarPlayStates() {
     SignalCard("Couldn't connect", "Unlock iPhone and try again", SignalTone.ERROR, action = retry)
 }
 
+/** Paper "Handlebar — Smart buttons": the situation switch, a row with a "Soon" tag, a notice. */
+@Composable
+internal fun SmartButtons() {
+    HlSegmentedControl(
+        listOf(
+            HlSegment(HlIcons.Bike, "Riding"),
+            HlSegment(HlIcons.Bell, "Ringing"),
+            HlSegment(HlIcons.Handset, "On a call"),
+        ),
+        selected = 1,
+        onSelect = {},
+    )
+    HlNotice(
+        HlIcons.Info,
+        "Coming with Handlebar Link CarPlay",
+        "CarLink can't tell the app a call is ringing. Until our own CarPlay runs, your riding buttons stay on.",
+    )
+    HlGroup {
+        HlValueRow("Press", "Mute or unmute", onClick = {}, container = Color.Transparent, chevron = true)
+        HlGroupDivider()
+        HlValueRow(
+            "Press and hold",
+            "End call",
+            onClick = {},
+            container = Color.Transparent,
+            chevron = true,
+            tag = "Soon",
+            hintColor = HlTheme.colors.danger,
+        )
+    }
+    HlOptionRow(
+        HlIcons.HangUp,
+        "End call",
+        "Hangs up",
+        selected = true,
+        onClick = {},
+        tag = "Soon",
+        destructive = true,
+        accent = true,
+    )
+    HlOptionRow(HlIcons.MicOff, "Mute or unmute", "Your mic", selected = false, onClick = {}, accent = true)
+}
+
 internal val PreviewTabs =
     listOf(
         HlTab(HlIcons.Home, "Home"),
@@ -156,25 +200,35 @@ internal val PreviewTabs =
         HlTab(HlIcons.Intercom, "Intercom"),
     )
 
+/** The buttons: the main one, the secondary ghost one (Paper "Handlebar 7": Reset to default) and it disabled. */
+@Composable
+internal fun Buttons() {
+    HlButton("Save device", onClick = {})
+    HlSecondaryButton("Reset to default", onClick = {})
+    HlSecondaryButton("Reset to default", onClick = {}, enabled = false)
+}
+
 @Composable
 private fun Everything() {
     Pills()
     Gauges()
     Devices()
     CarPlayStates()
+    SmartButtons()
+    Buttons()
     HlTabBar(PreviewTabs, selected = 0, onSelect = {})
     Row(horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
         HlIconButton(HlIcons.Settings, "Settings", onClick = {})
     }
 }
 
-@Preview(name = "Night · components", widthDp = 411, heightDp = 1180)
+@Preview(name = "Night · components", widthDp = 411, heightDp = 1900)
 @Composable
 private fun NightComponentsPreview() {
     Gallery(HlThemeVariant.NIGHT) { Everything() }
 }
 
-@Preview(name = "Bento · components", widthDp = 411, heightDp = 1180)
+@Preview(name = "Bento · components", widthDp = 411, heightDp = 1900)
 @Composable
 private fun BentoComponentsPreview() {
     Gallery(HlThemeVariant.BENTO) { Everything() }

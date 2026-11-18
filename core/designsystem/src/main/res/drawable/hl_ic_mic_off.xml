@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Path data from the design file "CB350RS" (Paper, "Handlebar — Smart buttons"): a microphone crossed out (mute the microphone) (its circles and rects written as arcs). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="18dp"
+    android:height="18dp"
+    android:viewportWidth="18"
+    android:viewportHeight="18">
+    <path android:pathData="M9 2a2.5 2.5 0 0 1 2.5 2.5v4a2.5 2.5 0 0 1 -5 0v-4a2.5 2.5 0 0 1 2.5 -2.5zM4 8.5C4 11.3 6.2 13.5 9 13.5C11.8 13.5 14 11.3 14 8.5M9 13.5V16M3 3L15 15" android:strokeColor="#FF000000" android:strokeWidth="1.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

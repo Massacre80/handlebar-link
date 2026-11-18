@@ -26,9 +26,9 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.PressFeedback
 import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlText
@@ -36,6 +36,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.controls.actionIcon
 import com.abid.handlebarlink.ui.controls.actionName
+import com.abid.handlebarlink.ui.controls.unavailableText
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -68,11 +69,14 @@ class PressBanner
             show(Banner(actionIcon(action), if (note == null) name else "$name · $note"))
         }
 
-        override fun heldForCall(action: RiderAction) {
+        override fun unavailable(
+            action: RiderAction,
+            reason: Unavailable,
+        ) {
             show(
                 Banner(
                     actionIcon(action),
-                    "${context.getString(actionName(action))} · ${context.getString(R.string.action_held_for_call)}",
+                    "${context.getString(actionName(action))} · ${context.getString(unavailableText(reason))}",
                 ),
             )
         }

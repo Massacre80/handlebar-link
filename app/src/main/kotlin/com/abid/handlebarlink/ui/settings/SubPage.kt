@@ -2,6 +2,7 @@ package com.abid.handlebarlink.ui.settings
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -24,6 +25,7 @@ import androidx.compose.ui.semantics.semantics
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlStatusBarProtection
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.data.AppTheme
@@ -39,22 +41,29 @@ internal fun SubPage(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = HlTheme.spacing
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .wrapContentWidth()
-            .widthIn(max = HlTheme.sizes.contentMax)
-            .padding(horizontal = spacing.s16, vertical = spacing.s8),
-        // Sections stand apart (24 dp); a label sits 8 dp above its group (HlSection).
-        verticalArrangement = Arrangement.spacedBy(spacing.s24),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(spacing.s8)) {
-            HlIconButton(HlIcons.ChevronRight, stringResource(R.string.back), onBack, Modifier.rotate(HALF_TURN))
-            HlText(title, HlTheme.typography.title, HlTheme.colors.ink, Modifier.semantics { heading() })
+    Box(Modifier.fillMaxSize()) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .wrapContentWidth()
+                .widthIn(max = HlTheme.sizes.contentMax)
+                .padding(horizontal = spacing.s16, vertical = spacing.s8),
+            // Sections stand apart (24 dp); a label sits 8 dp above its group (HlSection).
+            verticalArrangement = Arrangement.spacedBy(spacing.s24),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.s8),
+            ) {
+                HlIconButton(HlIcons.ChevronRight, stringResource(R.string.back), onBack, Modifier.rotate(HALF_TURN))
+                HlText(title, HlTheme.typography.title, HlTheme.colors.ink, Modifier.semantics { heading() })
+            }
+            content()
         }
-        content()
+        // The page scrolls behind the status bar (edge to edge); this keeps the clock and icons readable.
+        HlStatusBarProtection(Modifier.align(Alignment.TopCenter))
     }
 }
 

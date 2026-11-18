@@ -127,6 +127,27 @@ public object HlIcons {
 
     /** Signal lost. */
     @DrawableRes public val SignalOff: Int = R.drawable.hl_ic_signal_off
+
+    /** A motorcycle: riding (no call). */
+    @DrawableRes public val Bike: Int = R.drawable.hl_ic_bike
+
+    /** A bell: a call ringing. */
+    @DrawableRes public val Bell: Int = R.drawable.hl_ic_bell
+
+    /** A plain phone handset: on a call. */
+    @DrawableRes public val Handset: Int = R.drawable.hl_ic_handset
+
+    /** Information: a notice. */
+    @DrawableRes public val Info: Int = R.drawable.hl_ic_info
+
+    /** A microphone crossed out: mute the microphone. */
+    @DrawableRes public val MicOff: Int = R.drawable.hl_ic_mic_off
+
+    /** A handset put down: end or decline a call. */
+    @DrawableRes public val HangUp: Int = R.drawable.hl_ic_hang_up
+
+    /** An arrow turning back: reset to default. */
+    @DrawableRes public val Reset: Int = R.drawable.hl_ic_reset
 }
 
 /** Text in a design style and colour; long text ends with an ellipsis. */

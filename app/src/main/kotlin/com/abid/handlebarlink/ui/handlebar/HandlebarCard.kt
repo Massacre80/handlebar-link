@@ -17,6 +17,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.designsystem.component.HlCard
@@ -44,7 +45,11 @@ fun HandlebarCard(
     val colors = HlTheme.colors
     val radius = HlTheme.radii.card
     val padding = spacing.s8
-    val changed = mapping.count { (switch, action) -> HANDLEBAR_DEFAULTS[switch] != action }
+    val changed =
+        mapping.count { (switch, action) ->
+            HANDLEBAR_DEFAULTS.getValue(CallSituation.RIDING)[switch] !=
+                action
+        }
     val grow = rememberContainerTransform(HANDLEBAR, expanded = false)
     HlCard(modifier.containerTransform(grow), radius = radius, onClick = onOpen) {
         Row(

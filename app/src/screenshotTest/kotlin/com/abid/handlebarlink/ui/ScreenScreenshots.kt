@@ -11,9 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
-import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
-import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
-import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
@@ -35,7 +33,10 @@ import com.abid.handlebarlink.ui.devices.PairDeviceActions
 import com.abid.handlebarlink.ui.devices.PairDeviceScreen
 import com.abid.handlebarlink.ui.devices.PairDeviceUiState
 import com.abid.handlebarlink.ui.devices.SheetDevice
+import com.abid.handlebarlink.ui.handlebar.HandlebarPicker
 import com.abid.handlebarlink.ui.handlebar.HandlebarScreen
+import com.abid.handlebarlink.ui.handlebar.previewHandlebar
+import com.abid.handlebarlink.ui.handlebar.previewPicker
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
@@ -305,30 +306,75 @@ fun PairDeviceNight() = PairDevice(HlThemeVariant.NIGHT)
 fun PairDeviceBento() = PairDevice(HlThemeVariant.BENTO)
 
 @Composable
-private fun Handlebar(variant: HlThemeVariant) =
-    HlTheme(variant) {
-        HlBackground(Modifier.fillMaxSize()) {
-            // A remapped left press and a free hold, so both the set and the dimmed look show.
-            HandlebarScreen(
-                HANDLEBAR_DEFAULTS + (HandlebarSwitch.LEFT to RiderAction.BATTERY),
-                onPress = {},
-                onReset = {},
-                onBack = {},
-            )
-        }
+private fun Handlebar(
+    variant: HlThemeVariant,
+    situation: CallSituation,
+) = HlTheme(variant) {
+    HlBackground(Modifier.fillMaxSize()) {
+        // Riding has a remapped up press and the free left press, so both the set and the dimmed look show.
+        HandlebarScreen(previewHandlebar(situation), onSituation = {}, onPress = {}, onReset = {}, onBack = {})
     }
+}
 
 @PreviewTest
 @Artboard
 @LargeText
 @Composable
-fun HandlebarNight() = Handlebar(HlThemeVariant.NIGHT)
+fun HandlebarNight() = Handlebar(HlThemeVariant.NIGHT, CallSituation.RIDING)
 
 @PreviewTest
 @Artboard
 @LargeText
 @Composable
-fun HandlebarBento() = Handlebar(HlThemeVariant.BENTO)
+fun HandlebarBento() = Handlebar(HlThemeVariant.BENTO, CallSituation.RIDING)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarRingingNight() = Handlebar(HlThemeVariant.NIGHT, CallSituation.RINGING)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarRingingBento() = Handlebar(HlThemeVariant.BENTO, CallSituation.RINGING)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarOnCallNight() = Handlebar(HlThemeVariant.NIGHT, CallSituation.ON_CALL)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarOnCallBento() = Handlebar(HlThemeVariant.BENTO, CallSituation.ON_CALL)
+
+@Composable
+private fun HandlebarPickerSheet(
+    variant: HlThemeVariant,
+    situation: CallSituation,
+) = HlTheme(variant) { HandlebarPicker(previewPicker(situation), onChoose = {}, onCancel = {}) }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarPickerNight() = HandlebarPickerSheet(HlThemeVariant.NIGHT, CallSituation.ON_CALL)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarPickerBento() = HandlebarPickerSheet(HlThemeVariant.BENTO, CallSituation.ON_CALL)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun HandlebarPickerRidingNight() = HandlebarPickerSheet(HlThemeVariant.NIGHT, CallSituation.RIDING)
 
 @Composable
 private fun Intercom(

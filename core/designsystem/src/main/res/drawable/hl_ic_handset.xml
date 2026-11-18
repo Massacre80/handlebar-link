@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Path data verbatim from the design file "CB350RS" (Paper, "Handlebar — Smart buttons"): a phone handset (the On a call situation). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="16dp"
+    android:height="16dp"
+    android:viewportWidth="16"
+    android:viewportHeight="16">
+    <path android:pathData="M3.7 2L5.9 1.7L7.1 4.9L5.5 6C6.2 7.6 7.5 8.9 9.1 9.6L10.2 8L13.4 9.2L13.1 11.4C13 12.2 12.3 12.8 11.5 12.8C6.4 12.6 2.3 8.5 2.1 3.4C2.1 2.6 2.8 2 3.7 2Z" android:strokeColor="#FF000000" android:strokeWidth="1.4" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>

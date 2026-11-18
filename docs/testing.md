@@ -107,7 +107,7 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
 - Screenshot tests (Compose Preview Screenshot Testing as an AGP test suite, `hl.screenshot`): `@PreviewTest`
   previews in `src/screenshotTest/kotlin` of `:core:designsystem` (every component, both looks, font 1 and
   1.5) and `:app` (every page, both looks, the nine sizes and 400x500 at font 1.5; the setup states at the
-  411 × 856 artboard, Night also at font 1.5 and its bike stages at the nine sizes). Expect 24 + 130 images
+  411 × 856 artboard, Night also at font 1.5 and its bike stages at the nine sizes). Expect 32 + 144 images
   (lesson 20). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
