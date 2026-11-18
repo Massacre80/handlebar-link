@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.di
 
+import android.content.Context
 import com.abid.handlebarlink.carplay.AndroidCarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPortsSource
@@ -7,6 +8,7 @@ import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.DataStoreCarPlaySettings
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
+import com.abid.handlebarlink.carplay.engine.android.createAndroidCarPlayPorts
 import com.abid.handlebarlink.carplay.engine.createCarPlayLink
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -14,6 +16,7 @@ import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineDispatcher
 import javax.inject.Singleton
@@ -34,11 +37,15 @@ abstract class CarPlayModule {
 
     companion object {
         /**
-         * Placeholder until `:carplay:engine-android` exists: no platform ports, so CarPlay shows "not available".
-         * Merging that module changes only this binding.
+         * The Android ports (`:carplay:engine-android`). Creating them only constructs objects, so this is safe
+         * where Hilt first builds the link, even on the main thread (docs/LESSONS.md 60).
          */
         @Provides
-        fun carPlayPortsSource(): CarPlayPortsSource = CarPlayPortsSource { null }
+        fun carPlayPortsSource(
+            @ApplicationContext context: Context,
+            time: TimeProvider,
+            logger: Logger,
+        ): CarPlayPortsSource = CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay")) }
 
         /** Jitters the engines' retry pauses (the bike link uses the same `Random.Default`). */
         @Provides

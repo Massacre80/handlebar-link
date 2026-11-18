@@ -9,6 +9,7 @@ import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.StallVerdict
 import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -129,7 +130,19 @@ internal fun errorText(error: CarPlayError): Int =
         CarPlayError.AuthenticationFailed -> R.string.carplay_error_authentication
         is CarPlayError.TimedOut -> R.string.carplay_error_timed_out
         is CarPlayError.PhoneDisconnected -> R.string.carplay_error_disconnected
+        is CarPlayError.PermissionMissing -> R.string.carplay_error_permission
+        CarPlayError.WifiOff -> R.string.carplay_error_wifi_off
+        is CarPlayError.Stalled -> stallText(error.verdict)
         is CarPlayError.Unexpected -> R.string.carplay_error_unexpected
+    }
+
+/** Where a wireless start stalled (the engine's link watch), in the rider's words. */
+@StringRes
+private fun stallText(verdict: StallVerdict): Int =
+    when (verdict) {
+        StallVerdict.NOT_JOINED -> R.string.carplay_error_stalled_not_joined
+        StallVerdict.NO_START_REQUEST -> R.string.carplay_error_stalled_no_start
+        StallVerdict.NO_TCP -> R.string.carplay_error_stalled_no_tcp
     }
 
 /**

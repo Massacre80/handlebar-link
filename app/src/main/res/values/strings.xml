@@ -290,11 +290,11 @@
     <string name="carplay_error_unexpected">Unexpected error</string>
     <!-- For the engine errors that arrive with CarPlay C2's engine part (PermissionMissing, WifiOff, Stalled): the
          coordinator wires them into ui/carplay/CarPlayLine.kt errorText() at merge. Unused until then. -->
-    <string name="carplay_error_permission" tools:ignore="UnusedResources">Allow Nearby devices for CarPlay</string>
-    <string name="carplay_error_wifi_off" tools:ignore="UnusedResources">Turn on Wi-Fi</string>
-    <string name="carplay_error_stalled_not_joined" tools:ignore="UnusedResources">The iPhone didn\'t join the Wi-Fi</string>
-    <string name="carplay_error_stalled_no_start" tools:ignore="UnusedResources">The iPhone didn\'t start CarPlay</string>
-    <string name="carplay_error_stalled_no_tcp" tools:ignore="UnusedResources">The iPhone didn\'t connect</string>
+    <string name="carplay_error_permission">Allow Nearby devices for CarPlay</string>
+    <string name="carplay_error_wifi_off">Turn on Wi-Fi</string>
+    <string name="carplay_error_stalled_not_joined">The iPhone didn\'t join the Wi-Fi</string>
+    <string name="carplay_error_stalled_no_start">The iPhone didn\'t start CarPlay</string>
+    <string name="carplay_error_stalled_no_tcp">The iPhone didn\'t connect</string>
 
     <!-- Settings -->
     <string name="settings_appearance">Appearance</string>

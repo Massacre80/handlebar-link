@@ -12,6 +12,7 @@ import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.StallVerdict
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -85,6 +86,12 @@ class CarPlayLineTest {
                 CarPlayError.AuthenticationFailed to R.string.carplay_error_authentication,
                 CarPlayError.TimedOut(ConnectStep.PAIRING) to R.string.carplay_error_timed_out,
                 CarPlayError.PhoneDisconnected("gone") to R.string.carplay_error_disconnected,
+                CarPlayError.PermissionMissing("android.permission.BLUETOOTH_CONNECT") to
+                    R.string.carplay_error_permission,
+                CarPlayError.WifiOff to R.string.carplay_error_wifi_off,
+                CarPlayError.Stalled(StallVerdict.NOT_JOINED) to R.string.carplay_error_stalled_not_joined,
+                CarPlayError.Stalled(StallVerdict.NO_START_REQUEST) to R.string.carplay_error_stalled_no_start,
+                CarPlayError.Stalled(StallVerdict.NO_TCP) to R.string.carplay_error_stalled_no_tcp,
                 CarPlayError.Unexpected(IllegalStateException()) to R.string.carplay_error_unexpected,
             )
 
