@@ -412,6 +412,34 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
   second); the error alone when only the rider can fix it. On-bike check (owner): with the Android ports merged,
   turn the switch on and watch the line reach Connected, as the C2 row says.
 
+### C4 video: the screen decoder (2026-11-19, worktree `carplay-c4-video`)
+
+Code: `carplay/engine-android/.../video/`. Standalone behind `ScreenDecoder` (`createScreenDecoder(logger, listener,
+recycler, options)`; `configure(width, height, fps)`, `attach(surface)`, `detach()`, `submit(frame, offset, length,
+ptsMicros, isConfig)`, `release()`; `ScreenSurface.bind(surfaceView, decoder)`). The coordinator feeds it C3's frames
+(`avcC` config, then length-prefixed pictures) and wires `Listener.onKeyFrameNeeded` to the session's keyframe request.
+- **Decoder choice:** hardware only, never an alias or a secure-only decoder, those advertising `FEATURE_LowLatency`
+  first, then `MediaCodecList` order (DiPlay `lowLatencyDecoderName`). Tuned format: `KEY_LOW_LATENCY` where advertised,
+  `KEY_PRIORITY` 0, `KEY_OPERATING_RATE` = fps, Qualcomm's `vendor.qti-ext-dec-low-latency.enable` and
+  `…picture-order.enable` only when `getSupportedVendorParameters` lists them; a refused format falls back to CSD and
+  input size only (DiPlay `videoDecoderAttempts`). DiPlay turns those keys on only with its experimental smooth video;
+  here they are always on (the Qualcomm decoder otherwise holds about two frames, DiPlay SMOOTH_WIRELESS.md §3).
+- **Render at once:** async `MediaCodec` on a `HandlerThread` at display priority; each output is released with
+  `releaseOutputBuffer(index, now)`, so the `SurfaceView` shows it at the next VSYNC and drops older ones on the same
+  VSYNC. No pacing on the iPhone's timestamps (DiPlay measured smoother cadence with it, at a display delay of about
+  100 ms; not worth the touch latency on a bike; revisit with device numbers).
+- **Backpressure:** at most 6 pictures (100 ms) or 8 MiB wait; a full queue drops them all and waits for a keyframe; a
+  keyframe drops the pictures waiting before it. `submit` never waits. Keyframes are asked for at most once a second.
+- **Recovery:** any error releases the decoder and starts a new one from the configuration; two failures before a first
+  output move to the next candidate; four failures in 10 s, or none left, wait 1 s. Surface loss releases the decoder,
+  except on decoders with `FEATURE_DetachedSurface` (API 35), which keep decoding; `SURFACE_LIFECYCLE_FOLLOWS_ATTACHMENT`
+  (API 34) keeps the surface while the view is hidden.
+- **Metrics:** `carplay.video.stats` every 5 s (received, decoded, shown, rendered, fps, drops by reason, decode and
+  render p50/p90 ms from submit, queue_max, recoveries, keyframe_requests), plus `carplay.video.decoder`,
+  `…vendor_parameters`, `…first_output`, `…first_frame`, `…decoder_error`, `…keyframe_request`, `…surface`.
+- **Device check (coordinator):** `ScreenDecoderSmokeTest` (instrumented) plays an ffmpeg clip at 60 fps on the Poco's
+  decoder; test data and commands in `carplay/engine-android/src/test/resources/video/README.md`.
+
 
 ## Things only the phone or bike can settle
 
