@@ -66,6 +66,15 @@ class PortBinderTest {
     }
 
     @Test
+    fun `preferred port 0 binds one ephemeral port on every address and never tries the low ports`() {
+        assertThat(PortBinder.candidates(0)).isEqualTo(List(4) { 0 })
+        val binder = Binder()
+        assertThat(
+            PortBinder.bindAll(listOf("192.168.49.1", "fe80::1%p2p0"), 0, binder::bind, { it.second }, binder::close),
+        ).containsExactly("192.168.49.1" to 40_000, "fe80::1%p2p0" to 40_000)
+    }
+
+    @Test
     fun `any other failure is thrown at once and closes what was bound`() {
         val binder = Binder()
         assertFailure {

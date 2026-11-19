@@ -15,11 +15,13 @@ import com.abid.handlebarlink.carplay.engine.android.ThreadedByteStream
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
+import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
 import com.abid.handlebarlink.core.common.log.Logger
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -37,14 +39,7 @@ internal class AndroidNetworkPort(
         addresses: List<String>,
         preferredPort: Int,
     ): TcpListener {
-        // Android 17 blocks inbound local connections for apps targeting 37 without ACCESS_LOCAL_NETWORK
-        // (local-network-permission: "Accepting an incoming TCP connection: yes").
-        if (Build.VERSION.SDK_INT >= ANDROID_17 &&
-            platform.context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            throw CarPlayException(CarPlayError.PermissionMissing(Manifest.permission.ACCESS_LOCAL_NETWORK))
-        }
+        requireLocalNetwork()
         return withContext(platform.io) {
             val servers =
                 try {
@@ -68,6 +63,37 @@ internal class AndroidNetworkPort(
                 "addresses" to addresses,
             )
             AndroidTcpListener(servers, port, platform.log)
+        }
+    }
+
+    override suspend fun bindUdp(): UdpSocket {
+        requireLocalNetwork()
+        return withContext(platform.io) {
+            val socket =
+                try {
+                    // DiPlay's `DatagramSocket(null)`, reuseAddress, bound to [::]:0 (NtpClock.kt:41-43).
+                    DatagramSocket(null).apply {
+                        reuseAddress = true
+                        bind(InetSocketAddress(InetAddress.getByName("::"), 0))
+                    }
+                } catch (e: IOException) {
+                    throw CarPlayException(CarPlayError.NetworkFailed("UDP socket: $e"), e)
+                }
+            platform.log.debug("carplay.android.udp.bound", "port" to socket.localPort)
+            AndroidUdpSocket(socket)
+        }
+    }
+
+    /**
+     * Android 17 blocks local traffic for apps targeting 37 without ACCESS_LOCAL_NETWORK (local-network-permission:
+     * "Accepting an incoming TCP connection: yes").
+     */
+    private fun requireLocalNetwork() {
+        if (Build.VERSION.SDK_INT >= ANDROID_17 &&
+            platform.context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            throw CarPlayException(CarPlayError.PermissionMissing(Manifest.permission.ACCESS_LOCAL_NETWORK))
         }
     }
 

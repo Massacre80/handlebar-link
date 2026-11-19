@@ -14,6 +14,11 @@ import com.abid.handlebarlink.carplay.protocol.rtsp.RtspReader
 import com.abid.handlebarlink.carplay.protocol.rtsp.RtspRequest
 import com.abid.handlebarlink.carplay.protocol.rtsp.RtspResponse
 import com.abid.handlebarlink.core.common.log.Logger
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.security.SecureRandom
 import javax.crypto.AEADBadTagException
 
@@ -23,27 +28,45 @@ import javax.crypto.AEADBadTagException
  * `GET /info` are served, anything else gets 470 (DiPlay PR #1124). The reply to pair-verify M4 goes out
  * in clear; every byte after it is ChaCha20-Poly1305 framed (ControlCipher).
  *
- * Media requests (SETUP, RECORD, streams) arrive with the media milestone; for now they get 200 with no
- * body, as DiPlay answers requests it does not handle (spec D §2.4).
+ * After pair-verify an [AirPlaySession] serves the session's requests (SETUP, RECORD, TEARDOWN, `/command`,
+ * `/feedback`) and owns what they open; it lives in this connection's scope, so the connection closing ends it, and a
+ * vital part of it ending (the event channel, the screen stream) ends the connection, as DiPlay's `close()`.
  */
 internal class AirPlayControlConnection(
     private val connection: TcpConnection,
     private val credentials: CarPlayCredentials,
     private val receiver: AirPlayReceiver,
     private val random: SecureRandom,
-    private val cipherName: String,
+    private val platform: SessionPlatform,
     private val log: Logger,
 ) {
+    private val cipherName = platform.cipherName
     private val reader = RtspReader()
     private val pairSetup = PairSetup(credentials.airPlay, credentials.pairings, random, cipherName)
     private val pairVerify = PairVerify(credentials.airPlay, credentials.pairings, random, cipherName)
     private var cipher: ControlCipher? = null
+    private var session: AirPlaySession? = null
 
     /** The iPhone's pairing id once pair-verify succeeded. */
     val verifiedPhone: String? get() = pairVerify.controllerId.takeIf { cipher != null }
 
-    /** Serves requests until the iPhone closes the connection; [onVerified] runs once, after pair-verify. */
-    suspend fun run(onVerified: (String) -> Unit): Nothing {
+    /**
+     * Serves requests until the iPhone closes the connection (or a vital part of the session ends); [onVerified] runs
+     * once, after pair-verify. Everything the session opened is closed before this returns.
+     */
+    suspend fun run(onVerified: (String) -> Unit): Nothing =
+        coroutineScope {
+            try {
+                serve(this, onVerified)
+            } finally {
+                session?.close()
+            }
+        }
+
+    private suspend fun serve(
+        scope: CoroutineScope,
+        onVerified: (String) -> Unit,
+    ): Nothing {
         val buffer = ByteArray(READ_CHUNK)
         while (true) {
             val count = connection.read(buffer)
@@ -52,7 +75,7 @@ internal class AirPlayControlConnection(
             requests.forEachIndexed { index, request ->
                 respond(request)
                 refusePlaintextBehindVerify(more = index < requests.lastIndex || reader.buffered > 0)
-                switchOnEncryption(onVerified)
+                switchOnEncryption(scope, onVerified)
             }
         }
     }
@@ -97,29 +120,45 @@ internal class AirPlayControlConnection(
         connection.write(cipher?.encrypt(wire) ?: wire)
     }
 
-    private fun switchOnEncryption(onVerified: (String) -> Unit) {
+    private fun switchOnEncryption(
+        scope: CoroutineScope,
+        onVerified: (String) -> Unit,
+    ) {
         val keys = pairVerify.controlKeys
         if (cipher != null || keys == null) return
         cipher = ControlCipher(keys.readKey, keys.writeKey, cipherName)
         val phone = checkNotNull(pairVerify.controllerId)
+        val context =
+            SessionContext(scope, platform, connection.remoteAddress, checkNotNull(pairVerify.sharedSecret), log)
+        session = AirPlaySession(context)
         log.info("carplay.airplay.verified", "phone" to phone)
         onVerified(phone)
     }
 
-    /** A handler failure answers 500 and keeps the connection, as DiPlay (AirPlaySession.kt:501-519). */
+    /**
+     * A handler failure answers 500 and keeps the connection, as DiPlay (AirPlaySession.kt:501-519). A cancellation is
+     * propagated only when this connection is ending; a stray one (a port's own timeout) is a failure like any other.
+     */
     @Suppress("TooGenericExceptionCaught") // Any bug in one handler must not end the AirPlay connection.
-    private fun handle(request: RtspRequest): RtspResponse =
+    private suspend fun handle(request: RtspRequest): RtspResponse =
         try {
             route(request)
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            failed(log, request, e)
         } catch (e: Exception) {
-            log.error("carplay.airplay.handler_failed", e, "method" to request.method, "path" to request.path)
-            RtspResponse(RtspResponse.INTERNAL_ERROR)
+            failed(log, request, e)
         }
 
-    private fun route(request: RtspRequest): RtspResponse =
+    /** DiPlay's order (AirPlaySession.kt:573-660): the session's methods first, then pairing, auth-setup and /info. */
+    private suspend fun route(request: RtspRequest): RtspResponse =
         when {
             cipher == null && !allowedBeforeVerify(request) -> {
                 RtspResponse(RtspResponse.CONNECTION_AUTHORIZATION_REQUIRED)
+            }
+
+            request.method in SESSION_METHODS -> {
+                checkNotNull(session).handle(request)
             }
 
             request.pathEndsWith("/pair-setup") -> {
@@ -135,12 +174,20 @@ internal class AirPlayControlConnection(
             }
 
             request.pathEndsWith("/info") -> {
-                RtspResponse(RtspResponse.OK, RtspResponse.PLIST, BinaryPlistWriter.write(receiver.info()))
+                // With what DiPlay logs of it (AirPlaySession.kt:630-635).
+                val info = receiver.info()
+                log.info(
+                    "carplay.airplay.info",
+                    "audioFormats" to info.array("audioFormats")?.size,
+                    "audioLatencies" to info.array("audioLatencies")?.size,
+                    "hidDevices" to info.array("hidDevices")?.size,
+                )
+                RtspResponse(RtspResponse.OK, RtspResponse.PLIST, BinaryPlistWriter.write(info))
             }
 
             else -> {
-                log.info("carplay.airplay.unhandled", "method" to request.method, "path" to request.path)
-                RtspResponse()
+                // Only verified requests get here: the gate above lets nothing else through before pair-verify.
+                checkNotNull(session).handle(request)
             }
         }
 
@@ -155,16 +202,28 @@ internal class AirPlayControlConnection(
         }
     }
 
-    /** DiPlay PR #1124 (CarLink AirPlaySession.kt allowedBeforePairVerify). */
-    private fun allowedBeforeVerify(request: RtspRequest): Boolean =
-        when (request.method) {
-            "POST" -> request.pathEndsWith("/pair-setup") || request.pathEndsWith("/pair-verify")
-            "GET" -> request.pathEndsWith("/info")
-            else -> false
-        }
-
     private companion object {
         /** DiPlay's control read size (AirPlaySession.kt READ_CHUNK_BYTES). */
         const val READ_CHUNK = 16 * 1024
+
+        /** Dispatched by method whatever the path (AirPlaySession.kt:574-590). */
+        val SESSION_METHODS = setOf("SETUP", "SET_PARAMETER", "RECORD", "TEARDOWN")
+
+        fun failed(
+            log: Logger,
+            request: RtspRequest,
+            e: Exception,
+        ): RtspResponse {
+            log.error("carplay.airplay.handler_failed", e, "method" to request.method, "path" to request.path)
+            return RtspResponse(RtspResponse.INTERNAL_ERROR)
+        }
+
+        /** DiPlay PR #1124 (CarLink AirPlaySession.kt allowedBeforePairVerify). */
+        private fun allowedBeforeVerify(request: RtspRequest): Boolean =
+            when (request.method) {
+                "POST" -> request.pathEndsWith("/pair-setup") || request.pathEndsWith("/pair-verify")
+                "GET" -> request.pathEndsWith("/info")
+                else -> false
+            }
     }
 }

@@ -1,0 +1,137 @@
+package com.abid.handlebarlink.carplay.engine.session
+
+import com.abid.handlebarlink.carplay.engine.CarPlayError
+import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
+import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
+import com.abid.handlebarlink.carplay.engine.spi.TcpListener
+import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
+import com.abid.handlebarlink.carplay.protocol.crypto.Hkdf
+import com.abid.handlebarlink.carplay.protocol.plist.Plist
+import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
+
+/** What every AirPlay session of one wireless attempt shares: sockets, the group's addresses, the media factory. */
+internal class SessionPlatform(
+    val network: NetworkPort,
+    /** The addresses the AirPlay listener is bound to; the session's TCP listeners use the same. */
+    val addresses: List<String>,
+    val cipherName: String,
+    val time: TimeProvider,
+    val media: MediaFactory,
+)
+
+/**
+ * One verified control connection's session: [scope] is the connection's, so everything launched here ends with it,
+ * and a vital part failing ends the connection (and with it the wireless attempt), as DiPlay's `session.close()`.
+ */
+internal class SessionContext(
+    val scope: CoroutineScope,
+    val platform: SessionPlatform,
+    /** The control connection's peer; every other channel accepts only this address (AirPlayTcpAccepted.kt:25-37). */
+    val peer: String,
+    /** Pair-verify's X25519 secret, the source of the event and stream keys. Never log it. */
+    val sharedSecret: ByteArray,
+    val log: Logger,
+) {
+    /** This session's media seams, built once. */
+    val seams: MediaSeams = platform.media.session(MediaContext(platform.time, log, platform.cipherName))
+
+    /** A second UDP socket; [first] is closed when it cannot be bound. */
+    suspend fun bindUdpAfter(first: UdpSocket): UdpSocket {
+        var done = false
+        try {
+            return platform.network
+                .bindUdp()
+                .also { done = true }
+        } finally {
+            if (!done) first.close()
+        }
+    }
+
+    /**
+     * HKDF-SHA-512 of pair-verify's secret, salt `"DataStream-Salt"` + the id's 64 bits as an unsigned decimal, info
+     * `"DataStream-Output-Encryption-Key"`, 32 bytes (CarPlayMediaEngine.kt:665-677, 705, 715-722; spec D §5.3). The
+     * iPhone sends ids from 2^63 as 8-byte (signed) plist integers. Same as `protocol.stream.StreamKeys.output(secret,
+     * id.bits)` from the streams work, which replaces this at merge.
+     */
+    fun streamKey(id: Plist.Integer): ByteArray =
+        Hkdf.sha512(sharedSecret, SALT + java.lang.Long.toUnsignedString(id.bits), OUTPUT_INFO, KEY_BYTES)
+
+    /**
+     * Accepts until a connection comes from [peer]; others are closed unread (DiPlay `acceptFrom`,
+     * AirPlayTcpAccepted.kt:30-37). Link-local scopes are ignored: every listener is bound to the group's addresses.
+     */
+    suspend fun acceptFromPeer(
+        listener: TcpListener,
+        channel: String,
+    ): TcpConnection {
+        while (true) {
+            val connection = listener.accept()
+            if (connection.remoteAddress.substringBefore('%') == peer.substringBefore('%')) return connection
+            log.warn("carplay.airplay.foreign_peer", "channel" to channel, "peer" to connection.remoteAddress)
+            connection.close()
+        }
+    }
+
+    /**
+     * Runs a part whose end ends the session (the event channel, a screen stream): it returning or failing throws
+     * [CarPlayError.PhoneDisconnected] into [scope]. Cancelling it (TEARDOWN) ends only the part.
+     */
+    fun launchVital(
+        name: String,
+        block: suspend () -> Unit,
+    ): Job =
+        scope.launch {
+            val failure = runPart(name, block)
+            throw failure as? CarPlayException
+                ?: CarPlayException(
+                    CarPlayError.PhoneDisconnected(if (failure == null) "$name ended" else "$name failed: $failure"),
+                    failure,
+                )
+        }
+
+    /** Runs a part whose end is only logged (timing, keep-alive, an audio stream; DiPlay keeps the session then). */
+    fun launchPart(
+        name: String,
+        block: suspend () -> Unit,
+    ): Job =
+        scope.launch {
+            val failure = runPart(name, block)
+            if (failure != null) log.warn("carplay.airplay.part_failed", "part" to name, "error" to failure.toString())
+        }
+
+    /**
+     * Runs [block]; returns what ended it (null when it returned). Our own cancellation propagates; a stray
+     * cancellation from inside a seam (its own timeout) counts as a failure (docs/LESSONS.md 54).
+     */
+    @Suppress("TooGenericExceptionCaught") // A bug in a media seam must end its part, never escape as an Unexpected.
+    private suspend fun runPart(
+        name: String,
+        block: suspend () -> Unit,
+    ): Exception? =
+        try {
+            block()
+            null
+        } catch (e: CancellationException) {
+            currentCoroutineContext().ensureActive()
+            e
+        } catch (e: CarPlayException) {
+            e
+        } catch (e: Exception) {
+            log.error("carplay.airplay.part_crashed", e, "part" to name)
+            e
+        }
+
+    private companion object {
+        const val SALT = "DataStream-Salt"
+        const val OUTPUT_INFO = "DataStream-Output-Encryption-Key"
+        const val KEY_BYTES = 32
+    }
+}

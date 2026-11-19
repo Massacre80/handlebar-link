@@ -8,10 +8,12 @@ import com.abid.handlebarlink.carplay.engine.spi.BonjourService
 import com.abid.handlebarlink.carplay.engine.spi.ByteStream
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
+import com.abid.handlebarlink.carplay.engine.spi.Datagram
 import com.abid.handlebarlink.carplay.engine.spi.GroupClients
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
+import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
 import com.abid.handlebarlink.carplay.engine.spi.WifiDirectPort
 import com.abid.handlebarlink.carplay.engine.spi.WifiGroup
 import com.abid.handlebarlink.carplay.protocol.crypto.ChaCha20Poly1305
@@ -123,6 +125,15 @@ internal class FakePorts(
     var removeGroupMillis = 0L
     var groupsRemoved = 0
     val listeners = mutableListOf<FakeListener>()
+
+    /** Every UDP socket bound, in order. */
+    val udp = mutableListOf<FakeUdp>()
+
+    /** Binding a UDP socket fails once this many have been bound; null: never. */
+    var udpFailsAfter: Int? = null
+
+    /** The next port handed out for "any free port" (TCP 0 and UDP). */
+    private var nextPort = 50_000
     val published = mutableListOf<BonjourService>()
     var unpublished = 0
 
@@ -198,7 +209,16 @@ internal class FakePorts(
                         preferredPort: Int,
                     ): TcpListener {
                         listenedOn = addresses
-                        return FakeListener(preferredPort).also { listeners += it }
+                        // Port 0 asks for any free port (the session's event, screen and data listeners).
+                        val port = if (preferredPort == 0) nextPort++ else preferredPort
+                        return FakeListener(port).also { listeners += it }
+                    }
+
+                    override suspend fun bindUdp(): UdpSocket {
+                        if (udpFailsAfter?.let { udp.size >= it } == true) {
+                            throw CarPlayException(CarPlayError.NetworkFailed("no UDP socket"))
+                        }
+                        return FakeUdp(nextPort++).also { udp += it }
                     }
                 },
             bonjour =
@@ -242,10 +262,10 @@ internal class FakePorts(
         var closed = false
             private set
 
-        /** The iPhone connects; returns its end. */
-        fun connect(): Pipe.End {
+        /** The iPhone (or another station, by [from]) connects; returns its end. */
+        fun connect(from: String = "192.168.49.2"): Pipe.End {
             check(!closed) { "listener closed" }
-            val pipe = Pipe()
+            val pipe = Pipe(from)
             incoming.trySend(pipe.ours)
             return pipe.phone
         }
@@ -253,6 +273,45 @@ internal class FakePorts(
         override suspend fun accept(): TcpConnection =
             incoming.receiveCatching().getOrNull()
                 ?: throw CarPlayException(CarPlayError.NetworkFailed("listener closed"))
+
+        override fun close() {
+            closed = true
+            incoming.close()
+        }
+    }
+
+    /** A UDP socket the test feeds; what the receiver sends is kept in [sent]. */
+    class FakeUdp(
+        override val port: Int,
+    ) : UdpSocket {
+        private val incoming = Channel<Datagram>(Channel.UNLIMITED)
+        val sent = mutableListOf<Datagram>()
+        var closed = false
+            private set
+
+        /** The iPhone sends [bytes] from [address]:[from]. */
+        fun deliver(
+            bytes: ByteArray,
+            address: String = "192.168.49.2",
+            from: Int = 60_000,
+        ) {
+            incoming.trySend(Datagram(bytes, address, from))
+        }
+
+        /** Datagrams the receiver has taken. */
+        var received = 0
+            private set
+
+        override suspend fun receive(): Datagram? = incoming.receiveCatching().getOrNull()?.also { received++ }
+
+        override suspend fun send(
+            bytes: ByteArray,
+            address: String,
+            port: Int,
+        ) {
+            if (closed) throw CarPlayException(CarPlayError.NetworkFailed("closed"))
+            sent += Datagram(bytes.copyOf(), address, port)
+        }
 
         override fun close() {
             closed = true

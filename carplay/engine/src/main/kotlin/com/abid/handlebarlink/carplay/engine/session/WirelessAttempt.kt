@@ -48,6 +48,8 @@ internal class WirelessAttempt(
     private val env: RuntimeEnv,
     private val onStep: (ConnectStep) -> Unit,
     private val onConnected: (String) -> Unit,
+    /** Builds each AirPlay session's media seams. */
+    private val media: MediaFactory = MediaFactory.PLACEHOLDERS,
 ) {
     private val cleanup = Cleanup(env.log)
     private val verified = CompletableDeferred<String>()
@@ -80,6 +82,10 @@ internal class WirelessAttempt(
         cleanup.add("listener") { listener.close() }
         env.log.info("carplay.airplay.listening", "port" to listener.port)
         val receiver = receiver(credentials, group)
+        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, media)
+        val control = { connection: TcpConnection ->
+            AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, platform, env.log)
+        }
         // Registered before publishing starts: a publish that is still running when the attempt ends is undone.
         cleanup.add("bonjour") { ports.bonjour.unpublish() }
         launch { publish(receiver.bonjour(addresses.first().substringBefore('%'), listener.port)) }
@@ -115,8 +121,8 @@ internal class WirelessAttempt(
         watch.tcpAccepted()
         onStep(ConnectStep.PAIRING)
         val ended = CompletableDeferred<CarPlayException>()
-        launch { serve(first, credentials, receiver, ended) }
-        launch { acceptMore(listener, credentials, receiver, ended) }
+        launch { serve(first, control, ended) }
+        launch { acceptMore(listener, control, ended) }
         val phone = step(PAIRING_TIMEOUT, ConnectStep.PAIRING) { verified.await() }
         watch.connected()
         ports.wifiDirect.groupWorked()
@@ -180,8 +186,7 @@ internal class WirelessAttempt(
      */
     private suspend fun CoroutineScope.acceptMore(
         listener: TcpListener,
-        credentials: CarPlayCredentials,
-        receiver: AirPlayReceiver,
+        control: (TcpConnection) -> AirPlayControlConnection,
         ended: CompletableDeferred<CarPlayException>,
     ) {
         while (true) {
@@ -191,7 +196,7 @@ internal class WirelessAttempt(
                 connection.close()
             } else {
                 // Undispatched, so serve counts the connection before the next accept.
-                launch(start = CoroutineStart.UNDISPATCHED) { serve(connection, credentials, receiver, ended) }
+                launch(start = CoroutineStart.UNDISPATCHED) { serve(connection, control, ended) }
             }
         }
     }
@@ -199,14 +204,12 @@ internal class WirelessAttempt(
     /** Serves one control connection; a verified one ending ends the attempt. */
     private suspend fun serve(
         connection: TcpConnection,
-        credentials: CarPlayCredentials,
-        receiver: AirPlayReceiver,
+        connect: (TcpConnection) -> AirPlayControlConnection,
         ended: CompletableDeferred<CarPlayException>,
     ) = coroutineScope {
         open++
         env.log.info("carplay.airplay.accepted", "peer" to connection.remoteAddress)
-        val control =
-            AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, ports.cipherName, env.log)
+        val control = connect(connection)
         // An unverified connection gets 30 s, then it is closed (DiPlay PRE_PAIR_VERIFY_TIMEOUT_MILLIS, PR #1130).
         val watchdog =
             launch {

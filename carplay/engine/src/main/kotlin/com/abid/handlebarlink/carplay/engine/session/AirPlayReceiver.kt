@@ -8,9 +8,10 @@ import com.abid.handlebarlink.carplay.protocol.plist.Plist
  * What the receiver advertises: the Bonjour `_airplay._tcp` record (DiPlay CarPlayBonjour.kt:83-96) and
  * the `GET /info` plist (AirPlayInfoPlist.kt:31-103, 201-287; spec D §4, §6).
  *
- * `/info` here carries identity, features, modes and the display. DiPlay notes the iPhone aborts a session
- * whose `/info` lacks audio formats and HID devices (AirPlayInfoPlist.kt:4-7); those come with the media
- * milestone (docs/PLAN.md, CarPlay C2), so for now a session ends after pairing and authentication.
+ * `/info` carries what DiPlay's builder does with audio on, 48 kHz music, no microphone, no cluster, no HEVC and no
+ * buffered audio (AirPlayInfoPlist.kt:31-85): identity, features, modes, audio latencies and formats, the display and
+ * the HID devices. DiPlay notes the iPhone aborts a session whose `/info` lacks audio formats and HID devices
+ * (AirPlayInfoPlist.kt:3-8). OEM icons are left out, as DiPlay's builder does without icons (AirPlayInfoPlist.kt:64).
  */
 internal class AirPlayReceiver(
     private val config: CarPlayConfig,
@@ -55,9 +56,55 @@ internal class AirPlayReceiver(
             "keepAliveLowPower" to false,
             "keepAliveSendStatsAsBody" to false,
             "modes" to modes(),
+            "audioLatencies" to audioLatencies(),
+            "audioFormats" to audioFormats(),
             "extendedFeatures" to listOf("vocoderInfo", "enhancedRequestCarUI"),
             "displays" to listOf(mainDisplay()),
+            "hidDevices" to HidDevices.all(config.name, config.widthPixels, config.heightPixels, MAIN_DISPLAY_UUID),
         )
+
+    /** Nine entries, every latency 0 (AirPlayInfoPlist.kt:105-120). */
+    private fun audioLatencies(): List<Plist> =
+        listOf(
+            MAIN_AUDIO to null,
+            MAIN_AUDIO to "default",
+            MAIN_AUDIO to "media",
+            MAIN_AUDIO to "telephony",
+            MAIN_AUDIO to "speechRecognition",
+            MAIN_AUDIO to "alert",
+            ALT_AUDIO to null,
+            ALT_AUDIO to "default",
+            MAIN_HIGH_AUDIO to "default",
+        ).map { (type, audioType) ->
+            val entry =
+                linkedMapOf<String, Any>("type" to type, "inputLatencyMicros" to 0L, "outputLatencyMicros" to 0L)
+            audioType?.let { entry["audioType"] = it }
+            Plist.of(entry)
+        }
+
+    /**
+     * What each audio stream may carry (AirPlayInfoPlist.kt:122-177) at DiPlay's default 48 kHz music rate
+     * (AirPlayConfig.kt:75) and without a microphone, so no entry has `audioInputFormats`. Speech is plain PCM
+     * (`speechWithout8And16Khz` off) and calls are not limited to their own rate (`callAtCallRate` off).
+     */
+    private fun audioFormats(): List<Plist> {
+        fun format(
+            type: Int,
+            audioType: String,
+            output: Int,
+        ) = Plist.dict("type" to type, "audioType" to audioType, "audioOutputFormats" to output)
+        return listOf(
+            format(MAIN_AUDIO, "compatibility", PCM),
+            format(ALT_AUDIO, "compatibility", PCM),
+            format(MAIN_AUDIO, "default", PCM or OPUS),
+            format(MAIN_AUDIO, "alert", PCM or OPUS),
+            format(MAIN_AUDIO, "media", PCM),
+            format(MAIN_AUDIO, "telephony", PCM_MONO or OPUS),
+            format(MAIN_AUDIO, "speechRecognition", PCM_MONO or OPUS),
+            format(ALT_AUDIO, "default", PCM or OPUS),
+            format(MAIN_HIGH_AUDIO, "media", AAC_LC),
+        )
+    }
 
     private fun modes(): Plist =
         Plist.dict(
@@ -130,6 +177,21 @@ internal class AirPlayReceiver(
         const val MAIN_DISPLAY_UUID = "6f0c2a1e-3b5d-4c8a-9e71-2d4b6a8c0f13"
 
         private const val MAIN_SCREEN = 110
+        private const val MAIN_AUDIO = 100
+        private const val ALT_AUDIO = 101
+        private const val MAIN_HIGH_AUDIO = 102
+
+        /** PCM 8 to 32 kHz mono and stereo, plus 48 kHz (AirPlayInfoPlist.kt:146-147: 0x3fc | 0xc000). */
+        private const val PCM = 0x3fc or 0xc000
+
+        /** PCM mono 8, 16, 24, 32 kHz plus 48 kHz (AirPlayInfoPlist.kt:150: 0x154 | 0x4000). */
+        private const val PCM_MONO = 0x154 or 0x4000
+
+        /** Opus (AirPlayInfoPlist.kt:151). */
+        private const val OPUS = 0x70000000
+
+        /** AAC-LC 48 kHz (AirPlayInfoPlist.kt:152). */
+        private const val AAC_LC = 0x800000
         private const val FEATURE_KNOBS = 0x02
         private const val FEATURE_HIGH_FIDELITY_TOUCH = 0x08
         private const val RESOURCE_SCREEN = 1

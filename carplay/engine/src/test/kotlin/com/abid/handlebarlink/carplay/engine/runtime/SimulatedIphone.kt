@@ -192,14 +192,20 @@ internal class PhoneAirPlay(
     private var cipher: ControlCipher? = null
     private var pending = ByteArray(0)
 
+    /** Pair-verify's X25519 secret, computed on the iPhone's side, once verified. */
+    var sharedSecret: ByteArray? = null
+        private set
+
     suspend fun request(
         method: String,
         path: String,
         body: ByteArray = ByteArray(0),
         trailing: ByteArray = ByteArray(0),
+        contentType: String? = null,
     ): PhoneResponse {
         cseq++
-        val head = "$method $path RTSP/1.0\r\nCSeq: $cseq\r\nContent-Length: ${body.size}\r\n\r\n"
+        val type = contentType?.let { "Content-Type: $it\r\n" }.orEmpty()
+        val head = "$method $path RTSP/1.0\r\nCSeq: $cseq\r\n${type}Content-Length: ${body.size}\r\n\r\n"
         val wire = head.encodeToByteArray() + body + trailing
         stream.write(cipher?.encrypt(wire) ?: wire)
         return readResponse()
@@ -242,6 +248,7 @@ internal class PhoneAirPlay(
             )
         val ok = response.status == 200 && Tlv8.decode(response.body)[Tlv8.ERROR] == null
         if (ok) {
+            sharedSecret = shared
             cipher =
                 ControlCipher(
                     readKey = Hkdf.sha512(shared, "Control-Salt", "Control-Read-Encryption-Key", 32),
@@ -255,36 +262,87 @@ internal class PhoneAirPlay(
     fun close() = stream.close()
 
     private suspend fun readResponse(): PhoneResponse {
-        while (true) {
-            val end = indexOfHeaderEnd()
-            if (end >= 0) {
-                val lines = pending.copyOf(end).decodeToString().split("\r\n")
-                val headers =
-                    lines.drop(1).associate {
-                        it.substringBefore(':').lowercase() to
-                            it.substringAfter(':').trim()
-                    }
-                val length = headers["content-length"]?.toInt() ?: 0
-                if (pending.size >= end + 4 + length) {
-                    val body = pending.copyOfRange(end + 4, end + 4 + length)
-                    pending = pending.copyOfRange(end + 4 + length, pending.size)
-                    return PhoneResponse(lines[0].split(' ')[1].toInt(), headers, body)
-                }
-            }
-            val chunk = ByteArray(PhoneIap2.CHUNK)
-            val count = stream.read(chunk)
-            check(count >= 0) { "receiver closed the control connection" }
-            pending += cipher?.decrypt(chunk, 0, count) ?: chunk.copyOf(count)
-        }
+        val message =
+            readMessage(stream, { pending }, { pending = it }) { bytes, count -> cipher?.decrypt(bytes, 0, count) }
+        return PhoneResponse(message.startLine.split(' ')[1].toInt(), message.headers, message.body)
     }
 
-    private fun indexOfHeaderEnd(): Int =
-        (0..pending.size - 4).firstOrNull {
-            pending[it] == '\r'.code.toByte() && pending[it + 1] == '\n'.code.toByte() &&
-                pending[it + 2] == '\r'.code.toByte() && pending[it + 3] == '\n'.code.toByte()
-        } ?: -1
-
-    private companion object {
+    companion object {
         const val CIPHER = ChaCha20Poly1305.Transformation.JVM
     }
+}
+
+/** One RTSP message as the iPhone reads it: the first line, headers by lower-case name, the body and the raw head. */
+internal class PhoneMessage(
+    val startLine: String,
+    val headers: Map<String, String>,
+    val body: ByteArray,
+    val head: String,
+)
+
+/** Reads one RTSP message (request or response) from [stream], decrypting with [decrypt] when it returns bytes. */
+internal suspend fun readMessage(
+    stream: ByteStream,
+    pending: () -> ByteArray,
+    setPending: (ByteArray) -> Unit,
+    decrypt: (ByteArray, Int) -> ByteArray?,
+): PhoneMessage {
+    while (true) {
+        val buffered = pending()
+        val end =
+            (0..buffered.size - 4).firstOrNull {
+                buffered[it] == '\r'.code.toByte() && buffered[it + 1] == '\n'.code.toByte() &&
+                    buffered[it + 2] == '\r'.code.toByte() && buffered[it + 3] == '\n'.code.toByte()
+            } ?: -1
+        if (end >= 0) {
+            val head = buffered.copyOf(end).decodeToString()
+            val lines = head.split("\r\n")
+            val headers =
+                lines
+                    .drop(
+                        1,
+                    ).associate { it.substringBefore(':').lowercase() to it.substringAfter(':').trim() }
+            val length = headers["content-length"]?.toInt() ?: 0
+            if (buffered.size >= end + 4 + length) {
+                val body = buffered.copyOfRange(end + 4, end + 4 + length)
+                setPending(buffered.copyOfRange(end + 4 + length, buffered.size))
+                return PhoneMessage(lines[0], headers, body, head)
+            }
+        }
+        val chunk = ByteArray(PhoneIap2.CHUNK)
+        val count = stream.read(chunk)
+        check(count >= 0) { "receiver closed the connection" }
+        setPending(buffered + (decrypt(chunk, count) ?: chunk.copyOf(count)))
+    }
+}
+
+/**
+ * The iPhone's end of the event channel. Its keys are derived here from the iPhone's own shared secret with the labels
+ * as the iPhone uses them (spec C §5): it writes with "Events-Read-Encryption-Key", the receiver's read key.
+ */
+internal class PhoneEvents(
+    private val stream: ByteStream,
+    sharedSecret: ByteArray,
+) {
+    private val cipher =
+        ControlCipher(
+            readKey = Hkdf.sha512(sharedSecret, "Events-Salt", "Events-Write-Encryption-Key", 32),
+            writeKey = Hkdf.sha512(sharedSecret, "Events-Salt", "Events-Read-Encryption-Key", 32),
+            cipherName = PhoneAirPlay.CIPHER,
+        )
+    private var pending = ByteArray(0)
+
+    /** Sends a request on the event channel. */
+    suspend fun send(head: String) = stream.write(cipher.encrypt(head.encodeToByteArray()))
+
+    /** Sends raw bytes (e.g. a frame sealed with the wrong key). */
+    suspend fun sendRaw(bytes: ByteArray) = stream.write(bytes)
+
+    /** The next message from the receiver. */
+    suspend fun read(): PhoneMessage =
+        readMessage(stream, {
+            pending
+        }, { pending = it }) { bytes, count -> cipher.decrypt(bytes, 0, count) }
+
+    fun close() = stream.close()
 }

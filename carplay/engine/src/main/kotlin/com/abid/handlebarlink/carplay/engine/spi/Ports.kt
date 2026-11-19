@@ -112,16 +112,57 @@ public interface TcpConnection : ByteStream {
     public val remoteAddress: String
 }
 
+/** One received UDP datagram. */
+public class Datagram(
+    /** The payload, exactly as long as the datagram. */
+    public val bytes: ByteArray,
+    /** The sender's address, in the same form as [TcpConnection.remoteAddress] (IPv6 link-local with its scope). */
+    public val address: String,
+    /** The sender's port. */
+    public val port: Int,
+)
+
+/** A bound UDP socket (the AirPlay timing, keep-alive and audio ports). */
+public interface UdpSocket {
+    /** The bound port. */
+    public val port: Int
+
+    /**
+     * Waits for the next datagram (up to 65 535 bytes); null once the socket is closed. Cancelling a receive
+     * closes the socket (a blocked receive only ends when its socket is closed).
+     */
+    public suspend fun receive(): Datagram?
+
+    /** Sends [bytes] as one datagram to [address] (a numeric literal, IPv6 with its scope) and [port]. */
+    public suspend fun send(
+        bytes: ByteArray,
+        address: String,
+        port: Int,
+    )
+
+    /** Closes the socket; idempotent, never throws. Unblocks a pending [receive]. */
+    public fun close()
+}
+
 /** Sockets. */
 public interface NetworkPort {
     /**
      * Listens on every one of [addresses] with one port, preferring [preferredPort] and then the next ten ports
-     * (DiPlay AirPlayPortSelector.kt:17-64, `bindAll`). Connections get TCP_NODELAY and keep-alive.
+     * (DiPlay AirPlayPortSelector.kt:17-64, `bindAll`). [preferredPort] 0 asks for any free port, the same on
+     * every address: the AirPlay session's event, screen and data listeners (DiPlay binds them to port 0,
+     * AirPlaySession.kt:885, ScreenStream.kt:49-51). Connections get TCP_NODELAY and keep-alive.
      */
     public suspend fun listen(
         addresses: List<String>,
         preferredPort: Int,
     ): TcpListener
+
+    /**
+     * Binds a UDP socket to a free port on every interface (`[::]:0`, dual stack), as DiPlay binds the timing,
+     * keep-alive and audio sockets (NtpClock.kt:41-43, AirPlaySession.kt:861-864, AudioStream.kt:192-196). The
+     * engine checks senders itself.
+     */
+    public suspend fun bindUdp(): UdpSocket
 }
 
 /** A Bonjour service to publish. */

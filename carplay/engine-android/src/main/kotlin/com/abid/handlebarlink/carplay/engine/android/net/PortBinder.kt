@@ -10,10 +10,14 @@ import java.net.BindException
  * tried; any other failure is thrown at once.
  */
 internal object PortBinder {
-    /** The ports tried, in order (0 = ephemeral). */
+    /** The ports tried, in order (0 = ephemeral). A [preferredPort] of 0 asks for an ephemeral port only. */
     fun candidates(preferredPort: Int): List<Int> =
-        listOf(preferredPort) + (preferredPort + 1..preferredPort + FALLBACK_PORTS).toList() +
+        if (preferredPort == 0) {
             List(EPHEMERAL_TRIES) { 0 }
+        } else {
+            listOf(preferredPort) + (preferredPort + 1..preferredPort + FALLBACK_PORTS).toList() +
+                List(EPHEMERAL_TRIES) { 0 }
+        }
 
     fun <A, S> bindAll(
         addresses: List<A>,

@@ -6,6 +6,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.session.MediaFactory
 import com.abid.handlebarlink.carplay.engine.session.WirelessAttempt
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import kotlinx.coroutines.CancellationException
@@ -44,6 +45,8 @@ internal class CarPlayRuntime(
     private val dispatcher: CoroutineDispatcher,
     private val env: RuntimeEnv,
     private val config: CarPlayConfig,
+    /** Builds each AirPlay session's media seams (placeholders until the media readers are wired in). */
+    private val media: MediaFactory = MediaFactory.PLACEHOLDERS,
 ) : CarPlayLink {
     private val inbox = Channel<Event>(Channel.UNLIMITED)
     private val running = AtomicBoolean(false)
@@ -233,6 +236,7 @@ internal class CarPlayRuntime(
                 env,
                 onStep = { inbox.trySend(Event.Step(generation, it)) },
                 onConnected = { inbox.trySend(Event.Connected(generation, it)) },
+                media = media,
             ).run()
         } catch (e: CancellationException) {
             // Ours (stop, or run cancelled): propagate. A stray one from a port (a withTimeout inside it) while we
