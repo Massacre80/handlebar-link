@@ -8,6 +8,8 @@ plugins {
 
 android {
     namespace = "com.abid.handlebarlink.carplay.engine.android"
+    // The screen decoder's device smoke test (src/androidTest, run by hand on the Poco; see its README).
+    defaultConfig { testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner" }
 }
 
 dependencies {
@@ -17,4 +19,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
 
     testImplementation(projects.core.testing)
+
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.junit)
 }
