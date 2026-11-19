@@ -27,6 +27,9 @@ import javax.inject.Singleton
  * a child job of its own and is started; switching off stops it and cancels that job, which closes the radio,
  * Bluetooth and sockets. [run] never throws (except cancellation): a CarPlay failure is logged and shown as
  * [CarPlayStatus.Failed], and never reaches the bike link (docs/PLAN.md "Structure").
+ *
+ * The rider's "CarPlay screen" ([CarPlaySettings.orientation]) goes to the [canvas] before each start; a change while
+ * CarPlay runs stops the engine and starts it again (a new connection), so the iPhone is told the new size.
  */
 @Singleton
 class CarPlayCoordinator
@@ -35,6 +38,7 @@ class CarPlayCoordinator
         private val settings: CarPlaySettings,
         private val link: CarPlayLink?,
         private val permissions: CarPlayPermissions,
+        private val canvas: CanvasOrientation,
         logger: Logger,
     ) : RideCompanion {
         private val log = logger.child("carplay")
@@ -123,29 +127,40 @@ class CarPlayCoordinator
             link?.stop()
         }
 
-        /** Starts and stops the engine as the switch and the permissions change. */
+        /**
+         * Starts and stops the engine as the switch, the permissions and the hold change; a new orientation while it
+         * runs stops it and starts it again in that orientation.
+         */
         private suspend fun follow(link: CarPlayLink) =
             coroutineScope {
                 var session: Job? = null
-                combine(settings.enabled, missing, held) { enabled, missing, held ->
+                combine(settings.enabled, missing, held, settings.orientation) { enabled, missing, held, orientation ->
                     if (enabled && missing.isNotEmpty()) log.warn("carplay.permission_missing", "missing" to missing)
-                    enabled && missing.isEmpty() && !held
+                    // The orientation to run in, or null when CarPlay must not run.
+                    orientation.takeIf { enabled && missing.isEmpty() && !held }
                 }.distinctUntilChanged().collect { active ->
-                    if (active) {
+                    // Still wanted across a restart, so the ride never ends between the stop and the new start.
+                    if (active == null) wanted.value = false
+                    session?.let {
+                        link.stop()
+                        // Cancelling the engine's run() closes everything it holds (CarPlayLink.run).
+                        it.cancelAndJoin()
+                        if (active ==
+                            null
+                        ) {
+                            log.info("carplay.off")
+                        } else {
+                            log.info("carplay.restart", "orientation" to active)
+                        }
+                    }
+                    session = null
+                    if (active != null) {
                         failed.value = false
                         wanted.value = true
+                        canvas.use(active)
                         session = launch { guarded { runEngine(link) } }
                         link.start()
-                        log.info("carplay.start")
-                    } else {
-                        wanted.value = false
-                        session?.let {
-                            link.stop()
-                            // Cancelling the engine's run() closes everything it holds (CarPlayLink.run).
-                            it.cancelAndJoin()
-                            log.info("carplay.off")
-                        }
-                        session = null
+                        log.info("carplay.start", "orientation" to active)
                     }
                 }
             }

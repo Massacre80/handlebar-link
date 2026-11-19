@@ -1,6 +1,5 @@
 package com.abid.handlebarlink.ui.carplay
 
-import android.Manifest
 import androidx.annotation.StringRes
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayStatus
@@ -26,11 +25,7 @@ internal fun heroTitle(error: CarPlayError): Int =
         }
 
         is CarPlayError.PermissionMissing -> {
-            if (error.permission == Manifest.permission.RECORD_AUDIO) {
-                R.string.carplay_tab_microphone_title
-            } else {
-                R.string.carplay_tab_permission_title
-            }
+            carPlayGrant(error.permission).title
         }
 
         else -> {

@@ -54,19 +54,40 @@ class CarPlayLineTest {
     }
 
     @Test
-    fun `a missing microphone says so, not Nearby devices`() {
+    fun `the status line names the missing permission, the microphone, Nearby devices or Local network, or all`() {
         fun line(vararg missing: String) = carPlayLine(CarPlayStatus.NeedsPermission(missing.toList()), now)
 
         assertThat(line(Manifest.permission.RECORD_AUDIO))
             .isEqualTo(CarPlayLine(R.string.carplay_status_permission_microphone, tone = SignalTone.ERROR))
-        assertThat(line(Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_LOCAL_NETWORK))
+        assertThat(line(Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.BLUETOOTH_CONNECT))
             .isEqualTo(CarPlayLine(R.string.carplay_status_permission, tone = SignalTone.ERROR))
-        assertThat(line(Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT))
-            .isEqualTo(CarPlayLine(R.string.carplay_status_permission_both, tone = SignalTone.ERROR))
+        assertThat(line(Manifest.permission.ACCESS_LOCAL_NETWORK))
+            .isEqualTo(CarPlayLine(R.string.carplay_status_permission_local_network, tone = SignalTone.ERROR))
+        // Several: named in a fixed order (Nearby devices, Local network, Microphone), whatever order they came in.
+        assertThat(
+            line(
+                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.ACCESS_LOCAL_NETWORK,
+                Manifest.permission.BLUETOOTH_CONNECT,
+            ),
+        ).isEqualTo(
+            CarPlayLine(
+                R.string.carplay_status_permission_several,
+                tone = SignalTone.ERROR,
+                parts =
+                    listOf(
+                        R.string.carplay_access_nearby,
+                        R.string.carplay_access_local_network,
+                        R.string.carplay_access_microphone,
+                    ),
+            ),
+        )
         assertThat(errorText(CarPlayError.PermissionMissing(Manifest.permission.RECORD_AUDIO)))
             .isEqualTo(R.string.carplay_error_permission_microphone)
         assertThat(errorText(CarPlayError.PermissionMissing(Manifest.permission.NEARBY_WIFI_DEVICES)))
             .isEqualTo(R.string.carplay_error_permission)
+        assertThat(errorText(CarPlayError.PermissionMissing(Manifest.permission.ACCESS_LOCAL_NETWORK)))
+            .isEqualTo(R.string.carplay_error_permission_local_network)
     }
 
     @Test

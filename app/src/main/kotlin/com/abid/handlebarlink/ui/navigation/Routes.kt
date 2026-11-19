@@ -44,6 +44,17 @@ data object PairIphoneRoute : NavKey
 @Serializable
 data object IphoneSheetRoute : OverlayRoute
 
+/** "CarPlay screen": a sheet over the CarPlay tab from its CarPlay screen row, choosing landscape or portrait. */
+@Serializable
+data object CarPlayScreenRoute : OverlayRoute
+
+/**
+ * "CarPlay needs your OK": a dialog over the CarPlay tab that says why CarPlay needs each missing permission (the
+ * microphone for Siri and calls, Nearby devices, local network) before Android's own dialog asks.
+ */
+@Serializable
+data object CarPlayAccessRoute : OverlayRoute
+
 /** "Forget …?": a dialog over the iPhone sheet confirming that the app forgets an iPhone. */
 @Serializable
 data class ForgetIphoneRoute(

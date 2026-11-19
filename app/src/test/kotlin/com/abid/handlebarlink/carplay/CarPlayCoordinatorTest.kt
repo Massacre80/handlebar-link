@@ -35,8 +35,10 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -51,12 +53,13 @@ class CarPlayCoordinatorTest {
     private var switch: CarPlaySettings = settings
     private val permissions = FakeCarPlayPermissions()
     private val logs = RecordingLogSink()
+    private val canvas = RecordingCanvas()
 
     private lateinit var carPlay: CarPlayCoordinator
 
     private fun TestScope.ride(link: CarPlayLink? = carPlayLink): Pair<RideCoordinator, Deferred<*>> {
         val logger = testLogger(logs, TestTimeProvider(testScheduler))
-        carPlay = carPlayCoordinator(link, switch, permissions, logger)
+        carPlay = carPlayCoordinator(link, switch, permissions, logger, canvas)
         val coordinator =
             RideCoordinator(
                 settings = Bikes(bike),
@@ -105,6 +108,74 @@ class CarPlayCoordinatorTest {
             carPlayLink.setState(CarPlayState.Connecting(ConnectStep.PAIRING))
             assertThat(carPlay.status.first())
                 .isEqualTo(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.PAIRING)))
+        }
+
+    @Test
+    fun `the CarPlay screen setting reaches the canvas before the start, landscape by default`() =
+        runTest {
+            settings.enabled.value = true
+            ride()
+
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE)
+            assertThat(carPlayLink.commands).containsExactly(Command.Start)
+        }
+
+    @Test
+    fun `a stored portrait choice is what the first attempt reports`() =
+        runTest {
+            settings.enabled.value = true
+            settings.orientation.value = CarPlayOrientation.PORTRAIT
+            ride()
+
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.PORTRAIT)
+        }
+
+    @Test
+    fun `a new orientation while CarPlay runs stops it, ends its run and starts it again with the new canvas`() =
+        runTest {
+            settings.enabled.value = true
+            val (_, ride) = ride()
+
+            settings.orientation.value = CarPlayOrientation.PORTRAIT
+            runCurrent()
+
+            assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.Stop, Command.Start)
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE, CarPlayOrientation.PORTRAIT)
+            // The first engine run ended (everything released) before the new one began: the fake refuses two at once,
+            // which would show as Failed.
+            assertThat(carPlayLink.isRunning).isTrue()
+            assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Engine(CarPlayState.Stopped))
+            assertThat(ride.isActive).isTrue()
+            assertThat(logs.events("carplay.restart")).isNotEmpty()
+        }
+
+    @Test
+    fun `a new orientation while CarPlay is off or held starts nothing, and applies at the next start`() =
+        runTest {
+            ride()
+
+            settings.orientation.value = CarPlayOrientation.PORTRAIT
+            runCurrent()
+
+            assertThat(carPlayLink.commands).isEmpty()
+            assertThat(canvas.used).isEmpty()
+            settings.enabled.value = true
+            runCurrent()
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.PORTRAIT)
+        }
+
+    @Test
+    fun `the keep-alive holds across a restart for a new orientation`() =
+        runTest {
+            settings.enabled.value = true
+            ride()
+            val seen = mutableListOf<Boolean>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { carPlay.keepAlive.collect { seen += it } }
+
+            settings.orientation.value = CarPlayOrientation.PORTRAIT
+            runCurrent()
+
+            assertThat(seen).doesNotContain(false)
         }
 
     @Test

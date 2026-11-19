@@ -3,6 +3,7 @@ package com.abid.handlebarlink.di
 import android.content.Context
 import com.abid.handlebarlink.carplay.AndroidCarPlayPermissions
 import com.abid.handlebarlink.carplay.AndroidIphonePairing
+import com.abid.handlebarlink.carplay.CanvasOrientation
 import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPortsSource
@@ -46,6 +47,10 @@ abstract class CarPlayModule {
     @Binds
     abstract fun iphonePairing(pairing: AndroidIphonePairing): IphonePairing
 
+    /** The coordinator tells the canvas which orientation the next attempt reports. */
+    @Binds
+    abstract fun canvasOrientation(canvas: CarPlayCanvas): CanvasOrientation
+
     companion object {
         /**
          * The Android ports (`:carplay:engine-android`). Creating them only constructs objects, so this is safe
@@ -88,9 +93,9 @@ abstract class CarPlayModule {
 
         /**
          * The receiver on its own single-threaded dispatcher, with the app's time and logger, or null when there are
-         * no platform ports ([CarPlayPortsSource]). The canvas told to the iPhone is this phone's whole screen
-         * ([CarPlayCanvas]), measured on the engine's thread at the first connection attempt. `Random.Default` jitters
-         * the retry pauses, as the bike link's.
+         * no platform ports ([CarPlayPortsSource]). The canvas told to the iPhone is this phone's screen in the
+         * rider's orientation ([CarPlayCanvas]), measured on the engine's thread at the first connection attempt.
+         * `Random.Default` jitters the retry pauses, as the bike link's.
          */
         @Provides
         @Singleton

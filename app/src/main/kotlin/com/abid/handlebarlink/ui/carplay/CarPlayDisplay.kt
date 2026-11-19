@@ -1,7 +1,9 @@
 package com.abid.handlebarlink.ui.carplay
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
+import android.content.pm.ActivityInfo
 import android.os.Build
 import android.view.MotionEvent
 import android.view.SurfaceView
@@ -12,9 +14,12 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -23,6 +28,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -38,6 +44,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.engine.TouchContact
 import com.abid.handlebarlink.carplay.engine.android.touch.CarPlayTouch
 import com.abid.handlebarlink.core.designsystem.component.HlText
@@ -46,17 +53,20 @@ import kotlinx.coroutines.delay
 
 /**
  * The CarPlay display with its view model (docs/PLAN.md C4, Paper "CarPlay — flow v2", "Full 5"): the iPhone's
- * picture edge to edge with the system bars hidden. Android's Back (the edge swipe) returns to the CarPlay page while
- * CarPlay keeps running; the decoder only lets go of this view's surface, and coming back asks for a key frame.
+ * picture full screen with the system bars hidden, the screen turned to the canvas's orientation. Android's Back (the
+ * edge swipe) returns to the CarPlay page while CarPlay keeps running; the decoder only lets go of this view's surface,
+ * and coming back asks for a key frame.
  */
 @Composable
 fun CarPlayDisplayEntry() {
     val viewModel: CarPlayDisplayViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val shape by viewModel.shape.collectAsStateWithLifecycle()
     ImmersiveWindow()
+    LockedOrientation(shape.orientation)
     CarPlayDisplay(
         state,
-        aspectRatio = viewModel.aspectRatio,
+        shape,
         show = viewModel::show,
         onTouch = viewModel::touch,
         onHintShown = viewModel::hintShown,
@@ -66,11 +76,14 @@ fun CarPlayDisplayEntry() {
 /**
  * The picture in a `SurfaceView` (hardware overlay, docs/PLAN.md "Performance rules") of the canvas's shape, centred on
  * black; the status line over it while not connected; and the first time only, the "Swipe back" hint for [HINT_MILLIS].
+ * In landscape the picture stays out of the display cutout, as the canvas leaves it out ([carPlayCanvas]'s notch rule);
+ * portrait fills the screen edge to edge. Touch positions are fractions of the view, which has the canvas's shape, so
+ * the engine scales them to the canvas in either orientation.
  */
 @Composable
 fun CarPlayDisplay(
     state: CarPlayDisplayUiState,
-    aspectRatio: Float?,
+    shape: DisplayShape,
     show: (SurfaceView) -> AutoCloseable,
     onTouch: (List<TouchContact>) -> Unit,
     onHintShown: () -> Unit,
@@ -79,7 +92,19 @@ fun CarPlayDisplay(
     val spacing = HlTheme.spacing
     val touch by rememberUpdatedState(onTouch)
     val description = stringResource(R.string.carplay_display)
-    Box(Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .then(
+                if (shape.orientation == CarPlayOrientation.LANDSCAPE) {
+                    Modifier.windowInsetsPadding(WindowInsets.displayCutout)
+                } else {
+                    Modifier
+                },
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
         AndroidView(
             factory = { context ->
                 CarPlaySurfaceView(context) { event, view ->
@@ -87,7 +112,7 @@ fun CarPlayDisplay(
                 }.also { it.handle = show(it) }
             },
             modifier =
-                (if (aspectRatio != null) Modifier.aspectRatio(aspectRatio) else Modifier.fillMaxSize())
+                (shape.aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
                     .semantics { contentDescription = description },
             onRelease = { it.handle?.close() },
         )
@@ -155,9 +180,9 @@ private const val HINT_MILLIS = 3_000L
 
 /**
  * While shown: the system bars hidden (immersive; a swipe from an edge brings them back for a moment, Android "Hide
- * system bars for immersive mode"), the window into the display cutout so the picture is edge to edge, and back again
- * afterwards. Apps targeting SDK 35 run in the cutout on Android 15+ anyway ("Support display cutouts"), so the mode is
- * set only below that, the one branch for it.
+ * system bars for immersive mode"), the window into the display cutout so a portrait picture is edge to edge (a
+ * landscape one pads itself out of it, CarPlayDisplay), and back again afterwards. Apps targeting SDK 35 run in the
+ * cutout on Android 15+ anyway ("Support display cutouts"), so the mode is set only below that, the one branch for it.
  */
 @Composable
 private fun ImmersiveWindow() {
@@ -182,6 +207,42 @@ private fun ImmersiveWindow() {
         }
     }
 }
+
+/**
+ * While shown: the screen turned to the canvas's [orientation] (`Activity.setRequestedOrientation`, the documented way
+ * to restrict orientation at runtime from Compose: "App orientation restricted on phones", adaptive cookbook), and
+ * back to the app's own orientation when the display leaves. The app's own value is remembered across the activity's
+ * re-creation for the turn, and not restored while the activity is only being re-created
+ * (`isChangingConfigurations`), or the turn would undo itself. Phones honour it; Android 17 ignores it on screens
+ * 600 dp and wider, where the picture keeps its shape anyway.
+ */
+@Composable
+private fun LockedOrientation(orientation: CarPlayOrientation) {
+    val activity = LocalActivity.current ?: return
+    val own = rememberSaveable { activity.requestedOrientation }
+    DisposableEffect(activity, orientation) {
+        activity.requestedOrientation = screenOrientation(orientation)
+        onDispose { restoreOrientation(activity, own) }
+    }
+}
+
+private fun restoreOrientation(
+    activity: Activity,
+    own: Int,
+) {
+    if (!activity.isChangingConfigurations) activity.requestedOrientation = own
+}
+
+/**
+ * The activity orientation for a canvas in [orientation]: landscape or portrait, either way up as the rider's
+ * auto-rotate allows (`userLandscape`, `userPortrait`), so a phone mounted with its notch on the right still shows the
+ * picture upright.
+ */
+internal fun screenOrientation(orientation: CarPlayOrientation): Int =
+    when (orientation) {
+        CarPlayOrientation.LANDSCAPE -> ActivityInfo.SCREEN_ORIENTATION_USER_LANDSCAPE
+        CarPlayOrientation.PORTRAIT -> ActivityInfo.SCREEN_ORIENTATION_USER_PORTRAIT
+    }
 
 /**
  * The view the picture is drawn into: it keeps the screen on while shown, and hands every touch to [onTouch] with

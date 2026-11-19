@@ -6,6 +6,7 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNull
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
@@ -13,6 +14,7 @@ import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
+import com.abid.handlebarlink.ui.permissions.Access
 import org.junit.Test
 import java.time.Instant
 
@@ -228,23 +230,77 @@ class CarPlayTabTest {
     }
 
     @Test
-    fun `a missing permission names itself, Nearby devices, the microphone, or both`() {
+    fun `a missing permission names itself, Nearby devices, the microphone, Local network, or all of them`() {
         fun needs(vararg missing: String) = hero(CarPlayStatus.NeedsPermission(missing.toList()))
 
         assertThat(
             needs(Manifest.permission.NEARBY_WIFI_DEVICES).title,
         ).isEqualTo(R.string.carplay_tab_permission_title)
-        assertThat(needs(Manifest.permission.RECORD_AUDIO).title).isEqualTo(R.string.carplay_tab_microphone_title)
-        assertThat(needs(Manifest.permission.RECORD_AUDIO).detail)
-            .isEqualTo(HeroDetail.Text(R.string.carplay_tab_microphone_detail))
-        assertThat(needs(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.RECORD_AUDIO).title)
-            .isEqualTo(R.string.carplay_tab_both_title)
-        assertThat(needs(Manifest.permission.RECORD_AUDIO).primary).isEqualTo(TabAction.ALLOW)
+        val microphone = needs(Manifest.permission.RECORD_AUDIO)
+        assertThat(microphone.phase).isEqualTo(TabPhase.NEEDS_YOU)
+        assertThat(microphone.tag).isEqualTo(R.string.carplay_tag_needs_you)
+        assertThat(microphone.title).isEqualTo(R.string.carplay_tab_microphone_title)
+        assertThat(microphone.detail).isEqualTo(HeroDetail.Text(R.string.carplay_tab_microphone_detail))
+        assertThat(microphone.primary).isEqualTo(TabAction.ALLOW)
+        assertThat(microphone.ghost).isNull()
+        assertThat(needs(Manifest.permission.ACCESS_LOCAL_NETWORK).title)
+            .isEqualTo(R.string.carplay_tab_local_network_title)
+        assertThat(needs(Manifest.permission.ACCESS_LOCAL_NETWORK).detail)
+            .isEqualTo(HeroDetail.Text(R.string.carplay_tab_local_network_detail))
+        val both = needs(Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT)
+        assertThat(both.title).isEqualTo(R.string.carplay_tab_access_title)
+        assertThat(both.detail).isEqualTo(HeroDetail.Missing(listOf(CarPlayGrant.NEARBY, CarPlayGrant.MICROPHONE)))
+        assertThat(both.primary).isEqualTo(TabAction.ALLOW)
         // The engine's own permission error, for the microphone.
         assertThat(heroTitle(CarPlayError.PermissionMissing(Manifest.permission.RECORD_AUDIO)))
             .isEqualTo(R.string.carplay_tab_microphone_title)
         assertThat(heroTitle(CarPlayError.PermissionMissing(Manifest.permission.BLUETOOTH_CONNECT)))
             .isEqualTo(R.string.carplay_tab_permission_title)
+    }
+
+    @Test
+    fun `Allow asks while Android still asks, and becomes Open settings once it no longer does`() {
+        val microphone = hero(CarPlayStatus.NeedsPermission(listOf(Manifest.permission.RECORD_AUDIO)))
+
+        // Never asked, or refused once with a rationale: Allow (the system dialog again).
+        assertThat(microphone.withAccess(Access.ASK).primary).isEqualTo(TabAction.ALLOW)
+        // Refused for good: Open settings (the app's permission settings).
+        assertThat(microphone.withAccess(Access.BLOCKED).primary).isEqualTo(TabAction.OPEN_SETTINGS)
+        assertThat(microphone.withAccess(Access.BLOCKED).title).isEqualTo(R.string.carplay_tab_microphone_title)
+        // Granted meanwhile (the status not re-read yet): Allow stays, and asking finds nothing to ask.
+        assertThat(microphone.withAccess(Access.GRANTED).primary).isEqualTo(TabAction.ALLOW)
+        // Other actions are never turned into Open settings.
+        val wifi = hero(CarPlayStatus.Engine(CarPlayState.Recovering(CarPlayError.WifiOff, 1, Instant.EPOCH)))
+        assertThat(wifi.withAccess(Access.BLOCKED).primary).isEqualTo(TabAction.TURN_ON_WIFI)
+    }
+
+    @Test
+    fun `the engine's own missing permission gets the same Needs you as the app's check`() {
+        val engine =
+            hero(
+                CarPlayStatus.Engine(
+                    CarPlayState.Recovering(
+                        CarPlayError.PermissionMissing(Manifest.permission.RECORD_AUDIO),
+                        1,
+                        Instant.EPOCH,
+                    ),
+                ),
+            )
+
+        assertThat(engine).isEqualTo(hero(CarPlayStatus.NeedsPermission(listOf(Manifest.permission.RECORD_AUDIO))))
+    }
+
+    @Test
+    fun `the CarPlay screen row shows the stored orientation, landscape by default`() {
+        val tab = carPlayTab(true, CarPlayStatus.Off, emptyList(), null, line)
+        val portrait =
+            carPlayTab(true, CarPlayStatus.Off, emptyList(), null, line, orientation = CarPlayOrientation.PORTRAIT)
+
+        assertThat(CarPlayUiState().orientation).isEqualTo(CarPlayOrientation.LANDSCAPE)
+        assertThat(tab.orientation).isEqualTo(CarPlayOrientation.LANDSCAPE)
+        assertThat(portrait.orientation).isEqualTo(CarPlayOrientation.PORTRAIT)
+        assertThat(orientationName(CarPlayOrientation.LANDSCAPE)).isEqualTo(R.string.carplay_screen_landscape)
+        assertThat(orientationName(CarPlayOrientation.PORTRAIT)).isEqualTo(R.string.carplay_screen_portrait)
     }
 
     @Test

@@ -3,6 +3,7 @@ package com.abid.handlebarlink.ui.carplay
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
@@ -31,7 +32,8 @@ class CarPlayStatusLines
 
 /**
  * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4): the hero for CarPlay's state, the iPhone, Link and beta switch
- * rows; Cancel and Disconnect stop CarPlay ([CarPlayCoordinator.hold]) until Start CarPlay.
+ * rows, then the CarPlay screen row; Cancel and Disconnect stop CarPlay ([CarPlayCoordinator.hold]) until
+ * Start CarPlay.
  */
 @HiltViewModel
 class CarPlayViewModel
@@ -50,14 +52,22 @@ class CarPlayViewModel
                 coordinator.status,
                 pairing.iphones(),
                 pairing.chosen(),
-                combine(lines.lines, video.stats(), ::Pair),
-            ) { enabled, status, iphones, chosen, (line, stats) ->
-                carPlayTab(enabled, status, iphones, chosen, line, stats)
+                combine(lines.lines, video.stats(), settings.orientation, ::Triple),
+            ) { enabled, status, iphones, chosen, (line, stats, orientation) ->
+                carPlayTab(enabled, status, iphones, chosen, line, stats, orientation)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
 
         /** Turns our own receiver on or off; a running ride follows at once (CarPlayCoordinator). */
         fun setEnabled(enabled: Boolean) {
             viewModelScope.launch { settings.setEnabled(enabled) }
+        }
+
+        /**
+         * The rider chose [orientation] (the CarPlay screen sheet); returns once stored (the sheet then closes). A
+         * running CarPlay reconnects with it.
+         */
+        suspend fun chooseOrientation(orientation: CarPlayOrientation) {
+            settings.setOrientation(orientation)
         }
 
         /** Start CarPlay: the switch on (if it was off) and a stop lifted; the caller starts the ride service. */

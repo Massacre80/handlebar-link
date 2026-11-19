@@ -55,6 +55,16 @@ class CarPlayTouchTest {
             .containsExactly(TouchContact(3, 0.25, 0.2, down = false), TouchContact(5, 0.75, 0.8, down = false))
     }
 
+    @Test
+    fun `on a landscape view the fractions follow the long side across`() {
+        // The landscape canvas's view, 2246 x 1080: x over 2246, y over 1080 (the engine scales them to the canvas).
+        val pointers = Pointers(MotionEvent.ACTION_DOWN, 0, intArrayOf(2), floatArrayOf(1684.5f), floatArrayOf(270f))
+
+        assertThat(
+            CarPlayTouch.contacts(pointers, 2246, 1080),
+        ).containsExactly(TouchContact(2, 0.75, 0.25, down = true))
+    }
+
     private companion object {
         const val WIDTH = 1080
         const val HEIGHT = 2250

@@ -151,6 +151,9 @@ public object HlIcons {
 
     /** An arrow turning back: reset to default. */
     @DrawableRes public val Reset: Int = R.drawable.hl_ic_reset
+
+    /** The phone on its side: a picture in landscape (the phone icon turned a quarter). */
+    @DrawableRes public val PhoneLandscape: Int = R.drawable.hl_ic_phone_landscape
 }
 
 /** Text in a design style and colour; long text ends with an ellipsis. */

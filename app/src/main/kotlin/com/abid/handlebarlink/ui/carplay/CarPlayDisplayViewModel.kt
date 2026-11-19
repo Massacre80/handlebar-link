@@ -6,10 +6,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayDisplayHint
+import com.abid.handlebarlink.carplay.CarPlayOrientation
+import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.TouchContact
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
+import com.abid.handlebarlink.carplay.orientation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +35,30 @@ data class CarPlayDisplayUiState(
 )
 
 /**
+ * The shape of the picture on the display: the canvas the iPhone was told ([orientation], and the [aspectRatio] its
+ * view keeps; null fills the window).
+ */
+@Immutable
+data class DisplayShape(
+    val orientation: CarPlayOrientation,
+    val aspectRatio: Float?,
+)
+
+/**
+ * The display's shape for the canvas the latest attempt [reported], or, before any attempt, the orientation the next
+ * one will report ([chosen]) with no aspect ratio.
+ */
+internal fun displayShape(
+    reported: CarPlayConfig?,
+    chosen: CarPlayOrientation,
+): DisplayShape =
+    if (reported == null) {
+        DisplayShape(chosen, null)
+    } else {
+        DisplayShape(reported.orientation, reported.widthPixels.toFloat() / reported.heightPixels)
+    }
+
+/**
  * The CarPlay display's view model: shows the engine's picture ([CarPlayScreen]) and sends the rider's touches to the
  * engine ([CarPlayLink.touch]). Leaving the display only stops drawing to its view; CarPlay keeps running.
  */
@@ -46,11 +73,16 @@ class CarPlayDisplayViewModel
         lines: CarPlayStatusLines,
     ) : ViewModel() {
         /**
-         * The canvas's width over its height, so the picture keeps its shape on any window; null fills the window
-         * (the canvas is the whole screen). The engine measures the screen at its first attempt; this never does
-         * (main thread).
+         * The canvas's orientation (the display locks the screen to it) and its width over its height, so the picture
+         * keeps its shape on any window. Read from what the engine reported; this never measures (main thread).
          */
-        val aspectRatio: Float? = canvas.measuredOrNull()?.let { it.widthPixels.toFloat() / it.heightPixels }
+        val shape: StateFlow<DisplayShape> =
+            combine(canvas.reported, canvas.orientation, ::displayShape)
+                .stateIn(
+                    viewModelScope,
+                    SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                    displayShape(canvas.reported.value, canvas.orientation.value),
+                )
 
         /** The page's state. */
         val uiState: StateFlow<CarPlayDisplayUiState> =

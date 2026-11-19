@@ -23,7 +23,9 @@ fun rememberAllowAll(states: List<AccessState>): () -> Unit {
     var waiting by remember { mutableStateOf(false) }
     var step by remember { mutableIntStateOf(0) }
     val runtime =
-        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { answers ->
+            // Asked now: a later refusal without a rationale is for good, on every screen.
+            AskedPermissions.add(answers.keys.toList())
             waiting = false
             step++
         }

@@ -2,6 +2,8 @@ package com.abid.handlebarlink.carplay
 
 import android.Manifest
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.stringPreferencesKey
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
@@ -37,6 +39,23 @@ class CarPlaySettingsTest {
             settings.setEnabled(false)
             assertThat(settings.enabled.first()).isFalse()
             assertThat(appearance.theme.first()).isEqualTo(AppTheme.BENTO)
+        }
+
+    @Test
+    fun `the CarPlay screen is landscape until portrait is chosen, is stored, and an unknown value reads landscape`() =
+        runTest {
+            val file = folder.newFile("screen.preferences_pb").also { it.delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val settings = DataStoreCarPlaySettings(store)
+
+            assertThat(settings.orientation.first()).isEqualTo(CarPlayOrientation.LANDSCAPE)
+            settings.setOrientation(CarPlayOrientation.PORTRAIT)
+            assertThat(settings.orientation.first()).isEqualTo(CarPlayOrientation.PORTRAIT)
+            assertThat(settings.enabled.first()).isFalse()
+            store.edit { it[stringPreferencesKey("carplay_orientation")] = "UPSIDE_DOWN" }
+            assertThat(settings.orientation.first()).isEqualTo(CarPlayOrientation.LANDSCAPE)
+            settings.setOrientation(CarPlayOrientation.LANDSCAPE)
+            assertThat(settings.orientation.first()).isEqualTo(CarPlayOrientation.LANDSCAPE)
         }
 
     @Test

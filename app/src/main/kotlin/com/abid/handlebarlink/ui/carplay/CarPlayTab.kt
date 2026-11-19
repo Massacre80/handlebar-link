@@ -5,7 +5,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.CarPlayStatus
+import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
@@ -45,7 +47,12 @@ enum class TabAction {
     OPEN_CARPLAY,
     CANCEL,
     DISCONNECT,
+
+    /** Asks for CarPlay's missing permissions (Android may still ask). */
     ALLOW,
+
+    /** Opens the app's permission settings: Android no longer asks for a permission refused for good. */
+    OPEN_SETTINGS,
     TURN_ON_WIFI,
     TURN_ON_BLUETOOTH,
 }
@@ -74,6 +81,11 @@ sealed interface HeroDetail {
         @param:StringRes val text: Int,
         val name: String,
     ) : HeroDetail
+
+    /** The permissions still missing, named ("Missing: Nearby devices and Microphone"). */
+    data class Missing(
+        val grants: List<CarPlayGrant>,
+    ) : HeroDetail
 }
 
 /** The detail's words. */
@@ -84,6 +96,7 @@ fun HeroDetail.words(): String =
         is HeroDetail.Step -> stringResource(R.string.carplay_tab_step, number, CONNECT_PHASES, stringResource(step))
         is HeroDetail.Line -> line.words()
         is HeroDetail.Iphone -> stringResource(text, name)
+        is HeroDetail.Missing -> stringResource(R.string.carplay_tab_access_detail, listWords(grants.map { it.label }))
     }
 
 /** The hero: a dial ([tone], [progress]), a [tag], a big [title], a [detail], one [primary] and one [ghost] action. */
@@ -147,12 +160,16 @@ data class CarPlayUiState(
     val enabled: Boolean = false,
     val iphone: IphoneRow = iphoneRow(CarPlayStatus.Off, null, null),
     val link: LinkRow = linkRow(CarPlayStatus.Off),
+    /** The "CarPlay screen" row: which way the picture stands. */
+    val orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
 )
 
 /**
  * The tab for the switch ([enabled]), CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one,
- * the status [line] and the picture's last window of numbers ([video], for the Link row's quality).
+ * the status [line], the picture's last window of numbers ([video], for the Link row's quality) and the "CarPlay
+ * screen" setting ([orientation]).
  */
+@Suppress("LongParameterList") // One input per part of the page.
 fun carPlayTab(
     enabled: Boolean,
     status: CarPlayStatus,
@@ -160,12 +177,14 @@ fun carPlayTab(
     chosen: String?,
     line: CarPlayLine,
     video: CarPlayVideoStats? = null,
+    orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
 ): CarPlayUiState =
     CarPlayUiState(
         hero = carPlayHero(enabled, status, iphones, chosen, line),
         enabled = enabled,
         iphone = iphoneRow(status, iphones, chosen),
         link = linkRow(status, video),
+        orientation = orientation,
     )
 
 /**
@@ -232,27 +251,7 @@ private fun statusHero(
         }
 
         is CarPlayStatus.NeedsPermission -> {
-            when (missingAccess(status.permissions)) {
-                MissingAccess.NEARBY -> {
-                    needsYou(
-                        R.string.carplay_tab_permission_title,
-                        R.string.carplay_tab_permission_detail,
-                        TabAction.ALLOW,
-                    )
-                }
-
-                MissingAccess.MICROPHONE -> {
-                    needsYou(
-                        R.string.carplay_tab_microphone_title,
-                        R.string.carplay_tab_microphone_detail,
-                        TabAction.ALLOW,
-                    )
-                }
-
-                MissingAccess.BOTH -> {
-                    needsYou(R.string.carplay_tab_both_title, R.string.carplay_tab_both_detail, TabAction.ALLOW)
-                }
-            }
+            needsAccess(missingAccess(status.permissions))
         }
 
         CarPlayStatus.Failed -> {
@@ -316,8 +315,11 @@ private fun engineHero(
         }
 
         is CarPlayState.Recovering -> {
-            if (state.error.needsUser) {
-                needsYou(heroTitle(state.error), R.string.carplay_tab_needs_you_detail, fixFor(state.error))
+            val error = state.error
+            if (error is CarPlayError.PermissionMissing) {
+                needsAccess(listOf(carPlayGrant(error.permission)))
+            } else if (error.needsUser) {
+                needsYou(heroTitle(error), R.string.carplay_tab_needs_you_detail, fixFor(error))
             } else {
                 // Retrying by itself: still starting, with the countdown.
                 connecting(HeroDetail.Line(line), 1)
@@ -338,15 +340,21 @@ private fun connecting(
     ghost = TabAction.CANCEL,
 )
 
-private fun needsYou(
+internal fun needsYou(
     @StringRes title: Int,
     @StringRes detail: Int,
+    action: TabAction?,
+) = needsYou(title, HeroDetail.Text(detail), action)
+
+internal fun needsYou(
+    @StringRes title: Int,
+    detail: HeroDetail,
     action: TabAction?,
 ) = CarPlayHero(
     TabPhase.NEEDS_YOU,
     R.string.carplay_tag_needs_you,
     title,
-    HeroDetail.Text(detail),
+    detail,
     SignalTone.ERROR,
     primary = action,
 )

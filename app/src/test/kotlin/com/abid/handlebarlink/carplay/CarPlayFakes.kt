@@ -9,14 +9,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 
-/** The beta switch in memory. */
+/** The beta switch and the CarPlay screen in memory. */
 class InMemoryCarPlaySettings(
     enabled: Boolean = false,
+    orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
 ) : CarPlaySettings {
     override val enabled = MutableStateFlow(enabled)
 
+    override val orientation = MutableStateFlow(orientation)
+
     override suspend fun setEnabled(enabled: Boolean) {
         this.enabled.value = enabled
+    }
+
+    override suspend fun setOrientation(orientation: CarPlayOrientation) {
+        this.orientation.value = orientation
     }
 }
 
@@ -38,6 +45,14 @@ class SlowCarPlaySettings(
 
     override suspend fun setEnabled(enabled: Boolean) {
         stored.value = enabled
+    }
+
+    private val storedOrientation = MutableStateFlow(CarPlayOrientation.DEFAULT)
+
+    override val orientation: Flow<CarPlayOrientation> = storedOrientation
+
+    override suspend fun setOrientation(orientation: CarPlayOrientation) {
+        storedOrientation.value = orientation
     }
 }
 
@@ -63,10 +78,20 @@ class FailingCarPlayLink(
     }
 }
 
+/** The orientations the coordinator gave the canvas, in order. */
+class RecordingCanvas : CanvasOrientation {
+    val used = mutableListOf<CarPlayOrientation>()
+
+    override fun use(orientation: CarPlayOrientation) {
+        used += orientation
+    }
+}
+
 /** A coordinator over [link] (null: no platform ports). */
 fun carPlayCoordinator(
     link: CarPlayLink?,
     settings: CarPlaySettings,
     permissions: CarPlayPermissions,
     logger: Logger,
-): CarPlayCoordinator = CarPlayCoordinator(settings, link, permissions, logger)
+    canvas: CanvasOrientation = RecordingCanvas(),
+): CarPlayCoordinator = CarPlayCoordinator(settings, link, permissions, canvas, logger)

@@ -29,6 +29,7 @@ import com.abid.handlebarlink.ui.carplay.CarPlayUiState
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnected
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnecting
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnectingLine
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayMicrophone
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayNotSetUp
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayOff
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayWifiOff
@@ -200,6 +201,17 @@ fun CarPlayWifiOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayWifiOff)
 @Artboard
 @Composable
 fun CarPlayOffNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayOff)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayMicrophoneNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayMicrophone)
+
+@PreviewTest
+@Artboard
+@Composable
+fun CarPlayMicrophoneBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayMicrophone)
 
 @PreviewTest
 @Artboard

@@ -5,11 +5,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.preview.LargeText
 import com.abid.handlebarlink.core.designsystem.preview.ScreenSizes
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.carplay.CarPlayScreenSheet
 import com.abid.handlebarlink.ui.carplay.IphoneSheet
 import com.abid.handlebarlink.ui.carplay.PairIphoneScreen
 import com.abid.handlebarlink.ui.carplay.PairIphoneUiState
@@ -102,3 +104,22 @@ fun IphoneSheetNight() = Sheet(HlThemeVariant.NIGHT)
 @Artboard
 @Composable
 fun IphoneSheetBento() = Sheet(HlThemeVariant.BENTO)
+
+@Composable
+private fun ScreenSheet(variant: HlThemeVariant) =
+    HlTheme(variant) {
+        HlBackground(Modifier.fillMaxSize()) {
+            Box(Modifier.align(Alignment.BottomCenter)) { CarPlayScreenSheet(CarPlayOrientation.LANDSCAPE, {}, {}) }
+        }
+    }
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayScreenSheetNight() = ScreenSheet(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@Composable
+fun CarPlayScreenSheetBento() = ScreenSheet(HlThemeVariant.BENTO)

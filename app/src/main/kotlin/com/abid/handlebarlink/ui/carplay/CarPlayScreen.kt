@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.ui.carplay
 
+import android.Manifest
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
@@ -57,13 +59,14 @@ import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
 
 /**
  * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4): a hero (the dial, a state tag, a big title, a detail line,
- * one primary and one ghost action), then the status list: the iPhone (opens the iPhone sheet), the Link, and the
- * "Handlebar Link CarPlay · Beta · instead of CarLink" switch. The page scrolls when it runs out of height
- * (docs/LESSONS.md 22).
+ * one primary and one ghost action), then the status list: the iPhone (opens the iPhone sheet), the Link, the
+ * "Handlebar Link CarPlay · Beta · instead of CarLink" switch and, under it, "CarPlay screen" (opens its picker,
+ * [onScreen]). The page scrolls when it runs out of height (docs/LESSONS.md 22).
  */
 @Composable
 fun CarPlayScreen(
@@ -72,6 +75,7 @@ fun CarPlayScreen(
     onToggle: () -> Unit,
     onIphone: () -> Unit,
     contentPadding: PaddingValues,
+    onScreen: () -> Unit = {},
 ) {
     val spacing = HlTheme.spacing
     BoxWithConstraints(
@@ -90,7 +94,7 @@ fun CarPlayScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.s24, Alignment.CenterVertically),
         ) {
             Hero(state.hero, onAction, Modifier.widthIn(max = HlTheme.sizes.contentMax))
-            StatusList(state, onToggle, onIphone, Modifier.widthIn(max = HlTheme.sizes.contentMax))
+            StatusList(state, onToggle, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
         }
     }
 }
@@ -200,12 +204,13 @@ private fun StateTag(
     }
 }
 
-/** The iPhone, the Link and the beta switch, in one group. */
+/** The iPhone, the Link, the beta switch and the CarPlay screen, in one group. */
 @Composable
 private fun StatusList(
     state: CarPlayUiState,
     onToggle: () -> Unit,
     onIphone: () -> Unit,
+    onScreen: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val colors = HlTheme.colors
@@ -238,6 +243,16 @@ private fun StatusList(
             container = Color.Transparent,
             icon = HlIcons.CarPlay,
         )
+        HlGroupDivider()
+        HlValueRow(
+            value = stringResource(R.string.carplay_screen_row),
+            hint = stringResource(orientationName(state.orientation)),
+            detail = stringResource(R.string.carplay_screen_row_detail),
+            onClick = onScreen,
+            container = Color.Transparent,
+            chevron = true,
+            icon = orientationIcon(state.orientation),
+        )
     }
 }
 
@@ -252,6 +267,7 @@ private fun actionLabel(action: TabAction): Int =
         TabAction.CANCEL -> R.string.cancel
         TabAction.DISCONNECT -> R.string.carplay_action_disconnect
         TabAction.ALLOW -> R.string.carplay_action_allow
+        TabAction.OPEN_SETTINGS -> R.string.carplay_action_settings
         TabAction.TURN_ON_WIFI -> R.string.carplay_action_wifi
         TabAction.TURN_ON_BLUETOOTH -> R.string.carplay_action_bluetooth
     }
@@ -300,6 +316,17 @@ internal val PreviewCarPlayConnectingLine =
     carPlayLine(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.DIALING_PHONE)), Instant.EPOCH)
 
 internal val PreviewCarPlayOff = carPlayTab(false, CarPlayStatus.Off, listOf(PreviewIphone), null, PreviewLine)
+
+/** The microphone refused for good: Needs you with Open settings, the screen row in portrait. */
+internal val PreviewCarPlayMicrophone =
+    carPlayTab(
+        true,
+        CarPlayStatus.NeedsPermission(listOf(Manifest.permission.RECORD_AUDIO)),
+        listOf(PreviewIphone),
+        null,
+        PreviewLine,
+        orientation = CarPlayOrientation.PORTRAIT,
+    ).let { it.copy(hero = it.hero.withAccess(Access.BLOCKED)) }
 
 @Preview(name = "CarPlay · Night", widthDp = 411, heightDp = 856)
 @Composable

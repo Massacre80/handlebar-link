@@ -24,7 +24,8 @@ import java.time.Instant
 
 /**
  * CarPlay's one status line in plain words ([text], with the step or error [part] and the [seconds] to the next
- * try where it has them), and the [tone] of Home's CarPlay card.
+ * try where it has them, or a list of [parts] such as the permissions still missing), and the [tone] of Home's
+ * CarPlay card.
  */
 @Immutable
 data class CarPlayLine(
@@ -32,6 +33,7 @@ data class CarPlayLine(
     @param:StringRes val part: Int? = null,
     val seconds: Long? = null,
     val tone: SignalTone,
+    val parts: List<Int> = emptyList(),
 )
 
 /** The line's words. */
@@ -40,8 +42,20 @@ fun CarPlayLine.words(): String =
     when {
         part != null && seconds != null -> stringResource(text, stringResource(part), seconds)
         part != null -> stringResource(text, stringResource(part))
+        parts.isNotEmpty() -> stringResource(text, listWords(parts))
         else -> stringResource(text)
     }
+
+/** [parts] as one list in words ("Nearby devices, Local network and Microphone"). */
+@Composable
+internal fun listWords(parts: List<Int>): String {
+    val words = parts.map { stringResource(it) }
+    return if (words.size < 2) {
+        words.joinToString()
+    } else {
+        stringResource(R.string.list_and, words.dropLast(1).joinToString(", "), words.last())
+    }
+}
 
 /**
  * The line for [status] at [now]: Off keeps "Runs in CarLink for now"; then Starting, "Connecting · step",
@@ -54,7 +68,7 @@ internal fun carPlayLine(
     when (status) {
         CarPlayStatus.Off -> CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE)
         CarPlayStatus.NotAvailable -> CarPlayLine(R.string.carplay_status_not_available, tone = SignalTone.IDLE)
-        is CarPlayStatus.NeedsPermission -> CarPlayLine(permissionLine(status.permissions), tone = SignalTone.ERROR)
+        is CarPlayStatus.NeedsPermission -> permissionLine(status.permissions)
         CarPlayStatus.Failed -> CarPlayLine(R.string.carplay_status_failed, tone = SignalTone.ERROR)
         CarPlayStatus.Held -> CarPlayLine(R.string.carplay_status_held, tone = SignalTone.IDLE)
         is CarPlayStatus.Engine -> engineLine(status.state, now)

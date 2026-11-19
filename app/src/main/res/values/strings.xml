@@ -289,9 +289,24 @@
     <string name="carplay_tab_permission_title">Allow Nearby devices</string>
     <string name="carplay_tab_permission_detail">CarPlay needs it to reach your iPhone over Bluetooth and Wi-Fi Direct</string>
     <string name="carplay_tab_microphone_title">Allow the microphone</string>
-    <string name="carplay_tab_microphone_detail">CarPlay uses it for Siri and calls</string>
-    <string name="carplay_tab_both_title">Allow Nearby devices and the microphone</string>
-    <string name="carplay_tab_both_detail">CarPlay needs them to reach your iPhone, and for Siri and calls</string>
+    <string name="carplay_tab_microphone_detail">Siri and calls use the microphone, so CarPlay starts only with it</string>
+    <string name="carplay_tab_local_network_title">Allow Local network</string>
+    <string name="carplay_tab_local_network_detail">CarPlay talks to your iPhone over Wi-Fi Direct. Android lists it under Nearby devices</string>
+    <string name="carplay_tab_access_title">Allow CarPlay\'s permissions</string>
+    <string name="carplay_tab_access_detail">Missing: %1$s</string>
+    <!-- The names of CarPlay's permissions in a list ("Missing: Nearby devices and Microphone"). -->
+    <string name="carplay_access_nearby">Nearby devices</string>
+    <string name="carplay_access_local_network">Local network</string>
+    <string name="carplay_access_microphone">Microphone</string>
+    <!-- Two or more names: the last joined with "and". -->
+    <string name="list_and">%1$s and %2$s</string>
+    <!-- The dialog that says why before Android asks for CarPlay's permissions. -->
+    <string name="carplay_ask_title">CarPlay needs your OK</string>
+    <string name="carplay_ask_nearby">Nearby devices: to reach your iPhone over Bluetooth and Wi-Fi Direct.</string>
+    <string name="carplay_ask_local_network">Local network: to talk to your iPhone over Wi-Fi Direct.</string>
+    <string name="carplay_ask_microphone">Microphone: Siri and calls use the microphone.</string>
+    <string name="carplay_ask_continue">Continue</string>
+    <string name="carplay_ask_not_now">Not now</string>
     <string name="carplay_tab_failed_title">CarPlay stopped</string>
     <string name="carplay_tab_choose_title">Choose your iPhone</string>
     <string name="carplay_tab_choose_detail">More than one iPhone is paired. Pick the one CarPlay connects to.</string>
@@ -302,9 +317,18 @@
     <string name="carplay_action_start">Start CarPlay</string>
     <string name="carplay_action_disconnect">Disconnect</string>
     <string name="carplay_action_allow">Allow</string>
+    <string name="carplay_action_settings">Open settings</string>
     <string name="carplay_action_wifi">Turn on Wi-Fi</string>
     <string name="carplay_action_bluetooth">Turn on Bluetooth</string>
     <!-- The CarPlay tab's status list. -->
+    <string name="carplay_screen_row">CarPlay screen</string>
+    <string name="carplay_screen_row_detail">Which way the picture stands</string>
+    <string name="carplay_screen_landscape">Landscape</string>
+    <string name="carplay_screen_portrait">Portrait</string>
+    <string name="carplay_screen_landscape_detail">The phone across the handlebar. The default</string>
+    <string name="carplay_screen_portrait_detail">The phone upright</string>
+    <string name="carplay_screen_sheet_detail">How CarPlay\'s picture stands on the phone</string>
+    <string name="carplay_canvas_footnote">If CarPlay is running, it reconnects to apply it.</string>
     <string name="carplay_iphone_row">iPhone</string>
     <string name="carplay_iphone_connected">Connected</string>
     <string name="carplay_iphone_paired">Paired</string>
@@ -379,9 +403,10 @@
     <string name="carplay_display">CarPlay screen</string>
     <string name="carplay_display_hint">‹ Swipe back for Handlebar Link</string>
     <string name="carplay_status_not_available">Not in this version of the app yet</string>
-    <string name="carplay_status_permission">Needs Nearby devices: allow it in Settings › Permissions</string>
-    <string name="carplay_status_permission_microphone">Allow the microphone for Siri and calls</string>
-    <string name="carplay_status_permission_both">Needs Nearby devices and the microphone: allow them in Settings › Permissions</string>
+    <string name="carplay_status_permission">Needs Nearby devices to reach your iPhone</string>
+    <string name="carplay_status_permission_microphone">Needs the microphone for Siri and calls</string>
+    <string name="carplay_status_permission_local_network">Needs Local network to reach your iPhone</string>
+    <string name="carplay_status_permission_several">Needs %1$s</string>
     <string name="carplay_status_failed">Stopped after an error. Turn it off and on to try again</string>
     <string name="carplay_status_held">Stopped. Start it on the CarPlay tab</string>
     <string name="carplay_status_waiting">Starts with the next ride</string>
@@ -411,6 +436,7 @@
          coordinator wires them into ui/carplay/CarPlayLine.kt errorText() at merge. Unused until then. -->
     <string name="carplay_error_permission">Allow Nearby devices for CarPlay</string>
     <string name="carplay_error_permission_microphone">Allow the microphone for Siri and calls</string>
+    <string name="carplay_error_permission_local_network">Allow Local network for CarPlay</string>
     <string name="carplay_error_wifi_off">Turn on Wi-Fi</string>
     <string name="carplay_error_stalled_not_joined">The iPhone didn\'t join the Wi-Fi</string>
     <string name="carplay_error_stalled_no_start">The iPhone didn\'t start CarPlay</string>

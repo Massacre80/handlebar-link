@@ -53,6 +53,24 @@ internal sealed interface AccessRequest {
     data object None : AccessRequest
 }
 
+/**
+ * The runtime permissions this process has asked for, shared by every screen: Android shows no dialog for one refused
+ * for good, and only after it was asked once does "no rationale" mean that (android-permissions-security §6). Shared so
+ * that asking on one screen (the CarPlay tab's explanation dialog) turns Allow into Open settings on another at once.
+ * Kept in memory only; [rememberRuntimeAccess] also saves its own across process death.
+ */
+internal object AskedPermissions {
+    private val asked = HashSet<String>()
+
+    /** Whether any of [permissions] was asked for. */
+    fun any(permissions: List<String>): Boolean = synchronized(asked) { permissions.any { it in asked } }
+
+    /** [permissions] were asked for. */
+    fun add(permissions: List<String>) {
+        synchronized(asked) { asked += permissions }
+    }
+}
+
 /** A permission's [status] (re-read whenever the app resumes) and the one right action for it. */
 class AccessState internal constructor(
     status: Access,
@@ -95,7 +113,7 @@ fun rememberRuntimeAccess(
     fun read(): Access {
         val missing = permissions.filterNot { granted(context, it) }
         val blocked =
-            asked && activity != null &&
+            (asked || AskedPermissions.any(permissions)) && activity != null &&
                 missing.none { ActivityCompat.shouldShowRequestPermissionRationale(activity, it) }
         return when {
             missing.isEmpty() -> Access.GRANTED
@@ -107,6 +125,7 @@ fun rememberRuntimeAccess(
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { answers ->
             asked = true
+            AskedPermissions.add(permissions)
             state.status = read()
             onResult(answers.values.all { it } && answers.keys.containsAll(permissions))
         }

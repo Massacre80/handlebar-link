@@ -11,6 +11,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -21,13 +22,16 @@ import androidx.navigation3.runtime.EntryProviderScope
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.scene.DialogSceneStrategy
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.carplay.carPlayPermissions
 import com.abid.handlebarlink.carplay.engine.android.pairing.CarPlayPairing
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.core.designsystem.component.HlDialog
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.ride.RideService
+import com.abid.handlebarlink.ui.navigation.CarPlayAccessRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayDisplayRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
+import com.abid.handlebarlink.ui.navigation.CarPlayScreenRoute
 import com.abid.handlebarlink.ui.navigation.ForgetIphoneRoute
 import com.abid.handlebarlink.ui.navigation.IphoneSheetRoute
 import com.abid.handlebarlink.ui.navigation.Navigator
@@ -41,7 +45,8 @@ import kotlinx.coroutines.launch
 
 /**
  * The CarPlay tab, the CarPlay display (full screen while connected), in-app iPhone pairing (a full page), the iPhone
- * sheet and its "Forget …?" confirmation (a dialog, as Intercom's "Remove …?").
+ * sheet and its "Forget …?" confirmation (a dialog, as Intercom's "Remove …?"), the CarPlay screen sheet and the
+ * dialog that explains CarPlay's permissions before Android asks.
  */
 fun EntryProviderScope<NavKey>.carPlayEntries(
     navigator: Navigator,
@@ -54,6 +59,8 @@ fun EntryProviderScope<NavKey>.carPlayEntries(
                 onOpen = { navigator.navigate(CarPlayDisplayRoute) },
                 onAddIphone = { navigator.navigate(PairIphoneRoute) },
                 onIphone = { navigator.navigate(IphoneSheetRoute) },
+                onScreen = { navigator.navigate(CarPlayScreenRoute) },
+                onExplainAccess = { navigator.navigate(CarPlayAccessRoute) },
             ),
         )
     }
@@ -62,6 +69,8 @@ fun EntryProviderScope<NavKey>.carPlayEntries(
     entry<PairIphoneRoute> { PairIphoneEntry(navigator) }
     entry<IphoneSheetRoute>(metadata = sheet()) { IphoneSheetEntry(navigator) }
     entry<ForgetIphoneRoute>(metadata = DialogSceneStrategy.dialog()) { route -> ForgetEntry(route, navigator) }
+    entry<CarPlayScreenRoute>(metadata = sheet()) { CarPlayScreenEntry(navigator) }
+    entry<CarPlayAccessRoute>(metadata = DialogSceneStrategy.dialog()) { CarPlayAccessEntry(navigator) }
 }
 
 /** What the CarPlay tab asks its entry to open. */
@@ -72,6 +81,10 @@ data class CarPlayNavigation(
     val onAddIphone: () -> Unit,
     /** The iPhone sheet (the iPhone row). */
     val onIphone: () -> Unit,
+    /** The CarPlay screen sheet (the CarPlay screen row). */
+    val onScreen: () -> Unit = {},
+    /** The dialog that explains CarPlay's missing permissions, then asks for them. */
+    val onExplainAccess: () -> Unit = {},
 )
 
 /** What the pairing screens can ask for; the entry turns each into the view model call or system screen. */
@@ -89,9 +102,10 @@ data class PairIphoneActions(
 
 /**
  * The CarPlay tab with its view model. Every action that starts CarPlay (the switch, Start CarPlay) asks for CarPlay's
- * permissions when they are missing (the same runtime flow as the Permissions page) and starts the ride service once
- * they are allowed, so a ride that had ended picks CarPlay up while the app is on screen (a foreground service may only
- * start then).
+ * missing permissions, the microphone included, through the same runtime flow as the Permissions page, after a dialog
+ * that says why ([CarPlayAccessEntry]); it starts the ride service once they are allowed, so a ride that had ended
+ * picks CarPlay up while the app is on screen (a foreground service may only start then). Refused, the hero shows
+ * Needs you with Allow while Android still asks, Open settings once it no longer does ([withAccess]).
  */
 @Composable
 fun CarPlayEntry(
@@ -103,14 +117,14 @@ fun CarPlayEntry(
     val context = LocalContext.current
     val access = rememberCarPlayAccess { viewModel.recheckPermission() }
     val enableBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
-    val startRide = { startRide(context, access) }
+    val startRide = { startRide(context, access, navigation.onExplainAccess) }
     val toggle = {
         val on = !state.enabled
         viewModel.setEnabled(on)
         if (on) startRide()
     }
     CarPlayScreen(
-        state,
+        state.copy(hero = state.hero.withAccess(access.status)),
         onAction = { action ->
             when (action) {
                 TabAction.ADD_IPHONE -> navigation.onAddIphone()
@@ -125,13 +139,15 @@ fun CarPlayEntry(
         onToggle = toggle,
         onIphone = { if (state.iphone.hasIphones) navigation.onIphone() else navigation.onAddIphone() },
         contentPadding = contentPadding,
+        onScreen = navigation.onScreen,
     )
 }
 
-/** Starts the ride service when CarPlay's permissions allow, or asks for them. */
+/** Starts the ride service when CarPlay's permissions allow, or explains and asks for them ([explain]). */
 private fun startRide(
     context: Context,
     access: AccessState,
+    explain: () -> Unit,
 ) {
     when (access.status) {
         Access.GRANTED -> {
@@ -139,10 +155,10 @@ private fun startRide(
         }
 
         Access.ASK -> {
-            access.act()
+            explain()
         }
 
-        // Refused for good: the hero shows Needs you with Allow, which opens the app's settings.
+        // Refused for good: the hero shows Needs you with Open settings (withAccess).
         Access.BLOCKED -> {}
     }
 }
@@ -155,7 +171,9 @@ private fun fix(
     launch: (Intent) -> Unit,
 ) {
     when (action) {
-        TabAction.ALLOW -> {
+        // Allow asks again while Android still shows its dialog; Open settings opens the app's settings page
+        // (Settings.ACTION_APPLICATION_DETAILS_SETTINGS, rememberRuntimeAccess) once it no longer does.
+        TabAction.ALLOW, TabAction.OPEN_SETTINGS -> {
             access.act()
         }
 
