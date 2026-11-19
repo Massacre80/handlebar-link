@@ -539,6 +539,76 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   iAP2 tunnel (DiPlay forwards them from both links; `CarPlayController.kt:1796, 1927`). If it moves them to the
   tunnel, the tunnel's iAP2 must feed the same `CallStates`. Device steps: see the C5 controls report (2026-11-19).
 
+### C5 audio: sound and the microphone (2026-11-19, worktree `carplay-c5-audio`)
+
+CarPlay's music, directions, calls and Siri play on the Poco, and Siri and calls hear the Poco's microphone, as DiPlay
+does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `MicrophonePort`, `MicrophoneFormat`,
+`MicrophoneOffer`), `session/AudioReceiver.kt`, `session/MicrophoneUplink.kt`; `:carplay:protocol`
+`audio/AudioDecoderConfig.kt`; `:carplay:engine-android` `audio/`.
+- **Engine to platform: two ports.** `AudioPort.open(AudioStreamInfo(type, audioType, format, latencyMillis))` at a
+  stream's first decrypted packet (DiPlay `onAudioStarted`, CarPlayMediaEngine.kt:224-228); each packet then goes to
+  `AudioPlayer.packet(sequence, timestamp, payload)` in arrival order, payload as on the wire (AAC-LC access unit, Opus
+  packet, big-endian PCM); `close()` at TEARDOWN, a replacing SETUP or the session's end. `duck(true/false)` for the
+  iPhone's `duckAudio`/`unduckAudio` (AirPlaySession.kt:810-811); a session that ends ducked is unducked
+  (CarPlayMediaEngine.kt:551-553). A player that throws is closed and the stream goes on silent; the session never ends
+  for a dead audio device. Calls never block: decoding and the track live on the player's own thread.
+- **Microphone.** `MicrophonePort.offer()` (permission and an Opus encoder, asked beside the group's start, 2 s limit)
+  decides `/info`'s `audioInputFormats` (DiPlay AirPlayInfoPlist.kt:155-162: `0x70004154` with Opus, `0x4154` without,
+  none without a microphone). A stream records when DiPlay's would (CarPlayMediaEngine.kt:624-697): main audio (100),
+  telephony and speechRecognition always, default/compatibility only with `input` or an uplink `dataPort`, never AAC;
+  20 ms Opus at 48 kHz (bitrate 96/64/48 kbit/s by the format's rate) or PCM of `framesPerPacket` or what fits one MTU
+  (`pcmFrameMillis`). It starts at the first downlink packet, or 500 ms after SETUP except for calls (MicrophoneStart.kt).
+  The engine seals each body with `MicrophonePacketSealer` (input key, payload type 100, the RTP clock stepped by the
+  format's rate: 480 per packet at Opus 24 kHz), PCM made big-endian, and sends it from a socket of its own to the
+  control connection's peer at the stream's `dataPort` (MicrophoneUplink.kt:149-153, 559-578).
+- **Android playback** (`AudioRenderer`, `TrackFeed`, after DiPlay's AudioRenderer, AndroidMediaSink.kt:1829-2864):
+  one thread per stream at `THREAD_PRIORITY_AUDIO`; a 192-packet `RtpReorderQueue`; MediaCodec for AAC-LC (as ADTS,
+  with its AudioSpecificConfig) and Opus (OpusHead and delays), PCM byte-swapped; an AudioTrack per stream with DiPlay's
+  mapping (`AudioRoute`): telephony `USAGE_VOICE_COMMUNICATION`, speechRecognition `USAGE_ASSISTANT`, media
+  `USAGE_MEDIA`, default/alert/compatibility `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE`.
+- **Latency choices.** Speech (directions, Siri, calls) asks for `PERFORMANCE_MODE_LOW_LATENCY` when its rate is the
+  output's own (`PROPERTY_OUTPUT_SAMPLE_RATE`; the AudioTrack.Builder reference requires it): wireless iPhones send
+  speech as Opus, decoded at 48 kHz, the Poco's rate. It keeps DiPlay's small buffer (capacity max(4 x minimum, 16 KiB),
+  start after max(minimum, 4 KiB), about 43 ms mono) with a working size (`setBufferSizeInFrames`) of the start plus one
+  write in whole bursts (`PROPERTY_OUTPUT_FRAMES_PER_BUFFER`); `LatencyTuner` adds one burst for each underrun the
+  device reports while sound was waiting (never for a network gap), up to the capacity ("use a fairly large buffer,
+  then trim", AudioTrack#setBufferSizeInFrames, #getUnderrunCount). Music keeps the normal path and DiPlay's wireless
+  jitter buffer: 300 ms queued before play in a 500 ms track, paused and requeued when it runs dry (rebuffer); its
+  latency does not matter and the normal path costs less power on a ride of hours. Short bursts play 500 ms after their
+  last write; a 10 ms fade-in.
+- **Focus and ducking** (`AudioFocus`, DiPlay AudioFocusCoordinator with CarLink's prompt duck #83, always on here):
+  one request for the playing tracks, following music (`GAIN`), then a call (`GAIN_TRANSIENT`), then Siri
+  (`GAIN_TRANSIENT_MAY_DUCK`); directions take none and play over the rest. A duckable loss or the iPhone's `duckAudio`
+  lowers music's own track to 0.2, a transient loss mutes it, a gain restores it, a permanent loss is ignored.
+- **Calls** (`CallAudio`, AndroidMediaSink.kt:581-678): the call's microphone enters `MODE_IN_COMMUNICATION` before
+  it records and leaves with `MODE_NORMAL`; a call track routed to the earpiece moves to the loudspeaker once
+  (`setCommunicationDevice`). AudioService drops both when the process dies, so no persisted undo flag
+  (docs/LESSONS.md 57). Capture (`MicrophoneCapture`, MicrophoneUplink.kt:77-408): calls `VOICE_COMMUNICATION` with the
+  platform's AEC and NS, Siri `VOICE_RECOGNITION` (`VOICE_COMMUNICATION` where refused), else `MIC`; one restart after
+  a read error, then the microphone ends (only it). Bodies wait in a 25-entry buffer that drops the oldest.
+- **Permissions:** `RECORD_AUDIO` joins `carPlayPermissions` (app) and `CarPlayPermissions.runtime` (engine-android),
+  declared in both manifests; engine-android also declares `MODIFY_AUDIO_SETTINGS`. RideService keeps its
+  `connectedDevice` type: the microphone records while the app is in use (the CarPlay display); a background
+  `microphone` service type needs a foreground start and is left for the ride test.
+- **Logs** (`carplay.audio.*`): engine `microphone_offer offer=`, `receiving type audioType codec sampleRate`, `duck`,
+  `microphone_start … frameMillis rtpStep`, `microphone_silent_start`, `microphone_ended packets sendFailures`,
+  `microphone_failed`, `player_failed`, `ended packets dropped`; Android `track type audioType codec sampleRate channels
+  channel usage performance requested nativeRate burst capacityFrames bufferFrames startMs decoder`, `playing queuedMs`,
+  `buffer bufferFrames bufferMs underruns`, `rebuffer`, `stats` every 5 s (rx, reordered, late, queueFull,
+  decoderDropped, skipped, writeErrors, underruns, queue, playing, trackMs, bufferFrames, rebuffers), `focus`,
+  `focus_change`, `prompt_duck`, `mode`, `call_route`, `microphone_capture source codec`, `microphone_effect`,
+  `microphone_stats`, `renderer_failed`, `track_unavailable`. Never key material or audio content.
+- **Device check (coordinator, release build, CarPlay display open):** allow the microphone when asked; connect the
+  iPhone. Expect `carplay.audio.microphone_offer offer=PCM_AND_OPUS`. Play music: `carplay.airplay.stream type=100
+  audioType=media` (or 102), `carplay.audio.receiving`, `carplay.audio.track … channel=MEDIA performance=none
+  startMs=300`, `carplay.audio.playing`, then `carplay.audio.stats` every 5 s with `underruns=0` and `rebuffers=0` on a
+  steady link. Start a route: `carplay.audio.duck ducked=true`, `carplay.audio.prompt_duck ducked=true music=0.2`,
+  `carplay.audio.track … audioType=default channel=NAVIGATION performance=low_latency nativeRate=48000`, a
+  `carplay.audio.buffer` line only if the Poco underruns, then `ducked=false`. Hold Siri: `audioType=speechrecognition`,
+  `microphone_start codec=OPUS … rtpStep=480` (Opus 24 kHz), `microphone_capture source=voice_recognition`, Siri
+  answers what was said. A call: `microphone_start audioType=telephony`, `mode to=3`, possibly `call_route
+  loudspeaker=true`, the far end hears the rider; hang up: `mode to=0`. Each stream ends with `carplay.audio.ended`.
+
 ## Things only the phone or bike can settle
 
 Each one is a named test in the research docs; we run them in the milestone that needs them:

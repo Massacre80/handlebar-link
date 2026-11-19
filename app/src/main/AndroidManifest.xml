@@ -50,6 +50,9 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+    <!-- CarPlay's microphone for Siri and calls (C5): asked with CarPlay's other runtime permissions. Recording works
+         while the app is in use (the CarPlay display); RideService keeps its connectedDevice type for now. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- Linking the meter through Android's companion-device consent (companion-device-pairing). -->
     <uses-feature android:name="android.software.companion_device_setup" />
     <!-- Auto-start on ignition (docs/PLAN.md M4): Android watches for the linked meter and binds

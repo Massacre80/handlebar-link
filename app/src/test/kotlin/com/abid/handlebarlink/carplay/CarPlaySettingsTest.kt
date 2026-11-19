@@ -55,17 +55,24 @@ class CarPlaySettingsTest {
 
     @Test
     fun `CarPlay's permissions follow the Android release`() {
-        // Android 12/12L: Wi-Fi Direct needs precise location; 13+: Nearby Wi-Fi; 17+: local network as well.
+        // Android 12/12L: Wi-Fi Direct needs precise location; 13+: Nearby Wi-Fi; 17+: local network as well;
+        // the microphone for Siri and calls on every release (C5).
+        val microphone = Manifest.permission.RECORD_AUDIO
         assertThat(carPlayPermissions(31))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
+            .containsExactly(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                microphone,
+            )
         assertThat(carPlayPermissions(33))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES)
+            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES, microphone)
         assertThat(carPlayPermissions(36))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES)
+            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES, microphone)
         assertThat(carPlayPermissions(37)).containsExactly(
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.NEARBY_WIFI_DEVICES,
             "android.permission.ACCESS_LOCAL_NETWORK",
+            microphone,
         )
     }
 

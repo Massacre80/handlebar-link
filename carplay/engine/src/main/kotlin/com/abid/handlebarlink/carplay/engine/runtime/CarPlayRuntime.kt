@@ -53,8 +53,8 @@ internal class CarPlayRuntime(
     private val env: RuntimeEnv,
     /** Read at the start of each attempt, on [dispatcher] (createCarPlayLink). */
     private val config: () -> CarPlayConfig,
-    /** Builds each AirPlay session's media seams: the timing exchange, the screen reader and the audio decryption. */
-    private val media: MediaFactory = MediaFactory.receivers(ports.screen),
+    /** Builds each AirPlay session's media seams: the timing exchange, the screen reader, the audio and microphone. */
+    private val media: MediaFactory = MediaFactory.receivers(ports.screen, ports.audio, ports.microphone),
 ) : CarPlayLink {
     private val inbox = Channel<Event>(Channel.UNLIMITED)
     private val running = AtomicBoolean(false)

@@ -2,6 +2,7 @@ package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.spi.BonjourService
+import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.protocol.audio.AudioCapabilities
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
 
@@ -9,11 +10,12 @@ import com.abid.handlebarlink.carplay.protocol.plist.Plist
  * What the receiver advertises: the Bonjour `_airplay._tcp` record (DiPlay CarPlayBonjour.kt:83-96) and
  * the `GET /info` plist (AirPlayInfoPlist.kt:31-103, 201-287; spec D §4, §6).
  *
- * `/info` carries what DiPlay's builder does with audio on, 48 kHz music, no microphone, no cluster, no HEVC and no
- * buffered audio (AirPlayInfoPlist.kt:31-85): identity, features, modes, audio latencies and formats (DiPlay's
- * defaults, `AudioCapabilities`), the display and the HID devices. DiPlay notes the iPhone aborts a session whose
- * `/info` lacks audio formats and HID devices (AirPlayInfoPlist.kt:3-8). OEM icons are left out, as DiPlay's builder
- * does without icons (AirPlayInfoPlist.kt:64).
+ * `/info` carries what DiPlay's builder does with audio on, 48 kHz music, no cluster, no HEVC and no buffered audio
+ * (AirPlayInfoPlist.kt:31-85): identity, features, modes, audio latencies and formats (DiPlay's defaults,
+ * `AudioCapabilities`, with input formats on the recording streams when [microphone] allows, Opus among them when the
+ * platform can encode it, AirPlayInfoPlist.kt:155-162), the display and the HID devices. DiPlay notes the iPhone aborts
+ * a session whose `/info` lacks audio formats and HID devices (AirPlayInfoPlist.kt:3-8). OEM icons are left out, as
+ * DiPlay's builder does without icons (AirPlayInfoPlist.kt:64).
  */
 internal class AirPlayReceiver(
     private val config: CarPlayConfig,
@@ -21,6 +23,7 @@ internal class AirPlayReceiver(
     private val bluetoothId: String,
     private val pairingId: String,
     private val publicKeyHex: String,
+    private val microphone: MicrophoneOffer = MicrophoneOffer.NONE,
 ) {
     fun bonjour(
         address: String,
@@ -59,7 +62,11 @@ internal class AirPlayReceiver(
             "keepAliveSendStatsAsBody" to false,
             "modes" to modes(),
             "audioLatencies" to AudioCapabilities.audioLatencies(),
-            "audioFormats" to AudioCapabilities.audioFormats(),
+            "audioFormats" to
+                AudioCapabilities.audioFormats(
+                    microphone = microphone != MicrophoneOffer.NONE,
+                    microphoneOpus = microphone == MicrophoneOffer.PCM_AND_OPUS,
+                ),
             "extendedFeatures" to listOf("vocoderInfo", "enhancedRequestCarUI"),
             "displays" to listOf(mainDisplay()),
             "hidDevices" to HidDevices.all(config.name, config.widthPixels, config.heightPixels, MAIN_DISPLAY_UUID),

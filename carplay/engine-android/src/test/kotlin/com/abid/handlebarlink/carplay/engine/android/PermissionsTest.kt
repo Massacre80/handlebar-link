@@ -9,19 +9,35 @@ import org.junit.Test
 
 class PermissionsTest {
     @Test
-    fun `Android 12 asks for Bluetooth and location`() {
+    fun `Android 12 asks for Bluetooth, location and the microphone`() {
         assertThat(CarPlayPermissions.runtime(31))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
+            .containsExactly(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.RECORD_AUDIO,
+            )
         assertThat(CarPlayPermissions.runtime(32))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.ACCESS_FINE_LOCATION)
+            .containsExactly(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.RECORD_AUDIO,
+            )
     }
 
     @Test
-    fun `Android 13 to 16 ask for Bluetooth and nearby Wi-Fi devices`() {
+    fun `Android 13 to 16 ask for Bluetooth, nearby Wi-Fi devices and the microphone`() {
         assertThat(CarPlayPermissions.runtime(33))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES)
+            .containsExactly(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.NEARBY_WIFI_DEVICES,
+                Manifest.permission.RECORD_AUDIO,
+            )
         assertThat(CarPlayPermissions.runtime(36))
-            .containsExactly(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.NEARBY_WIFI_DEVICES)
+            .containsExactly(
+                Manifest.permission.BLUETOOTH_CONNECT,
+                Manifest.permission.NEARBY_WIFI_DEVICES,
+                Manifest.permission.RECORD_AUDIO,
+            )
     }
 
     @Test
@@ -30,6 +46,7 @@ class PermissionsTest {
             Manifest.permission.BLUETOOTH_CONNECT,
             Manifest.permission.NEARBY_WIFI_DEVICES,
             Manifest.permission.ACCESS_LOCAL_NETWORK,
+            Manifest.permission.RECORD_AUDIO,
         )
     }
 

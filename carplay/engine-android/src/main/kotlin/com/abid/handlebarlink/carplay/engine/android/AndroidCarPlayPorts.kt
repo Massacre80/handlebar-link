@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.edit
+import com.abid.handlebarlink.carplay.engine.android.audio.AndroidAudioPort
+import com.abid.handlebarlink.carplay.engine.android.audio.AndroidAudioSystem
+import com.abid.handlebarlink.carplay.engine.android.audio.AndroidMicrophonePort
 import com.abid.handlebarlink.carplay.engine.android.bluetooth.AndroidBluetoothPort
 import com.abid.handlebarlink.carplay.engine.android.bluetooth.IphoneSelector
 import com.abid.handlebarlink.carplay.engine.android.bonjour.AndroidBonjourPort
@@ -25,7 +28,8 @@ import java.security.SecureRandom
 
 /**
  * The CarPlay engine's platform on Android, for `createCarPlayLink`: RFCOMM to the iPhone, a Wi-Fi Direct group,
- * the AirPlay sockets, mDNS and the stored identities. Creating it only constructs objects: no I/O, no Binder call,
+ * the AirPlay sockets, mDNS, the stored identities, and CarPlay's sound and microphone (`audio/`). Creating it only
+ * constructs objects: no I/O, no Binder call,
  * no system service (safe on the main thread, docs/LESSONS.md 60); all real work happens lazily inside the
  * suspending port calls, on the ports' own threads. Create one
  * per process (Hilt `@Singleton`). The app binds it as `CarPlayPortsSource { createAndroidCarPlayPorts(context, time,
@@ -43,6 +47,7 @@ public fun createAndroidCarPlayPorts(
     val random = SecureRandom()
     val identities = IdentityStore({ File(platform.noBackupDirectory, IDENTITY_FILE) }, random, logger)
     val selector = IphoneSelector(platform, settings)
+    val audio = AndroidAudioSystem(platform)
     return CarPlayPorts(
         bluetooth = AndroidBluetoothPort(platform, selector, identities),
         wifiDirect = AndroidWifiDirectPort(platform, selector, StableNetworks(settings, random), identities),
@@ -64,6 +69,8 @@ public fun createAndroidCarPlayPorts(
                 log = logger,
             ),
         screen = screen.port,
+        audio = AndroidAudioPort(audio),
+        microphone = AndroidMicrophonePort(audio),
         cipherName = ChaCha20Poly1305.Transformation.ANDROID,
     )
 }
@@ -81,7 +88,8 @@ public object CarPlayPermissions {
      * - `BLUETOOTH_CONNECT`: the RFCOMM dial and the bond list;
      * - `NEARBY_WIFI_DEVICES` (Android 13+) or `ACCESS_FINE_LOCATION` (Android 12/12L): the Wi-Fi Direct group
      *   (wifi-permissions guide);
-     * - `ACCESS_LOCAL_NETWORK` (Android 17+): inbound AirPlay connections and mDNS (local-network-permission).
+     * - `ACCESS_LOCAL_NETWORK` (Android 17+): inbound AirPlay connections and mDNS (local-network-permission);
+     * - `RECORD_AUDIO`: Siri's and calls' microphone (docs/PLAN.md C5; without it `/info` offers no microphone).
      */
     @SuppressLint("InlinedApi") // Plain strings, chosen by sdkInt only where the permission exists.
     public fun runtime(sdkInt: Int = Build.VERSION.SDK_INT): List<String> {
@@ -94,7 +102,8 @@ public object CarPlayPermissions {
                 Manifest.permission.ACCESS_FINE_LOCATION
             }
         val localNetwork = if (sdkInt >= ANDROID_17) listOf(Manifest.permission.ACCESS_LOCAL_NETWORK) else emptyList()
-        return listOf(Manifest.permission.BLUETOOTH_CONNECT, wifiDirect) + localNetwork
+        return listOf(Manifest.permission.BLUETOOTH_CONNECT, wifiDirect) + localNetwork +
+            Manifest.permission.RECORD_AUDIO
     }
 
     /** Those of [runtime] not granted now. */
