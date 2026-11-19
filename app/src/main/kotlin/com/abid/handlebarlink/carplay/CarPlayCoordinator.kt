@@ -42,6 +42,12 @@ class CarPlayCoordinator
         private val rechecks = MutableStateFlow(0)
         private val failed = MutableStateFlow(false)
 
+        /**
+         * The rider stopped CarPlay ([hold]) until [resume]. Kept in memory only: a new ride does not clear it (the app
+         * restarts the ride whenever it comes to the front, which would undo a Disconnect at once), a new process does.
+         */
+        private val held = MutableStateFlow(false)
+
         /** Set while CarPlay wants the service: from the start of [run] until it knows it will not start, or stops. */
         private val wanted = MutableStateFlow(false)
 
@@ -56,18 +62,34 @@ class CarPlayCoordinator
 
         /** What the CarPlay page and Home show. */
         val status: Flow<CarPlayStatus> =
-            combine(settings.enabled, missing, failed, link?.state ?: flowOf(CarPlayState.Stopped)) {
+            combine(settings.enabled, missing, failed, held, link?.state ?: flowOf(CarPlayState.Stopped)) {
                 enabled,
                 missing,
                 failed,
+                held,
                 state,
                 ->
-                carPlayStatus(enabled, link != null, missing, failed, state)
+                carPlayStatus(enabled, link != null, missing, failed, state, held)
             }
 
         /** Back in the foreground or after a permission answer: a permission may have changed (no broadcast tells). */
         fun recheckPermission() {
             rechecks.value++
+        }
+
+        /**
+         * Stops CarPlay until [resume] (the tab's Cancel while connecting, Disconnect while connected): the engine
+         * stops and releases the radio and Bluetooth; the switch stays on.
+         */
+        fun hold() {
+            held.value = true
+            log.info("carplay.held")
+        }
+
+        /** Starts CarPlay again after [hold] (the tab's Start CarPlay). */
+        fun resume() {
+            held.value = false
+            log.info("carplay.resumed")
         }
 
         /**
@@ -105,9 +127,9 @@ class CarPlayCoordinator
         private suspend fun follow(link: CarPlayLink) =
             coroutineScope {
                 var session: Job? = null
-                combine(settings.enabled, missing) { enabled, missing ->
+                combine(settings.enabled, missing, held) { enabled, missing, held ->
                     if (enabled && missing.isNotEmpty()) log.warn("carplay.permission_missing", "missing" to missing)
-                    enabled && missing.isEmpty()
+                    enabled && missing.isEmpty() && !held
                 }.distinctUntilChanged().collect { active ->
                     if (active) {
                         failed.value = false

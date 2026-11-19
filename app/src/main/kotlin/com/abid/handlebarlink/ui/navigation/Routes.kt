@@ -33,6 +33,24 @@ data object CarPlayRoute : NavKey
 @Serializable
 data object CarPlayDisplayRoute : NavKey
 
+/**
+ * Pair an iPhone inside the app (Paper "CarPlay — flow v2", iPhone 1–3): a full page over the CarPlay tab, from its
+ * Add iPhone and from the iPhone sheet's "Add another iPhone".
+ */
+@Serializable
+data object PairIphoneRoute : NavKey
+
+/** "iPhone" (Paper "Sheet 6"): a sheet over the CarPlay tab from its iPhone row. */
+@Serializable
+data object IphoneSheetRoute : OverlayRoute
+
+/** "Forget …?": a dialog over the iPhone sheet confirming that the app forgets an iPhone. */
+@Serializable
+data class ForgetIphoneRoute(
+    val address: String,
+    val name: String,
+) : OverlayRoute
+
 /** Garage tab. */
 @Serializable
 data object GarageRoute : NavKey

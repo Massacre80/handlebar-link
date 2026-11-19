@@ -94,13 +94,25 @@ internal fun ProblemRow(
         enter = expandVertically(motion.layout(IntSize.VisibilityThreshold)) + fadeIn(motion.fade()),
         exit = shrinkVertically(motion.layout(IntSize.VisibilityThreshold)) + fadeOut(motion.fade()),
     ) {
-        shown?.let { ProblemCard(it) { onFix(it) } }
+        shown?.let {
+            ProblemCard(
+                stringResource(problemText(it)),
+                stringResource(problemDetail(it)),
+                stringResource(fixText(it)),
+            ) { onFix(it) }
+        }
     }
 }
 
+/**
+ * A problem in the danger colour: [title], [detail] and the one [fix] as a pill; the whole card is the button.
+ * Also CarPlay's iPhone pairing (ui/carplay).
+ */
 @Composable
-private fun ProblemCard(
-    problem: SetupProblem,
+internal fun ProblemCard(
+    title: String,
+    detail: String,
+    fix: String,
     onFix: () -> Unit,
 ) {
     val colors = HlTheme.colors
@@ -126,10 +138,10 @@ private fun ProblemCard(
             HlText("!", HlTheme.typography.value, colors.danger)
         }
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            HlText(stringResource(problemText(problem)), HlTheme.typography.value, colors.ink)
-            HlText(stringResource(problemDetail(problem)), HlTheme.typography.meta, colors.inkMuted)
+            HlText(title, HlTheme.typography.value, colors.ink)
+            HlText(detail, HlTheme.typography.meta, colors.inkMuted)
         }
-        HlActionPill(stringResource(fixText(problem)))
+        HlActionPill(fix)
     }
 }
 

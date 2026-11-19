@@ -23,6 +23,7 @@ import com.abid.handlebarlink.carplay.engine.android.ThreadedByteStream
 import com.abid.handlebarlink.carplay.engine.android.connectOnOwnThread
 import com.abid.handlebarlink.carplay.engine.android.credentials.IdentityStore
 import com.abid.handlebarlink.carplay.engine.android.fail
+import com.abid.handlebarlink.carplay.engine.android.pairing.IphoneChoices
 import com.abid.handlebarlink.carplay.engine.spi.BluetoothPort
 import com.abid.handlebarlink.carplay.engine.spi.ByteStream
 import kotlinx.coroutines.channels.awaitClose
@@ -68,7 +69,9 @@ internal class IphoneSelector(
             } catch (e: SecurityException) {
                 throw CarPlayException(CarPlayError.PermissionMissing(Manifest.permission.BLUETOOTH_CONNECT), e)
             }
-        val choice = IphoneChoice.choose(chosenAddress(), bonded, linked())
+        // iPhones the rider forgot in the app stay paired with Android (no public unpair): never pick one by itself.
+        val forgot = IphoneChoices.parseForgot(settings.string(IphoneChoices.FORGOT_KEY))
+        val choice = IphoneChoice.choose(chosenAddress(), bonded, linked(), forgot)
         platform.log.info(
             "carplay.android.iphone.selected",
             "name" to choice.name,

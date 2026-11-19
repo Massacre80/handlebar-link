@@ -56,6 +56,7 @@ internal fun carPlayLine(
         CarPlayStatus.NotAvailable -> CarPlayLine(R.string.carplay_status_not_available, tone = SignalTone.IDLE)
         is CarPlayStatus.NeedsPermission -> CarPlayLine(R.string.carplay_status_permission, tone = SignalTone.ERROR)
         CarPlayStatus.Failed -> CarPlayLine(R.string.carplay_status_failed, tone = SignalTone.ERROR)
+        CarPlayStatus.Held -> CarPlayLine(R.string.carplay_status_held, tone = SignalTone.IDLE)
         is CarPlayStatus.Engine -> engineLine(status.state, now)
     }
 

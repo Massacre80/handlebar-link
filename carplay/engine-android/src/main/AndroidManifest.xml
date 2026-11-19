@@ -10,6 +10,9 @@
     <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
     <!-- The RFCOMM dial to the bonded iPhone and its bond list. -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- In-app iPhone pairing (pairing/CarPlayPairing): ACTION_REQUEST_DISCOVERABLE needs it on Android 12+
+         (BluetoothAdapter reference). Nearby devices group; asked for by the pairing screen. -->
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <!-- cancelDiscovery() before the dial ("Connect Bluetooth devices"), when granted; the app declares and requests it
          for its own scans, with the same flag. Not needed for CarPlay, so not in CarPlayPermissions. -->
     <uses-permission
