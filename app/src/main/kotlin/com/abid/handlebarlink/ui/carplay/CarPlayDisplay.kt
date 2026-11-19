@@ -13,9 +13,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -33,10 +32,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -46,6 +47,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.engine.TouchContact
+import com.abid.handlebarlink.carplay.engine.android.CarPlayPictureLayout
+import com.abid.handlebarlink.carplay.engine.android.CarPlaySurfaceBounds
 import com.abid.handlebarlink.carplay.engine.android.touch.CarPlayTouch
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -74,11 +77,12 @@ fun CarPlayDisplayEntry() {
 }
 
 /**
- * The picture in a `SurfaceView` (hardware overlay, docs/PLAN.md "Performance rules") of the canvas's shape, centred on
- * black; the status line over it while not connected; and the first time only, the "Swipe back" hint for [HINT_MILLIS].
- * In landscape the picture stays out of the display cutout, as the canvas leaves it out ([carPlayCanvas]'s notch rule);
- * portrait fills the screen edge to edge. Touch positions are fractions of the view, which has the canvas's shape, so
- * the engine scales them to the canvas in either orientation.
+ * The picture in a `SurfaceView` (hardware overlay, docs/PLAN.md "Performance rules") on black; the status line over it
+ * while not connected; and the first time only, the "Swipe back" hint for [HINT_MILLIS]. In landscape the picture stays
+ * out of the display cutout, as the canvas leaves it out ([carPlayWindow]'s notch rule); portrait fills the screen edge
+ * to edge. The view is laid out as DiPlay lays out its canvas ([CarPlayPictureLayout]): the area CarPlay draws in fills
+ * the window and the rest of the canvas (always to the right of it or below it) falls outside the window, which crops
+ * it. Touches are mapped through the same rectangle, so they land at their place in the canvas.
  */
 @Composable
 fun CarPlayDisplay(
@@ -92,7 +96,7 @@ fun CarPlayDisplay(
     val spacing = HlTheme.spacing
     val touch by rememberUpdatedState(onTouch)
     val description = stringResource(R.string.carplay_display)
-    Box(
+    BoxWithConstraints(
         Modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -103,16 +107,24 @@ fun CarPlayDisplay(
                     Modifier
                 },
             ),
-        contentAlignment = Alignment.Center,
     ) {
+        val layout = shape.picture?.let { pictureLayout(it, constraints.maxWidth, constraints.maxHeight) }
+        val current by rememberUpdatedState(layout)
         AndroidView(
             factory = { context ->
                 CarPlaySurfaceView(context) { event, view ->
-                    touch(CarPlayTouch.contacts(event, view.width, view.height))
+                    val content = current?.inSurface()
+                    touch(
+                        if (content == null) {
+                            CarPlayTouch.contacts(event, view.width, view.height)
+                        } else {
+                            CarPlayTouch.contacts(event, content)
+                        },
+                    )
                 }.also { it.handle = show(it) }
             },
             modifier =
-                (shape.aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.fillMaxSize())
+                (layout?.let { Modifier.placedAt(it.bounds) } ?: Modifier.fillMaxSize())
                     .semantics { contentDescription = description },
             onRelease = { it.handle?.close() },
         )
@@ -123,6 +135,7 @@ fun CarPlayDisplay(
                     HlTheme.typography.body,
                     colors.onGlass,
                     Modifier
+                        .align(Alignment.Center)
                         .padding(spacing.s24)
                         .background(colors.glass, CircleShape)
                         .padding(horizontal = spacing.s16, vertical = spacing.s8),
@@ -133,6 +146,24 @@ fun CarPlayDisplay(
         SwipeBackHint(state.hintDue, onHintShown, Modifier.align(Alignment.CenterStart))
     }
 }
+
+/** Where [picture]'s canvas goes in a window of [width] x [height] pixels (DiPlay contentRect). */
+internal fun pictureLayout(
+    picture: PictureSpec,
+    width: Int,
+    height: Int,
+): CarPlayPictureLayout =
+    CarPlayPictureLayout.of(picture.canvasWidth, picture.canvasHeight, picture.area, width, height)
+
+/**
+ * Measures the view at exactly [bounds]' size, which may be larger than the window, and places it at [bounds]' corner,
+ * while taking only the space it is given (DiPlay's SurfaceView bounds, CarPlayHostActivity.kt:6176-6184).
+ */
+private fun Modifier.placedAt(bounds: CarPlaySurfaceBounds): Modifier =
+    layout { measurable, constraints ->
+        val placeable = measurable.measure(Constraints.fixed(bounds.width, bounds.height))
+        layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(bounds.left, bounds.top) }
+    }
 
 /** "‹ Swipe back for Handlebar Link" at the edge Back is swiped from: fades in once, and out after [HINT_MILLIS]. */
 @Composable

@@ -10,6 +10,7 @@ import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
+import com.abid.handlebarlink.carplay.engine.CarPlayViewArea
 import com.abid.handlebarlink.carplay.engine.TouchContact
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
 import com.abid.handlebarlink.carplay.orientation
@@ -35,18 +36,26 @@ data class CarPlayDisplayUiState(
 )
 
 /**
- * The shape of the picture on the display: the canvas the iPhone was told ([orientation], and the [aspectRatio] its
- * view keeps; null fills the window).
+ * The shape of the picture on the display: the orientation the screen is locked to, and the canvas the iPhone draws on
+ * with the area it draws in ([picture]; null before any attempt, when the view fills the window).
  */
 @Immutable
 data class DisplayShape(
     val orientation: CarPlayOrientation,
-    val aspectRatio: Float?,
+    val picture: PictureSpec?,
+)
+
+/** A canvas of [canvasWidth] x [canvasHeight] pixels, of which CarPlay draws in [area]. */
+@Immutable
+data class PictureSpec(
+    val canvasWidth: Int,
+    val canvasHeight: Int,
+    val area: CarPlayViewArea,
 )
 
 /**
- * The display's shape for the canvas the latest attempt [reported], or, before any attempt, the orientation the next
- * one will report ([chosen]) with no aspect ratio.
+ * The display's shape for the canvas the latest attempt [reported] (its start area: our sessions never move CarPlay to
+ * another area), or, before any attempt, the orientation the next one will report ([chosen]) with no picture.
  */
 internal fun displayShape(
     reported: CarPlayConfig?,
@@ -55,7 +64,10 @@ internal fun displayShape(
     if (reported == null) {
         DisplayShape(chosen, null)
     } else {
-        DisplayShape(reported.orientation, reported.widthPixels.toFloat() / reported.heightPixels)
+        DisplayShape(
+            reported.orientation,
+            PictureSpec(reported.widthPixels, reported.heightPixels, reported.startViewArea),
+        )
     }
 
 /**
@@ -73,8 +85,9 @@ class CarPlayDisplayViewModel
         lines: CarPlayStatusLines,
     ) : ViewModel() {
         /**
-         * The canvas's orientation (the display locks the screen to it) and its width over its height, so the picture
-         * keeps its shape on any window. Read from what the engine reported; this never measures (main thread).
+         * The canvas's orientation (the display locks the screen to it), the canvas and the area CarPlay draws in, so
+         * the display shows that area filling its window. Read from what the engine reported; this never measures (main
+         * thread).
          */
         val shape: StateFlow<DisplayShape> =
             combine(canvas.reported, canvas.orientation, ::displayShape)

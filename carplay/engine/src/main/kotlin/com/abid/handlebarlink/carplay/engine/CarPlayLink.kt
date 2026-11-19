@@ -65,8 +65,8 @@ public interface CarPlayLink {
 
 /**
  * One finger on the CarPlay picture (DiPlay AirPlayContact): [x] and [y] from 0 (left, top) to 1 (right, bottom) of
- * the picture as shown, which the engine scales to the canvas the iPhone was told ([CarPlayConfig.widthPixels],
- * [CarPlayConfig.heightPixels]). Values outside 0..1 are clamped.
+ * the whole canvas (not only the view area shown), which the engine scales to the canvas the iPhone was told
+ * ([CarPlayConfig.widthPixels], [CarPlayConfig.heightPixels]). Values outside 0..1 are clamped.
  */
 public data class TouchContact(
     /** The platform's pointer id, which stays with its finger (`MotionEvent.getPointerId`). */
@@ -79,8 +79,9 @@ public data class TouchContact(
 
 /**
  * What the receiver tells the iPhone about itself and the screen. The canvas ([widthPixels] x [heightPixels],
- * [widthMillimetres], [maxFps]) goes into `/info` (displays and the touchscreen's HID descriptor) and sizes the
- * decoder at the stream SETUP. DiPlay's video decoders need even sides (CarPlayHostActivity.evenDisplaySize).
+ * [widthMillimetres] x [heightMillimetres], [maxFps], [viewAreas] with [initialViewArea]) goes into `/info` (the main
+ * display, DiPlay AirPlayInfoPlist.kt:201-286, and the touchscreen's HID descriptor) and sizes the decoder at the
+ * stream SETUP. DiPlay's video decoders need even sides (CarPlayHostActivity.evenDisplaySize).
  */
 public data class CarPlayConfig(
     /** Name shown on the iPhone and in its Bonjour browser. */
@@ -89,24 +90,51 @@ public data class CarPlayConfig(
     val model: String = "HandlebarLink1,1",
     /** Manufacturer. */
     val manufacturer: String = "Handlebar Link",
-    /** The CarPlay canvas width in pixels. */
+    /** The CarPlay canvas width in pixels: the size of every picture the iPhone sends. */
     val widthPixels: Int = 1280,
     /** The CarPlay canvas height in pixels. */
     val heightPixels: Int = 720,
     /** Physical width of the canvas in millimetres; smaller values give larger controls. */
     val widthMillimetres: Int = 150,
+    /**
+     * Physical height of the canvas in millimetres; null derives it from the width and the canvas's shape, as DiPlay
+     * does for a display without one (AirPlayInfoPlist.kt:205-210).
+     */
+    val heightMillimetres: Int? = null,
     /** Highest frame rate to ask for, 30..60. */
     val maxFps: Int = 60,
+    /**
+     * The parts of the canvas CarPlay may draw in (DiPlay CarPlayViewAreas, AirPlayViewArea); empty declares the whole
+     * canvas as the one area. The iPhone draws only in the area in use and leaves the rest of each picture black.
+     */
+    val viewAreas: List<CarPlayViewArea> = emptyList(),
+    /** The area CarPlay starts in, an index into [viewAreas] (0 without areas). */
+    val initialViewArea: Int = 0,
 ) {
     init {
         require(widthPixels > 0 && heightPixels > 0) { "Canvas size must be positive" }
         require(widthMillimetres in 1..MAX_MILLIMETRES) { "Physical width must be 1..$MAX_MILLIMETRES mm" }
+        require(heightMillimetres == null || heightMillimetres in 1..MAX_MILLIMETRES) {
+            "Physical height must be 1..$MAX_MILLIMETRES mm"
+        }
         require(maxFps in MIN_FPS..MAX_FPS) { "Frame rate must be $MIN_FPS..$MAX_FPS" }
         require(widthPixels <= MAX_SIDE && heightPixels <= MAX_SIDE) { "Canvas sides must be at most $MAX_SIDE" }
+        require(viewAreas.all { it.fitsIn(widthPixels, heightPixels) }) { "Every view area must lie in the canvas" }
+        require(if (viewAreas.isEmpty()) initialViewArea == 0 else initialViewArea in viewAreas.indices) {
+            "The initial view area must be one of the view areas"
+        }
     }
 
-    /** The frame rate `/info` reports and the decoder is sized for: [maxFps] down to a multiple of 5 (DiPlay). */
-    internal val reportedFps: Int get() = maxFps / FPS_STEP * FPS_STEP
+    /** The area CarPlay draws in when a session starts: [initialViewArea], or the whole canvas without areas. */
+    public val startViewArea: CarPlayViewArea
+        get() = viewAreas.getOrNull(initialViewArea) ?: CarPlayViewArea(widthPixels, heightPixels)
+
+    /**
+     * The frame rate `/info` reports and the decoder is sized for: [maxFps] snapped to the nearest multiple of 5 in
+     * 30..60, as DiPlay's `sanitizeFps` does (AirPlayDisplaySettings.kt:30-31, 89-92).
+     */
+    internal val reportedFps: Int
+        get() = ((maxFps - MIN_FPS) + FPS_STEP / 2) / FPS_STEP * FPS_STEP + MIN_FPS
 
     private companion object {
         /** DiPlay's reported-size clamp (AirPlayDisplaySettings). */
@@ -120,4 +148,23 @@ public data class CarPlayConfig(
         /** The touchscreen descriptor's logical maxima are 16-bit (AirPlayHid.kt:102-103). */
         const val MAX_SIDE = 0xFFFF
     }
+}
+
+/**
+ * A rectangle of the canvas CarPlay can draw in (DiPlay AirPlayViewArea, AirPlayConfig.kt:50-56): [width] x [height]
+ * pixels with its top-left corner at [originX], [originY]. DiPlay anchors every area of a turning screen's square at
+ * the canvas's top-left corner (CarPlayViewAreas.kt:197-200).
+ */
+public data class CarPlayViewArea(
+    val width: Int,
+    val height: Int,
+    val originX: Int = 0,
+    val originY: Int = 0,
+) {
+    internal fun fitsIn(
+        canvasWidth: Int,
+        canvasHeight: Int,
+    ): Boolean =
+        width > 0 && height > 0 && originX >= 0 && originY >= 0 &&
+            originX + width <= canvasWidth && originY + height <= canvasHeight
 }

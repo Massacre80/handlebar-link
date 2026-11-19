@@ -275,8 +275,9 @@ class MediaReceiversTest {
             val screenPort = airPlay.streams(SCREEN_SETUP).single().port("dataPort")
             runCurrent()
 
-            // /info's maxFPS is maxFps down to a multiple of 5 (AirPlayInfoPlist.kt:211, AirPlayDisplaySettings.kt:30).
-            assertThat(fake.screen.calls).containsExactly(FakePorts.FakeScreen.Call.Configure(1080, 2250, 55))
+            // /info's maxFPS is maxFps snapped to the nearest multiple of 5 (AirPlayInfoPlist.kt:211,
+            // AirPlayDisplaySettings.kt:89-92): 58 gives 60 (diplay_display.py snap_fps(58), run with python3 -I).
+            assertThat(fake.screen.calls).containsExactly(FakePorts.FakeScreen.Call.Configure(1080, 2250, 60))
             assertThat(fake.listeners.single { it.port == screenPort }.closed).isFalse()
         }
 

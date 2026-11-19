@@ -480,7 +480,7 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   port, the display calls `CarPlayScreen.show(surfaceView)` (`ScreenSurface`). Leaving the display detaches the surface
   (decoders with `FEATURE_DetachedSurface` keep decoding); reattaching asks for a key frame (`carplay.video.surface`,
   `carplay.video.keyframe_request reason=surface attached`).
-- **Canvas (landscape by default since 2026-11-19, see "CarPlay screen" below).** `CarPlayCanvas` measures the default
+- **Canvas (superseded 2026-11-19 by "CarPlay picture: DiPlay's negotiation" below).** `CarPlayCanvas` measures the default
   display's largest window through a window context (`createWindowContext(display, TYPE_APPLICATION)`,
   `maximumWindowMetrics`; Media projection guide), `DisplayMetrics.xdpi`, the refresh rate and the cutout, once, when
   the engine first asks: `createCarPlayLink` takes `config: () -> CarPlayConfig`, read at the start of each attempt on
@@ -520,7 +520,8 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   tab ("CarPlay screen", the phone icon turned the way the picture stands) opening a sheet with the design system's
   option rows (`CanvasSheets.kt`, laid out as the Handlebar picker) and the footnote "If CarPlay is running, it
   reconnects to apply it."
-- **Canvas.** `carPlayCanvas(…, orientation, cutout)`: landscape reports the long side as width. The Poco
+- **Canvas (superseded by "CarPlay picture: DiPlay's negotiation" below; the orientation setting and the notch rule
+  stay).** `carPlayCanvas(…, orientation, cutout)`: landscape reports the long side as width. The Poco
   (1080 x 2246, 403.4 dpi) reports **2246 x 1080 at 141 mm** without a cutout report; with one, the strip is taken off
   the width (an 89 px notch would give 2156 x 1080 at 136 mm). The real cutout depth is measured on the phone
   (`carplay.screen cutout=`), UNVERIFIED until a device run. Portrait stays 1080 x 2246 at 68 mm.
@@ -551,6 +552,44 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
 - **Screenshots** (record on Linux CI, docs/LESSONS.md 26): changed `CarPlayNotSetUp*`, `CarPlayConnecting*`,
   `CarPlayConnected*`, `CarPlayWifiOff*`, `CarPlayOff*` (Night and Bento: the new row); new `CarPlayMicrophoneNight`,
   `CarPlayMicrophoneBento`, `CarPlayScreenSheetNight`, `CarPlayScreenSheetBento`.
+
+### CarPlay picture: DiPlay's negotiation (2026-11-19, worktree `carplay-c5`)
+
+- **Why.** A/B on the Poco (same iPhone, Wi-Fi Direct and swipes): the iPhone sent us 2–5x the video data it sent
+  CarLink (ours about 11 Mbit/s, peaks 30; CarLink 1.7–5.8 Mbit/s), slowing the iPhone's internet. CarLink declared
+  DiPlay's turning-screen square (1920 x 1920 at 350 mm, six view areas, starting on 790 x 1644); we declared the raw
+  panel at its real size (1080 x 2246 at 68 mm), so the iPhone laid CarPlay out for a 68 mm phone screen on 2.4 Mpx.
+  DiPlay never measures the screen: it reports a reference width (300 mm, "CarPlay size" Medium).
+- **What we declare now** (`carPlayCanvas`, each step cited in its KDoc; transcribed independently in
+  `carplay/engine/src/test/resources/display/diplay_display.py`): DiPlay's square as CarLink turns it on for a phone
+  (carlink-core CarPlayAdapter.kt:269-272). The Poco, no cutout: **1920 x 1920 at 300 x 300 mm, 60 fps, view areas
+  [1920 x 922, 922 x 1920], initial 0 (landscape) or 1 (portrait), `viewAreaTransitionControl`**. The square side is the
+  long side capped at 1920 (picture "Smoother"), the first of DiPlay's sides the screen decoder takes
+  (`screenDecoderTakes`); none: DiPlay's plain canvas (the window, 300 mm across the widest window, one area).
+- **Deviations from DiPlay, on purpose.** (1) The other orientation's window is known (the notch rule: landscape is the
+  long side less the cutout strip, portrait the whole screen) instead of DiPlay's estimate for system bars that keep
+  their edges (`turnedWindows`); identical without a cutout. (2) No CarLink size variants (its live interface-size
+  switcher; we have none), so 2 areas, not CarLink's 6, and CarPlay starts on the full-size area: the same physical
+  layout as CarLink's start area (144 x 300 mm portrait) at 922 x 1920 instead of 790 x 1644 pixels. (3) DiPlay's extra
+  decoder-configure probe for squares a decoder does not list is left out: our decoder only takes listed sizes. (4) The
+  frame rate stays the refresh rate (CarLink asks 60 of a decoder that carries it, PicturePolicy.kt:131); DiPlay's own
+  default is 30 (AirPlayPersistence.loadFps). `maxFPS` is now snapped to the nearest 5 as DiPlay's `sanitizeFps` (it was
+  floored, LESSONS 108).
+- **View areas.** The iPhone never moves CarPlay between areas by itself; only the car does, with `updateViewArea` on the
+  event channel (DiPlay docs/VIEW_AREAS.md). We do not send it: a change of the CarPlay screen setting still reconnects
+  (a live turn would be `updateViewArea` plus the area change on the display; not built, not tested on a device).
+- **Display.** The decoder is configured for the square (`screen.configure` at the stream SETUP). The `SurfaceView` is
+  laid out as DiPlay's `contentRect` (`CarPlayPictureLayout`): the start area fills the window, scaled per axis, and the
+  rest of the square lies right of or below the window, which crops it (DiPlay's SurfaceView bounds). Touches map
+  through the same rectangle into canvas fractions (`CarPlayTouch.contacts(event, layout)`, CarPlayTouchMapper), which
+  the engine scales to 1920 x 1920.
+- **Log.** Each attempt: `carplay.picture display=2246x1080 negotiated=1920x1920 viewArea=0:1920x922+0+0
+  areas=1920x922,922x1920 mm=300x300 fps=60 orientation=LANDSCAPE` (portrait: `display=1080x2246 … viewArea=1:922x1920+0+0`),
+  and `carplay.config … view_areas=2 view_area=…`.
+- **Device check (coordinator).** Release build, the same swipes for about 50 s on CarLink and on ours, both in
+  portrait (CarLink's A/B ran portrait) and then ours in landscape; compare kbps from `DiPlay-VideoStats` (CarLink) and
+  the bytes in `carplay.screen.frames` (ours, delta bytes x 8 / delta seconds), and the picture: filling the screen,
+  undistorted, touches landing under the finger at all four edges, nothing of the other area visible.
 
 ### C5 controls: handlebar keys and calls through our CarPlay (2026-11-19, worktree `carplay-c5-controls`)
 

@@ -262,7 +262,10 @@ internal class CarPlayRuntime(
                 "width" to config.widthPixels,
                 "height" to config.heightPixels,
                 "width_mm" to config.widthMillimetres,
+                "height_mm" to config.heightMillimetres,
                 "fps" to config.maxFps,
+                "view_areas" to config.viewAreas.size,
+                "view_area" to config.startViewArea.let { "${it.width}x${it.height}+${it.originX}+${it.originY}" },
             )
             WirelessAttempt(
                 ports,
