@@ -42,19 +42,22 @@ internal data class QueueCounts(
  *
  * - A keyframe (IDR) drops every picture still waiting before it: it does not need them, and showing them first would
  *   only delay it.
- * - A picture that finds [maxPictures] or [maxBytes] already waiting drops every waiting picture and itself, and marks
+ * - A picture that finds the queue over its limits ([QueueLimits]) drops every waiting picture and itself, and marks
  *   the reference chain broken (DiPlay `VideoDecodeQueue.offer`: "discardFrames, then Resync"); the decoder then waits
  *   for the next keyframe and asks the iPhone for one.
- * - While the decoder is [starting] (no output yet) only [maxBytes] applies: everything from the last keyframe on waits
- *   for it. On the Poco a cold start took about 200 ms on the decoder thread, 12 pictures at 60 fps; the 6-picture
- *   limit then dropped the first keyframe and the picture stayed black until the next one, a second later (device
- *   run 2026-11-19, `carplay.video.stats` dropped_full=7 dropped_wait_key=53).
+ * - The latency limit is the *age* of the oldest waiting picture (how long the decoder has taken no input), not a
+ *   count: a burst after a Wi-Fi stall arrives at once and is young, so it keeps its reference chain and is shown at
+ *   once (DiPlay `VideoDecodeQueue`: "short delayed bursts keep their reference chain"; `VideoBacklogRecovery` judges
+ *   a backlog by the waiting frame's age, 250 ms soft and 1.5 s hard). Counts and bytes are memory guards only.
+ * - While a decoder starts and then drains what waited meanwhile ([decoderHasOutput]), only the 1.5 s age and the
+ *   memory guards apply; the 250 ms age applies once the queue has drained to one picture. On the Poco a cold start
+ *   left 12-14 pictures waiting: a 6-picture limit dropped the first IDR (before the first output, device run 1) and
+ *   then broke the chain while the backlog drained (run 2, `dropped_full=11 dropped_wait_key=43 queue_max=14`).
  * - Configurations are never dropped and keep their place, so a picture is always decoded with the configuration
  *   that came before it.
  */
 internal class FrameQueue(
-    private val maxPictures: Int,
-    private val maxBytes: Long,
+    private val limits: QueueLimits,
     private val recycler: FrameRecycler,
     private val clock: MonotonicClock,
 ) {
@@ -68,8 +71,23 @@ internal class FrameQueue(
     private var droppedSuperseded = 0
     private var highWater = 0
 
-    /** Set by the decoder thread: no decoder output yet, so the picture limit does not apply. */
-    @Volatile var starting = true
+    private var phase = Phase.STARTING
+
+    /**
+     * Set by the decoder thread: false when a decoder starts, true at its first output. The running age limit applies
+     * only after that, once the queue has drained to one picture.
+     */
+    var decoderHasOutput: Boolean
+        get() = synchronized(lock) { phase != Phase.STARTING }
+        set(value) =
+            synchronized(lock) {
+                phase =
+                    when {
+                        !value -> Phase.STARTING
+                        pictures <= 1 -> Phase.RUNNING
+                        else -> Phase.CATCHING_UP
+                    }
+            }
 
     // Framing of the latest submitted configuration; written and read by the submitting thread only.
     private var nalLengthSize = AvcConfig.ANNEX_B
@@ -84,13 +102,17 @@ internal class FrameQueue(
     ): Boolean {
         if (isConfig) return submitConfig(frame, offset, length)
         val idr = Avc.isIdr(frame, offset, length, nalLengthSize)
-        val unit = PendingUnit.Picture(frame, offset, length, ptsMicros, idr, clock.nanos())
+        val now = clock.nanos()
+        val unit = PendingUnit.Picture(frame, offset, length, ptsMicros, idr, now)
         val dropped = ArrayList<ByteArray>()
         val queued =
             synchronized(lock) {
                 received++
                 if (idr) droppedSuperseded += removePictures(dropped)
-                if ((!starting && pictures >= maxPictures) || pictureBytes + length > maxBytes) {
+                val oldest = units.firstOrNull { it is PendingUnit.Picture } as PendingUnit.Picture?
+                val age = if (oldest == null) 0L else now - oldest.submittedNanos
+                val maxAge = if (phase == Phase.RUNNING) limits.maxAgeNanos else limits.maxStartupAgeNanos
+                if (age > maxAge || pictures >= limits.maxPictures || pictureBytes + length > limits.maxBytes) {
                     droppedFull += removePictures(dropped) + 1
                     dropped += frame
                     chainBroken = true
@@ -135,6 +157,7 @@ internal class FrameQueue(
                     pictures--
                     pictureBytes -= it.length
                 }
+                if (phase == Phase.CATCHING_UP && pictures <= 1) phase = Phase.RUNNING
             }
         }
 
@@ -181,3 +204,26 @@ internal class FrameQueue(
         return removed
     }
 }
+
+/** Where the decoder is: the queue's latency limit applies only while it runs and keeps up. */
+private enum class Phase {
+    /** No output yet. */
+    STARTING,
+
+    /** Output came, and what waited meanwhile is still draining. */
+    CATCHING_UP,
+
+    RUNNING,
+}
+
+/** How much may wait for the decoder before the waiting pictures are dropped. */
+internal data class QueueLimits(
+    /** Memory guard (DiPlay `VideoDecodeQueue`: 60 frames). */
+    val maxPictures: Int,
+    /** Memory guard (DiPlay `VideoDecodeQueue`: 8 MiB). */
+    val maxBytes: Long,
+    /** Oldest waiting picture's age while the decoder runs (DiPlay `VideoBacklogRecovery` SOFT_AGE_NS, 250 ms). */
+    val maxAgeNanos: Long,
+    /** The same while a decoder starts and drains its backlog (DiPlay HARD_AGE_NS, 1.5 s). */
+    val maxStartupAgeNanos: Long,
+)

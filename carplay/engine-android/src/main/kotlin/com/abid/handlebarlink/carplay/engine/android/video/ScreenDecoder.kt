@@ -69,10 +69,17 @@ public interface ScreenDecoder {
 
     /** Limits and timing. */
     public data class Options(
-        /** Pictures that may wait for the decoder before old ones are dropped (6 is 100 ms at 60 fps). */
+        /** Pictures that may wait for the decoder, a memory guard (DiPlay `VideoDecodeQueue`: 60). */
         val maxQueuedPictures: Int = DEFAULT_MAX_QUEUED_PICTURES,
         /** Bytes that may wait for the decoder (DiPlay `VideoDecodeQueue`: 8 MiB). */
         val maxQueuedBytes: Long = MAX_INPUT_SIZE.toLong(),
+        /**
+         * How long the oldest picture may wait for a running decoder before the waiting ones are dropped (DiPlay
+         * `VideoBacklogRecovery`: 250 ms).
+         */
+        val maxQueueAgeMillis: Long = DEFAULT_MAX_QUEUE_AGE_MILLIS,
+        /** The same while a decoder starts and drains what waited meanwhile (DiPlay: 1.5 s hard limit). */
+        val maxStartupQueueAgeMillis: Long = DEFAULT_MAX_STARTUP_QUEUE_AGE_MILLIS,
         /** How often the `carplay.video.stats` line is logged. */
         val statsIntervalMillis: Long = DEFAULT_STATS_INTERVAL_MILLIS,
         /** How long [detach] waits for the decoder to let go of the surface. */
@@ -80,7 +87,9 @@ public interface ScreenDecoder {
     )
 
     private companion object {
-        const val DEFAULT_MAX_QUEUED_PICTURES = 6
+        const val DEFAULT_MAX_QUEUED_PICTURES = 60
+        const val DEFAULT_MAX_QUEUE_AGE_MILLIS = 250L
+        const val DEFAULT_MAX_STARTUP_QUEUE_AGE_MILLIS = 1_500L
         const val DEFAULT_STATS_INTERVAL_MILLIS = 5_000L
         const val DEFAULT_DETACH_TIMEOUT_MILLIS = 500L
     }

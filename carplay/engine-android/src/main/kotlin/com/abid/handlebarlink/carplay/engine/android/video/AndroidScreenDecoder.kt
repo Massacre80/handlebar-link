@@ -22,7 +22,14 @@ internal class AndroidScreenDecoder(
     private val recycler: ScreenDecoder.FrameRecycler,
     private val options: ScreenDecoder.Options,
 ) : ScreenDecoder {
-    private val queue = FrameQueue(options.maxQueuedPictures, options.maxQueuedBytes, recycler, AndroidMonotonicClock)
+    private val limits =
+        QueueLimits(
+            maxPictures = options.maxQueuedPictures,
+            maxBytes = options.maxQueuedBytes,
+            maxAgeNanos = TimeUnit.MILLISECONDS.toNanos(options.maxQueueAgeMillis),
+            maxStartupAgeNanos = TimeUnit.MILLISECONDS.toNanos(options.maxStartupQueueAgeMillis),
+        )
+    private val queue = FrameQueue(limits, recycler, AndroidMonotonicClock)
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val pumpPosted = AtomicBoolean(false)

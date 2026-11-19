@@ -10,7 +10,7 @@ import com.abid.handlebarlink.core.common.log.Logger
  *   surface (or the decoder supports a detached surface), without CSD; the first configuration then reaches it as a
  *   codec-config buffer. A cold start cost about 200 ms on the Poco (list 100 ms, create and configure 94 ms), which
  *   otherwise falls on the first pictures. Until its first output the queue keeps every picture
- *   ([FrameQueue.starting]).
+ *   and drains it before the running latency limit applies ([FrameQueue.decoderHasOutput]).
  * - **Configuration before pictures.** No picture is fed before the first configuration; pictures before it are
  *   dropped. Each decoder starts with the configuration's SPS/PPS as CSD and is fed from a keyframe on. A changed
  *   configuration replaces the decoder (DiPlay `configureDecoder`), an unchanged one keeps it. Units are taken in
@@ -202,7 +202,7 @@ internal class DecoderCore<S : Any>(
         if (show) metrics.onShown()
         if (!running.firstOutput) {
             running.firstOutput = true
-            queue.starting = false
+            queue.decoderHasOutput = true
             slot.onFirstOutput()
             val afterMs = (now - running.startedNanos) / DecoderSlot.NANOS_PER_MILLI
             log.info("carplay.video.first_output", "decoder" to codec.name, "after_ms" to afterMs)
@@ -376,7 +376,7 @@ internal class DecoderCore<S : Any>(
         val started = idle && size != null && slot.start(config, surface, size)
         if (started) {
             needsKeyFrame = true
-            queue.starting = true
+            queue.decoderHasOutput = false
             if (reason != null && config != null) keyFrames.request(reason)
         }
         return started

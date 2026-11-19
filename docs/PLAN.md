@@ -435,9 +435,13 @@ ptsMicros, isConfig)`, `release()`; `ScreenSurface.bind(surfaceView, decoder)`).
   Why: on the Poco (2026-11-19) a cold start held the decoder thread about 200 ms (list 100 ms, create and configure
   94 ms), the queue limit dropped the first IDR and the screen stayed black for a second. `carplay.video.decoder` logs
   `start_ms`, `prewarmed` and `surface`; `carplay.video.candidates` logs `list_ms`.
-- **Backpressure:** at most 6 pictures (100 ms) or 8 MiB wait; a full queue drops them all and waits for a keyframe; a
-  keyframe drops the pictures waiting before it. Until a decoder's first output only the 8 MiB limit applies, so nothing
-  from the first IDR on is lost while it starts. `submit` never waits. Keyframes are asked for at most once a second.
+- **Backpressure:** the latency limit is the age of the oldest waiting picture, not a count: 250 ms while the decoder
+  runs, 1.5 s while it starts and drains what waited meanwhile (until the queue is down to one picture); 60 pictures and
+  8 MiB are memory guards (DiPlay `VideoBacklogRecovery` soft 250 ms / hard 1.5 s; `VideoDecodeQueue` 60 frames, 8 MiB,
+  "short delayed bursts keep their reference chain"). Over a limit, all waiting pictures are dropped and the decoder waits
+  for a keyframe; a keyframe drops the pictures waiting before it; a burst after a Wi-Fi stall is young and is kept.
+  Device run 2 (2026-11-19) showed why: a 6-picture limit applied at the first output broke the chain while 14 pictures
+  from the start drained. `submit` never waits. Keyframes are asked for at most once a second.
 - **Recovery:** any error releases the decoder and starts a new one from the configuration; two failures before a first
   output move to the next candidate; four failures in 10 s, or none left, wait 1 s. Surface loss releases the decoder,
   except on decoders with `FEATURE_DetachedSurface` (API 35), which keep decoding; `SURFACE_LIFECYCLE_FOLLOWS_ATTACHMENT`

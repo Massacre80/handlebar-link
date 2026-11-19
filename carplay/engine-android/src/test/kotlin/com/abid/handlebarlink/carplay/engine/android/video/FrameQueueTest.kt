@@ -11,9 +11,18 @@ import org.junit.Test
 
 class FrameQueueTest {
     private val recycler = RecordingRecycler()
+    private val clock = ManualClock()
+    private val limits =
+        QueueLimits(
+            maxPictures = 3,
+            maxBytes = 1_000,
+            maxAgeNanos = 250 * MS,
+            maxStartupAgeNanos =
+                1_500 * MS,
+        )
     private val queue =
-        FrameQueue(maxPictures = 3, maxBytes = 1_000, recycler = recycler, clock = ManualClock()).apply {
-            starting = false // a running decoder; the start-up case has its own test
+        FrameQueue(limits, recycler, clock).apply {
+            decoderHasOutput = true // a running decoder; starting and catching up have their own tests
         }
     private val avcc = vector("ffmpeg-64x64.avcc")
 
@@ -36,18 +45,59 @@ class FrameQueueTest {
     }
 
     @Test
-    fun `while the decoder is starting only the byte limit applies`() {
-        queue.starting = true
-        val pictures = listOf(idr(0)) + List(9) { p(it + 1) }
+    fun `a running decoder that takes no input for longer than the age limit has its backlog dropped`() {
+        val waiting = p(1)
+        queue.submit(waiting, 0, waiting.size, 0, isConfig = false)
+        clock.advanceMillis(250)
+        val inTime = p(2)
+        assertThat(queue.submit(inTime, 0, inTime.size, 0, isConfig = false)).isTrue()
+        clock.advanceMillis(1)
+        val late = p(3)
 
-        val queued = pictures.map { queue.submit(it, 0, it.size, 0, isConfig = false) }
+        assertThat(queue.submit(late, 0, late.size, 0, isConfig = false)).isFalse()
+        assertThat(queue.takeChainBroken()).isTrue()
+        listOf(waiting, inTime, late).forEach { assertThat(recycler.count(it)).isEqualTo(1) }
+    }
+
+    @Test
+    fun `a burst that arrives at once keeps its reference chain`() {
+        clock.advanceMillis(500) // a Wi-Fi stall: nothing waits meanwhile
+        val burst = List(3) { p(it) }
+
+        val queued = burst.map { queue.submit(it, 0, it.size, 0, isConfig = false) }
 
         assertThat(queued.all { it }).isTrue()
         assertThat(queue.takeChainBroken()).isFalse()
-        assertThat(generateSequence { queue.poll() }.toList().size).isEqualTo(10)
-        val big = p(20, size = 1_001)
-        assertThat(queue.submit(big, 0, big.size, 0, isConfig = false)).isFalse()
-        assertThat(queue.takeChainBroken()).isTrue()
+    }
+
+    @Test
+    fun `while a decoder starts pictures may wait up to the startup age`() {
+        val roomy = FrameQueue(limits.copy(maxPictures = 1_000), recycler, clock) // decoderHasOutput false: starting
+        roomy.submit(idr(0), 0, 8, 0, isConfig = false)
+        clock.advanceMillis(1_500)
+        assertThat(roomy.submit(p(1), 0, 8, 0, isConfig = false)).isTrue()
+        clock.advanceMillis(1)
+
+        assertThat(roomy.submit(p(2), 0, 8, 0, isConfig = false)).isFalse()
+        assertThat(roomy.takeChainBroken()).isTrue()
+    }
+
+    @Test
+    fun `after the first output the backlog drains before the running age limit applies`() {
+        val roomy = FrameQueue(limits.copy(maxPictures = 1_000), recycler, clock)
+        repeat(6) {
+            roomy.submit(if (it == 0) idr(0) else p(it), 0, 8, 0, isConfig = false)
+            clock.advanceMillis(16)
+        }
+        clock.advanceMillis(300) // a cold start
+        roomy.decoderHasOutput = true // six still wait: catching up
+
+        assertThat(roomy.submit(p(10), 0, 8, 0, isConfig = false)).isTrue() // the oldest waited 396 ms
+
+        repeat(6) { roomy.poll() } // drained to one picture: running
+        clock.advanceMillis(251)
+        assertThat(roomy.submit(p(11), 0, 8, 0, isConfig = false)).isFalse()
+        assertThat(roomy.takeChainBroken()).isTrue()
     }
 
     @Test
@@ -150,3 +200,5 @@ private fun lengthPrefixed(
     val nal = ByteArray(size - 4) { (tag + it).toByte() }.also { it[0] = header.toByte() }
     return byteArrayOf(0, 0, (nal.size shr 8).toByte(), nal.size.toByte()) + nal
 }
+
+private const val MS = 1_000_000L

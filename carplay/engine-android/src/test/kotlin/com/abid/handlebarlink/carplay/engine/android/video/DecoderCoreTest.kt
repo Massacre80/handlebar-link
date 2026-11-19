@@ -22,7 +22,16 @@ class DecoderCoreTest {
     private val listener = RecordingListener()
     private val sink = RecordingLogSink()
     private val queue =
-        FrameQueue(maxPictures = 6, maxBytes = MAX_INPUT_SIZE.toLong(), recycler = recycler, clock = clock)
+        FrameQueue(
+            QueueLimits(
+                maxPictures = 60,
+                maxBytes = MAX_INPUT_SIZE.toLong(),
+                maxAgeNanos = 250_000_000L,
+                maxStartupAgeNanos = 1_500_000_000L,
+            ),
+            recycler,
+            clock,
+        )
     private val core =
         DecoderCore(
             platform,
@@ -199,8 +208,10 @@ class DecoderCoreTest {
         codec.offerInput(0)
         val first = idr(0)
         submit(first)
-        codec.emitOutput(0, codec.inputs.single().presentationMicros) // running: the picture limit applies
-        repeat(7) { submit(p(it + 1)) } // no free input: six wait, the seventh overflows and drops them all
+        codec.emitOutput(0, codec.inputs.single().presentationMicros) // running: the 250 ms age limit applies
+        submit(p(1)) // no free input: it waits
+        clock.advanceMillis(260)
+        submit(p(2)) // the oldest waited too long: both are dropped and the chain is broken
 
         codec.offerInput(1)
         submit(p(10))
@@ -209,6 +220,39 @@ class DecoderCoreTest {
 
         assertThat(codec.inputs.map { it.bytes.toList() }).containsExactly(annexB(first), annexB(key))
         assertThat(listener.keyFrameRequests).isEqualTo(1)
+    }
+
+    @Test
+    fun `a backlog left by a slow start drains without a drop`() {
+        // The Poco, run 2 (2026-11-19): 14 pictures waited for the prewarmed decoder; once its first output came, a
+        // strict running limit broke the chain while they drained (dropped_full=11, dropped_wait_key=43).
+        core.configure(Display(1280, 720, 60))
+        core.attach(screen)
+        val codec = platform.last
+        submit(avcc, isConfig = true)
+        val sent = ArrayList<ByteArray>()
+        repeat(14) {
+            sent += if (it == 0) idr(0) else p(it)
+            submit(sent.last())
+            clock.advanceMillis(16)
+        }
+        var input = 0
+        codec.offerInput(input++) // the codec-config buffer
+        codec.offerInput(input++) // the IDR
+        clock.advanceMillis(40)
+        codec.emitOutput(0, codec.inputs.single().presentationMicros) // first output: 13 still wait, 250 ms and more
+
+        repeat(16) {
+            clock.advanceMillis(16)
+            sent += p(100 + it)
+            submit(sent.last())
+            codec.offerInput(input++) // the first decodes are slow: two inputs per new picture
+            codec.offerInput(input++)
+        }
+
+        assertThat(codec.inputs.map { it.bytes.toList() }).isEqualTo(sent.map { annexB(it) })
+        assertThat(listener.keyFrameRequests).isEqualTo(0)
+        assertThat(queue.takeCounts().droppedFull).isEqualTo(0)
     }
 
     @Test
