@@ -71,6 +71,16 @@ fun SmartButtonsBento() = Gallery(HlThemeVariant.BENTO) { SmartButtons() }
 @PreviewTest
 @FontScales
 @Composable
+fun SwitchesNight() = Gallery(HlThemeVariant.NIGHT) { Switches() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun SwitchesBento() = Gallery(HlThemeVariant.BENTO) { Switches() }
+
+@PreviewTest
+@FontScales
+@Composable
 fun ButtonsNight() = Gallery(HlThemeVariant.NIGHT) { Buttons() }
 
 @PreviewTest

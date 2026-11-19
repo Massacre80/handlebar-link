@@ -5,18 +5,22 @@ package com.abid.handlebarlink.ui.carplay
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import com.abid.handlebarlink.carplay.CarPlayStatus
+import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.FakeCarPlayPermissions
 import com.abid.handlebarlink.carplay.InMemoryCarPlaySettings
 import com.abid.handlebarlink.carplay.carPlayCoordinator
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.engine.test.FakeCarPlayLink
 import com.abid.handlebarlink.core.testing.MainDispatcherRule
 import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
@@ -36,12 +40,20 @@ class CarPlayViewModelTest {
     private val link = FakeCarPlayLink()
     private val settings = InMemoryCarPlaySettings(enabled = true)
     private val pairing = FakeIphonePairing(listOf(abid))
+    private val video = MutableStateFlow<CarPlayVideoStats?>(null)
 
     private fun TestScope.viewModel(): Pair<CarPlayViewModel, com.abid.handlebarlink.carplay.CarPlayCoordinator> {
         val time = TestTimeProvider(testScheduler)
         val coordinator =
             carPlayCoordinator(link, settings, FakeCarPlayPermissions(), testLogger(RecordingLogSink(), time))
-        val viewModel = CarPlayViewModel(coordinator, settings, pairing, CarPlayStatusLines(coordinator, time))
+        val viewModel =
+            CarPlayViewModel(
+                coordinator,
+                settings,
+                pairing,
+                CarPlayStatusLines(coordinator, time),
+                CarPlayVideoStatsSource { video },
+            )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         return viewModel to coordinator
     }
@@ -57,6 +69,20 @@ class CarPlayViewModelTest {
             pairing.iphoneList.value = emptyList()
             runCurrent()
             assertThat(viewModel.uiState.value.hero.phase).isEqualTo(TabPhase.NOT_SET_UP)
+        }
+
+    @Test
+    fun `the Link row follows the group's channel and each window of the picture's numbers`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 149))
+            runCurrent()
+            assertThat(viewModel.uiState.value.link.channel).isEqualTo(149)
+            assertThat(viewModel.uiState.value.link.quality).isNull()
+
+            video.value = CarPlayVideoStats(300, 290, 58.0, dropped = 30, decodeP90Millis = 15.0, recoveries = 0)
+            runCurrent()
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.WEAK)
         }
 
     @Test

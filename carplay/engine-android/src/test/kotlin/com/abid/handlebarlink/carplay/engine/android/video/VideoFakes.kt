@@ -205,6 +205,11 @@ internal fun hardwareDecoder(
 internal class RecordingListener : ScreenDecoder.Listener {
     var keyFrameRequests = 0
     var firstFrames = 0
+    val stats = ArrayList<CarPlayVideoStats>()
+
+    override fun onStats(stats: CarPlayVideoStats) {
+        this.stats += stats
+    }
 
     override fun onKeyFrameNeeded() {
         keyFrameRequests++

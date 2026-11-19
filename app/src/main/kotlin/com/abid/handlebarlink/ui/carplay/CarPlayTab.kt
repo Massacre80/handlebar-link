@@ -8,6 +8,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.usedIphone
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 
@@ -113,9 +114,30 @@ data class IphoneRow(
 @Immutable
 data class LinkRow(
     @param:StringRes val hint: Int,
+    /** The detail; it takes [channel] as its argument when that is known. */
     @param:StringRes val detail: Int,
     val live: Boolean,
+    /** The Wi-Fi Direct channel while connected. */
+    val channel: Int? = null,
+    /** How well the picture comes through ([linkQuality]); null when there is nothing to judge yet. */
+    val quality: LinkQuality? = null,
 )
+
+/** The Link row's quality word. */
+enum class LinkQuality(
+    @param:StringRes val words: Int,
+) {
+    STRONG(R.string.carplay_link_quality_strong),
+    FAIR(R.string.carplay_link_quality_fair),
+    WEAK(R.string.carplay_link_quality_weak),
+}
+
+/** The Link row's detail: "Wi-Fi Direct · 5 GHz ch 36 · Strong" while connected. */
+@Composable
+fun LinkRow.detailWords(): String {
+    val base = if (channel != null) stringResource(detail, channel) else stringResource(detail)
+    return quality?.let { stringResource(R.string.carplay_link_with_quality, base, stringResource(it.words)) } ?: base
+}
 
 /** The CarPlay tab. */
 @Immutable
@@ -128,8 +150,8 @@ data class CarPlayUiState(
 )
 
 /**
- * The tab for the switch ([enabled]), CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one and
- * the status [line].
+ * The tab for the switch ([enabled]), CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one,
+ * the status [line] and the picture's last window of numbers ([video], for the Link row's quality).
  */
 fun carPlayTab(
     enabled: Boolean,
@@ -137,12 +159,13 @@ fun carPlayTab(
     iphones: List<PairedIphone>?,
     chosen: String?,
     line: CarPlayLine,
+    video: CarPlayVideoStats? = null,
 ): CarPlayUiState =
     CarPlayUiState(
         hero = carPlayHero(enabled, status, iphones, chosen, line),
         enabled = enabled,
         iphone = iphoneRow(status, iphones, chosen),
-        link = linkRow(status),
+        link = linkRow(status, video),
     )
 
 /**
@@ -209,7 +232,27 @@ private fun statusHero(
         }
 
         is CarPlayStatus.NeedsPermission -> {
-            needsYou(R.string.carplay_tab_permission_title, R.string.carplay_tab_permission_detail, TabAction.ALLOW)
+            when (missingAccess(status.permissions)) {
+                MissingAccess.NEARBY -> {
+                    needsYou(
+                        R.string.carplay_tab_permission_title,
+                        R.string.carplay_tab_permission_detail,
+                        TabAction.ALLOW,
+                    )
+                }
+
+                MissingAccess.MICROPHONE -> {
+                    needsYou(
+                        R.string.carplay_tab_microphone_title,
+                        R.string.carplay_tab_microphone_detail,
+                        TabAction.ALLOW,
+                    )
+                }
+
+                MissingAccess.BOTH -> {
+                    needsYou(R.string.carplay_tab_both_title, R.string.carplay_tab_both_detail, TabAction.ALLOW)
+                }
+            }
         }
 
         CarPlayStatus.Failed -> {

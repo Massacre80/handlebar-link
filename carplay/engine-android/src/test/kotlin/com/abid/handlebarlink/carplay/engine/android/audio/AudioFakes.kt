@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.carplay.engine.android.audio
 
+import android.media.AudioDeviceInfo
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneFormat
 import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -117,6 +118,7 @@ internal class FakeRendererPlatform(
     var track: FakeTrack? = null
     var plan: PlaybackPlan? = null
     var requestedMode: Int? = null
+    var preferred: CommunicationDevice? = null
 
     override fun minBufferBytes(
         sampleRate: Int,
@@ -135,7 +137,9 @@ internal class FakeRendererPlatform(
         format: AudioFormat,
         plan: PlaybackPlan,
         performanceMode: Int,
+        preferred: CommunicationDevice?,
     ): PcmTrack {
+        this.preferred = preferred
         this.plan = plan
         requestedMode = performanceMode
         return FakeTrack(plan.capacityFrames, plan.frameBytes, performanceMode).also { track = it }
@@ -178,9 +182,23 @@ internal class FakeAudioModes : AudioModeSystem {
     var speakers = 0
     var cleared = 0
 
+    /** What `getAvailableCommunicationDevices` lists now. */
+    var devices: List<CommunicationDevice> = listOf(EARPIECE, SPEAKER)
+    var deviceGranted = true
+
+    /** Each `setCommunicationDevice`, in order. */
+    val routed = mutableListOf<CommunicationDevice>()
+
     override fun loudspeaker(): Boolean {
         speakers++
         return speakerGranted
+    }
+
+    override fun communicationDevices(): List<CommunicationDevice> = devices
+
+    override fun setCommunicationDevice(device: CommunicationDevice): Boolean {
+        routed += device
+        return deviceGranted
     }
 
     override fun clearCommunicationDevice() {
@@ -246,6 +264,7 @@ internal class FakeMicrophonePlatform(
     var effectsOpened = 0
     var effectsClosed = 0
     var encoderBitrate: Int? = null
+    var preferred: CommunicationDevice? = null
     var encoderReleased = false
 
     /** What the encoder makes of each frame. */
@@ -262,7 +281,9 @@ internal class FakeMicrophonePlatform(
         source: Int,
         format: MicrophoneFormat,
         bufferBytes: Int,
+        preferred: CommunicationDevice?,
     ): Recorder {
+        this.preferred = preferred
         sources += source
         if (source in refuse) throw UnsupportedOperationException("source $source refused")
         this.bufferBytes = bufferBytes
@@ -285,3 +306,9 @@ internal class FakeMicrophonePlatform(
         return AutoCloseable { effectsClosed++ }
     }
 }
+
+/** The phone's own communication devices and two helmets (types from AudioDeviceInfo: 1 earpiece, 2 speaker). */
+internal val EARPIECE = CommunicationDevice(1, AudioDeviceInfo.TYPE_BUILTIN_EARPIECE, "", "Poco F1")
+internal val SPEAKER = CommunicationDevice(2, AudioDeviceInfo.TYPE_BUILTIN_SPEAKER, "", "Poco F1")
+internal val INTERCOM = CommunicationDevice(7, AudioDeviceInfo.TYPE_BLUETOOTH_SCO, "AA:BB:CC:DD:EE:01", "EJEAS V6 Pro+")
+internal val OTHER_HEADSET = CommunicationDevice(8, AudioDeviceInfo.TYPE_BLE_HEADSET, "AA:BB:CC:DD:EE:02", "Buds")

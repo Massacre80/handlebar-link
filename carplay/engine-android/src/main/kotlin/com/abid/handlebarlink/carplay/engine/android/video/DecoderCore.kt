@@ -37,7 +37,7 @@ internal class DecoderCore<S : Any>(
     private val log: Logger,
     statsIntervalNanos: Long,
 ) : CodecEvents<S> {
-    private val metrics = VideoMetrics(log, statsIntervalNanos)
+    private val metrics = VideoMetrics(log, statsIntervalNanos, listener::onStats)
     private val slot = DecoderSlot(platform, this, clock, log, metrics)
     private val keyFrames = KeyFrameRequests(listener, clock, log, metrics)
     private val times = PresentationTimes(clock)

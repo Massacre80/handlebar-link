@@ -3,6 +3,7 @@
 
 package com.abid.handlebarlink.ui.carplay
 
+import android.Manifest
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.hasSize
@@ -50,6 +51,22 @@ class CarPlayLineTest {
             .isEqualTo(CarPlayLine(R.string.carplay_status_permission, tone = SignalTone.ERROR))
         assertThat(carPlayLine(CarPlayStatus.Failed, now))
             .isEqualTo(CarPlayLine(R.string.carplay_status_failed, tone = SignalTone.ERROR))
+    }
+
+    @Test
+    fun `a missing microphone says so, not Nearby devices`() {
+        fun line(vararg missing: String) = carPlayLine(CarPlayStatus.NeedsPermission(missing.toList()), now)
+
+        assertThat(line(Manifest.permission.RECORD_AUDIO))
+            .isEqualTo(CarPlayLine(R.string.carplay_status_permission_microphone, tone = SignalTone.ERROR))
+        assertThat(line(Manifest.permission.NEARBY_WIFI_DEVICES, Manifest.permission.ACCESS_LOCAL_NETWORK))
+            .isEqualTo(CarPlayLine(R.string.carplay_status_permission, tone = SignalTone.ERROR))
+        assertThat(line(Manifest.permission.RECORD_AUDIO, Manifest.permission.BLUETOOTH_CONNECT))
+            .isEqualTo(CarPlayLine(R.string.carplay_status_permission_both, tone = SignalTone.ERROR))
+        assertThat(errorText(CarPlayError.PermissionMissing(Manifest.permission.RECORD_AUDIO)))
+            .isEqualTo(R.string.carplay_error_permission_microphone)
+        assertThat(errorText(CarPlayError.PermissionMissing(Manifest.permission.NEARBY_WIFI_DEVICES)))
+            .isEqualTo(R.string.carplay_error_permission)
     }
 
     @Test

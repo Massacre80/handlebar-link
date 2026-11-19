@@ -279,8 +279,12 @@ and picks that layer of `HandlebarMapping`.
   (`control.mic.unmuted_after_restart`), and a set flag mid-call keeps the mute until that call ends. The
   audio situation is seeded with one synchronous read, so a restart mid-call is not taken for riding. A mic we
   did not mute is never touched. A flag that cannot be stored stops the mute; a failed flag read or write is
-  logged and never ends the watch (docs/LESSONS.md 59). **Open:** our held Telecom call (callaudio/) may also change the mute; on-bike
-  check.
+  logged and never ends the watch (docs/LESSONS.md 59). **Our CarPlay's uplink (2026-11-19):** whether the audio HAL
+  also silences an app's own `AudioRecord` on every input is not promised (`AudioFlinger::setMicMute` is per HAL), so
+  `MicrophoneCapture` sends silence of the same length while `AudioManager.isMicrophoneMute()` is on (read at the
+  capture's start and on each `ACTION_MICROPHONE_MUTE_CHANGED`, `carplay.audio.microphone_muted`); the flag and its
+  safety rules above are unchanged. Our own CarPlay's calls no longer hold a Telecom call (see "C5 audio", "Routes"),
+  so the open question about Telecom changing the mute is left to CarLink's calls; on-bike check.
 - **Handlebar page** (`ui/handlebar/`, Paper "Handlebar — Smart buttons", artboards 2–5): a Riding / Ringing /
   On a call switch (`HlSegmentedControl`) chooses the layer shown; under it a line on the situation (its
   defaults while the layer is unchanged, else just what it is) and, where today's CarPlay limits it, a notice
@@ -396,19 +400,22 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
   radio, Bluetooth and sockets. Its `run()` never throws: any failure (also a `CancellationException` that is not
   our own cancellation, docs/LESSONS.md 54) is logged as `carplay.failed` and shown as "Stopped after an error";
   the bike link is untouched. Ending a ride (`RideCoordinator.stop`) stops CarPlay too.
-- **keepAlive:** the ride (and so `RideService`, still `connectedDevice` only: `CHANGE_WIFI_STATE` and
-  `BLUETOOTH_CONNECT` both meet that type's prerequisite) lasts while the bike link **or** CarPlay needs it. CarPlay
+- **keepAlive:** the ride (and so `RideService`: `connectedDevice`, whose prerequisite `CHANGE_WIFI_STATE` and
+  `BLUETOOTH_CONNECT` both meet, plus `microphone` while CarPlay runs, see "C5 audio") lasts while the bike link **or**
+  CarPlay needs it. CarPlay
   counts from the start of its run until it knows it will not start, while it is meant to run, and until the
   engine's own `keepAlive` ends after a stop.
 - **Permissions:** `carPlayPermissions(sdk)`: `BLUETOOTH_CONNECT`; `NEARBY_WIFI_DEVICES` on API 33+ (else
   `ACCESS_FINE_LOCATION`); `ACCESS_LOCAL_NETWORK` on API 37+. The engine has no permission error on this base, so a
-  missing one is app-side (`CarPlayStatus.NeedsPermission`, "Needs Nearby devices: allow it in Settings ›
-  Permissions"), checked fresh on every resume and permission answer. Asked through the existing flow: a "CarPlay
+  missing one is app-side (`CarPlayStatus.NeedsPermission`), checked fresh on every resume and permission answer. The
+  line names what is missing (`permissionLine`): "Needs Nearby devices: allow it in Settings › Permissions", "Allow
+  the microphone for Siri and calls" (RECORD_AUDIO only), or both; the hero likewise ("Allow the microphone"). Asked through the existing flow: a "CarPlay
   (beta)" row on the Permissions page and in Allow all, shown only while the switch is on (least privilege), and the
   dialog when the switch is turned on. `ACCESS_NETWORK_STATE` and `CHANGE_WIFI_MULTICAST_STATE` are left to the
   Android ports' NSD-or-raw-mDNS choice.
-- **UI:** the CarPlay tab (was an empty page) shows the switch as an `HlValueRow` (hint On/Off, status line under its
-  name) and, off, today's "CarPlay runs in CarLink until our own receiver is ready"; Home's CarPlay card keeps "Runs in
+- **UI:** the CarPlay tab (was an empty page) shows the switch as an `HlSwitchRow` (a real `HlSwitch`, 44 x 26, the row
+  toggles it with `Role.Switch`; status rows carry `HlRowIcon` tiles: iPhone, Wi-Fi, CarPlay; the state tag has a 6 dp
+  dot; Paper "CarPlay — flow v2") and, off, today's "CarPlay runs in CarLink until our own receiver is ready"; Home's CarPlay card keeps "Runs in
   CarLink for now" while off, else shows the status line. Status line: Off → "Runs in CarLink for now"; Starts with
   the next ride (no ride); Starting; "Connecting · <step>"; Connected; "<error> · Retrying in N s" (ticking each
   second); the error alone when only the rider can fix it. On-bike check (owner): with the Android ports merged,
@@ -580,16 +587,55 @@ does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `Micr
   one request for the playing tracks, following music (`GAIN`), then a call (`GAIN_TRANSIENT`), then Siri
   (`GAIN_TRANSIENT_MAY_DUCK`); directions take none and play over the rest. A duckable loss or the iPhone's `duckAudio`
   lowers music's own track to 0.2, a transient loss mutes it, a gain restores it, a permanent loss is ignored.
+- **Routes (2026-11-19, the bike, not a car).** Per stream:
+  - *Calls and Siri* (telephony, speechRecognition): sound **and** microphone on the rider's Bluetooth headset when it
+    is connected. `CallAudio.voiceStarted` (track or recorder of a call or Siri) picks it among
+    `getAvailableCommunicationDevices()` (`chooseHeadset`: type `TYPE_BLUETOOTH_SCO` or `TYPE_BLE_HEADSET`; the rider's
+    device by address, then Bluetooth name, then any headset) and makes it the communication device
+    (`setCommunicationDevice`, the API 31 replacement for `startBluetoothSco`: "Audio routing API updates in Android 14
+    for VoIP apps", "Managing BLE Audio for Communication Applications"); the call's or Siri's `AudioTrack` and
+    `AudioRecord` also `setPreferredDevice` the headset's output and input (Siri's `USAGE_ASSISTANT` track and
+    `VOICE_RECOGNITION` source do not follow the communication route by themselves). The last of them to end calls
+    `clearCommunicationDevice`. The rider's choice comes from the Intercom page (`RiderHeadsets`: calls on PHONE = no
+    headset; else the chosen or primary device), passed to `createAndroidCarPlayPorts(…, headsets)`.
+  - *Without a headset* (none connected, calls on the phone, or the route refused): DiPlay's behaviour, a call on the
+    earpiece moves to the loudspeaker once. A headset that disconnects mid-call drops Android's route; the earpiece
+    report then finds it gone (`carplay.audio.headset_lost`) and the loudspeaker fallback applies. An earpiece report
+    while the headset is still listed is ignored (passing).
+  - *Music and directions*: plain `USAGE_MEDIA` / `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE` tracks with no preferred device
+    and no communication device: Android plays them over A2DP to the connected headset. Nothing in the app overrides
+    that (no `setSpeakerphoneOn`, no preferred device for them; the loudspeaker fallback is for calls only).
+  - *The held Telecom call* (callaudio/IntercomCallRoute) stays for CarLink's calls only: `RideService` skips it while
+    our CarPlay is connected (`holdsTelecomCall`, `callaudio.call.ours`), since a Telecom call would take over the same
+    communication route and the audio mode.
 - **Calls** (`CallAudio`, AndroidMediaSink.kt:581-678): the call's microphone enters `MODE_IN_COMMUNICATION` before
-  it records and leaves with `MODE_NORMAL`; a call track routed to the earpiece moves to the loudspeaker once
-  (`setCommunicationDevice`). AudioService drops both when the process dies, so no persisted undo flag
+  it records and leaves with `MODE_NORMAL` (Siri keeps the normal mode); see "Routes" for where it plays. AudioService
+  drops the mode and the communication device when the process dies, so no persisted undo flag
   (docs/LESSONS.md 57). Capture (`MicrophoneCapture`, MicrophoneUplink.kt:77-408): calls `VOICE_COMMUNICATION` with the
   platform's AEC and NS, Siri `VOICE_RECOGNITION` (`VOICE_COMMUNICATION` where refused), else `MIC`; one restart after
   a read error, then the microphone ends (only it). Bodies wait in a 25-entry buffer that drops the oldest.
 - **Permissions:** `RECORD_AUDIO` joins `carPlayPermissions` (app) and `CarPlayPermissions.runtime` (engine-android),
-  declared in both manifests; engine-android also declares `MODIFY_AUDIO_SETTINGS`. RideService keeps its
-  `connectedDevice` type: the microphone records while the app is in use (the CarPlay display); a background
-  `microphone` service type needs a foreground start and is left for the ride test.
+  declared in both manifests; engine-android also declares `MODIFY_AUDIO_SETTINGS`. The Permissions page's "CarPlay
+  (beta)" row asks for it with the rest and says so ("…and the microphone for Siri and calls").
+- **Microphone in the background (2026-11-19).** `RECORD_AUDIO` is a while-in-use permission: a `microphone` service
+  type may only be started or added while the app is visible (Android 14+ throws a SecurityException otherwise; no
+  listed exemption covers a companion-device app; "Restrictions on starting foreground services that need while-in-use
+  permissions"), and types are added by calling `startForeground` again with all of them ("Launch a foreground
+  service"). `RideService` declares `connectedDevice|phoneCall|microphone` and `FOREGROUND_SERVICE_MICROPHONE`, and
+  `keepsMicrophone` decides: added when our CarPlay is Connected, RECORD_AUDIO is granted and the app is visible
+  (checked at every CarPlay state change with `ActivityManager.getMyMemoryState`, and at every resume, when the app
+  starts the ride service again); kept across screen-off and CarPlay's drops and retries; given back when CarPlay
+  stops (Idle/Stopped) or the permission goes (`service.microphone_type`). A refused upgrade is logged
+  (`service.foreground_denied`) and retried at the next change. **Limit:** a ride that wakes on ignition with the
+  screen off gets no microphone until the rider opens the app once; nothing safe can add a while-in-use type from the
+  background. The same upgrade, made while visible, also gives the service the while-in-use capability that Android
+  17's background audio hardening asks of apps targeting API 37 that play from the background ("Background audio
+  hardening").
+- **Link row (2026-11-19).** `CarPlayState.Connected.wifiChannel` (the group's channel, as offered over iAP2) and
+  `CarPlayScreen.stats` (each `carplay.video.stats` window as `CarPlayVideoStats`, reset at a new screen stream) give
+  "Wi-Fi Direct · 5 GHz ch 36 · Strong". `linkQuality`: Weak at 5 % pictures lost on the way to the decoder (queue
+  drops, bad lengths), a decoder recovery, or decode p90 above 100 ms; Fair with any loss or decode p90 above 34 ms
+  (two frames at 60 fps); Strong otherwise; no word before a window with pictures.
 - **Logs** (`carplay.audio.*`): engine `microphone_offer offer=`, `receiving type audioType codec sampleRate`, `duck`,
   `microphone_start … frameMillis rtpStep`, `microphone_silent_start`, `microphone_ended packets sendFailures`,
   `microphone_failed`, `player_failed`, `ended packets dropped`; Android `track type audioType codec sampleRate channels
@@ -608,6 +654,16 @@ does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `Micr
   `microphone_start codec=OPUS … rtpStep=480` (Opus 24 kHz), `microphone_capture source=voice_recognition`, Siri
   answers what was said. A call: `microphone_start audioType=telephony`, `mode to=3`, possibly `call_route
   loudspeaker=true`, the far end hears the rider; hang up: `mode to=0`. Each stream ends with `carplay.audio.ended`.
+  **With the helmet (2026-11-19):** intercom paired and connected (calls and music). Hold Siri: `carplay.audio.headset_route
+  device=<intercom> type=7 channel=ASSISTANT routed=true`, `track_device … set=true`, `microphone_device … set=true`,
+  `microphone_capture … headset=<intercom>`; Siri is heard in the helmet and hears the helmet's microphone; after it,
+  `headset_route … cleared=true` and music comes back over A2DP. A call: the same with `channel=PHONE`, `mode to=3`, no
+  `call_route loudspeaker`, no `callaudio.telecom.*` but `callaudio.call.ours`. Switch the intercom off mid-call:
+  `headset_lost`, then `call_route loudspeaker=true`. Mute the microphone from the handlebar mid-call:
+  `microphone_muted muted=true`, the far end hears nothing; unmute: `muted=false`. Background: open the CarPlay display
+  once after Connected (`service.microphone_type on=true visible=true applied=true`), turn the screen off, hold Siri:
+  no "Foreground service started from background can not have location/camera/microphone access" in logcat, and
+  `dumpsys activity services com.abid.handlebarlink` lists `types=0x…` including microphone (0x80).
 
 ## Things only the phone or bike can settle
 

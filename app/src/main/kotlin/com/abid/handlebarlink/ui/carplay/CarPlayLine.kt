@@ -54,7 +54,7 @@ internal fun carPlayLine(
     when (status) {
         CarPlayStatus.Off -> CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE)
         CarPlayStatus.NotAvailable -> CarPlayLine(R.string.carplay_status_not_available, tone = SignalTone.IDLE)
-        is CarPlayStatus.NeedsPermission -> CarPlayLine(R.string.carplay_status_permission, tone = SignalTone.ERROR)
+        is CarPlayStatus.NeedsPermission -> CarPlayLine(permissionLine(status.permissions), tone = SignalTone.ERROR)
         CarPlayStatus.Failed -> CarPlayLine(R.string.carplay_status_failed, tone = SignalTone.ERROR)
         CarPlayStatus.Held -> CarPlayLine(R.string.carplay_status_held, tone = SignalTone.IDLE)
         is CarPlayStatus.Engine -> engineLine(status.state, now)
@@ -131,7 +131,7 @@ internal fun errorText(error: CarPlayError): Int =
         CarPlayError.AuthenticationFailed -> R.string.carplay_error_authentication
         is CarPlayError.TimedOut -> R.string.carplay_error_timed_out
         is CarPlayError.PhoneDisconnected -> R.string.carplay_error_disconnected
-        is CarPlayError.PermissionMissing -> R.string.carplay_error_permission
+        is CarPlayError.PermissionMissing -> permissionErrorText(error.permission)
         CarPlayError.WifiOff -> R.string.carplay_error_wifi_off
         is CarPlayError.Stalled -> stallText(error.verdict)
         is CarPlayError.Unexpected -> R.string.carplay_error_unexpected

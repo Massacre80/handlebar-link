@@ -132,6 +132,8 @@ class CarPlayRuntimeTest {
             assertThat(auth.headers["content-type"]).isEqualTo("application/octet-stream")
             assertThat(link.state.value).isInstanceOf<CarPlayState.Connected>()
             assertThat((link.state.value as CarPlayState.Connected).phone).isEqualTo(phoneId)
+            // The channel offered to the iPhone in the Wi-Fi information, for the CarPlay tab's Link row.
+            assertThat((link.state.value as CarPlayState.Connected).wifiChannel).isEqualTo(149)
             assertThat(link.keepAlive.value).isTrue()
             // Every step is logged (the state flow conflates fast transitions).
             assertThat(sink.events("carplay.step").map { it.fields.single().second }).containsExactly(

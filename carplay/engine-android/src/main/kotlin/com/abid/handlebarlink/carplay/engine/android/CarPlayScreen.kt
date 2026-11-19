@@ -2,9 +2,11 @@ package com.abid.handlebarlink.carplay.engine.android
 
 import android.view.SurfaceView
 import com.abid.handlebarlink.carplay.engine.android.video.AndroidScreenPort
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.engine.android.video.ScreenSurface
 import com.abid.handlebarlink.carplay.engine.android.video.createScreenDecoder
 import com.abid.handlebarlink.core.common.log.Logger
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The CarPlay picture on this phone: the hardware screen decoder that the engine feeds (through
@@ -21,6 +23,9 @@ public class CarPlayScreen internal constructor(
      * main thread, once per view.
      */
     public fun show(view: SurfaceView): AutoCloseable = ScreenSurface.bind(view, port.decoder)
+
+    /** The picture's last window of numbers in the current screen stream (null until one ended), as it changes. */
+    public val stats: StateFlow<CarPlayVideoStats?> get() = port.stats
 }
 
 /**

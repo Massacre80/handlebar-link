@@ -45,10 +45,12 @@ internal interface MicrophonePlatform {
         channels: Int,
     ): Int
 
+    /** An AudioRecord; [preferred]: the headset whose microphone a call or Siri uses (`setPreferredDevice`). */
     fun recorder(
         source: Int,
         format: MicrophoneFormat,
         bufferBytes: Int,
+        preferred: CommunicationDevice?,
     ): Recorder
 
     fun encoder(bitrate: Int): OpusEncoder
@@ -64,12 +66,19 @@ internal interface MicrophonePlatform {
  * at least twice the platform minimum and four frames, frames of [MicrophoneFormat.frameMillis], and each frame handed
  * to [emit] as little-endian PCM or encoded to Opus. A read error restarts the recorder once (#647); another failure
  * ends capture with a [CarPlayException]. Logs `carplay.audio.microphone_capture` and `carplay.audio.microphone_stats`.
+ *
+ * Calls and Siri record from the rider's headset when it is connected ([CallAudio.voiceStarted]). While Android's
+ * microphone mute is on ([muted]: the smart buttons' Mute microphone, `AudioManager.setMicrophoneMute`) every frame
+ * is sent as silence: the platform applies that mute in the audio HAL (`AudioFlinger::setMicMute`), and whether a
+ * vendor HAL also silences an app's own `AudioRecord`, on every input (Bluetooth too), is not promised by the API, so
+ * the uplink does not rely on it. Silence keeps the stream's timing; the iPhone hears nothing.
  */
 internal class MicrophoneCapture(
     private val format: MicrophoneFormat,
     private val platform: MicrophonePlatform,
     private val calls: CallAudio,
     private val log: Logger,
+    private val muted: () -> Boolean = { false },
     private val emit: (ByteArray) -> Unit,
 ) {
     @Volatile private var running = true
@@ -77,6 +86,7 @@ internal class MicrophoneCapture(
     @Volatile private var recorder: Recorder? = null
 
     private val call = format.audioType == TELEPHONY
+    private val channel = AudioRoute.of(MAIN_AUDIO, format.audioType).channel
     private val samplesPerFrame =
         if (format.codec == AudioCodec.OPUS) OPUS_SAMPLES else maxOf(1, format.sampleRate * format.frameMillis / MILLIS)
     private val frameBytes = samplesPerFrame * format.channels * BYTES_PER_SAMPLE
@@ -87,9 +97,10 @@ internal class MicrophoneCapture(
         var encoder: OpusEncoder? = null
         var effects: AutoCloseable? = null
         if (call) calls.enter(this)
+        val headset = calls.voiceStarted(this, channel)
         try {
             if (format.codec == AudioCodec.OPUS) encoder = platform.encoder(format.bitrate)
-            val (source, built) = build(maxOf(minBuffer * 2, frameBytes * BUFFER_FRAMES))
+            val (source, built) = build(maxOf(minBuffer * 2, frameBytes * BUFFER_FRAMES), headset)
             recorder = built
             if (call) effects = platform.voiceEffects(built.audioSessionId)
             if (!built.start() && !restart(built)) throw failure("the recorder did not start")
@@ -100,6 +111,7 @@ internal class MicrophoneCapture(
                 "codec" to format.codec,
                 "frameBytes" to frameBytes,
                 "encoder" to (encoder != null),
+                "headset" to headset?.name,
             )
             capture(built, encoder)
         } finally {
@@ -107,6 +119,7 @@ internal class MicrophoneCapture(
             recorder = null
             effects?.close()
             encoder?.release()
+            calls.voiceEnded(this)
             if (call) calls.leave(this)
         }
     }
@@ -131,7 +144,10 @@ internal class MicrophoneCapture(
         }
     }
 
-    private fun build(bufferBytes: Int): Pair<Int, Recorder> {
+    private fun build(
+        bufferBytes: Int,
+        headset: CommunicationDevice?,
+    ): Pair<Int, Recorder> {
         val source =
             when (format.audioType) {
                 TELEPHONY -> MediaRecorder.AudioSource.VOICE_COMMUNICATION
@@ -139,12 +155,12 @@ internal class MicrophoneCapture(
                 else -> MediaRecorder.AudioSource.MIC
             }
         return try {
-            source to platform.recorder(source, format, bufferBytes)
+            source to platform.recorder(source, format, bufferBytes, headset)
         } catch (e: UnsupportedOperationException) {
             // Some phones refuse VOICE_RECOGNITION at build(); VOICE_COMMUNICATION works (MicrophoneUplink.kt:134-142).
             if (source != MediaRecorder.AudioSource.VOICE_RECOGNITION) throw failure("recorder: $e")
             MediaRecorder.AudioSource.VOICE_COMMUNICATION to
-                platform.recorder(MediaRecorder.AudioSource.VOICE_COMMUNICATION, format, bufferBytes)
+                platform.recorder(MediaRecorder.AudioSource.VOICE_COMMUNICATION, format, bufferBytes, headset)
         }
     }
 
@@ -186,6 +202,8 @@ internal class MicrophoneCapture(
         private var filled = 0
         private var frames = 0L
         private var bodies = 0L
+        private var silenced = 0L
+        private var wasMuted = false
 
         fun add(
             read: ByteArray,
@@ -208,13 +226,27 @@ internal class MicrophoneCapture(
         private fun complete() {
             filled = 0
             frames++
+            val mute = muted()
+            if (mute != wasMuted) {
+                wasMuted = mute
+                log.info("carplay.audio.microphone_muted", "muted" to mute, "audioType" to format.audioType)
+            }
+            if (mute) {
+                frame.fill(0)
+                silenced++
+            }
             val out = encoder?.encode(frame.copyOf()) ?: listOf(frame.copyOf())
             out.filter { it.isNotEmpty() }.forEach {
                 bodies++
                 emit(it)
             }
             if (frames % STATS_FRAMES == 0L) {
-                log.info("carplay.audio.microphone_stats", "frames" to frames, "packets" to bodies)
+                log.info(
+                    "carplay.audio.microphone_stats",
+                    "frames" to frames,
+                    "packets" to bodies,
+                    "silenced" to silenced,
+                )
             }
         }
     }
@@ -242,6 +274,9 @@ internal class MicrophoneCapture(
 
     private companion object {
         const val TELEPHONY = "telephony"
+
+        /** The main audio stream type: only used to map [MicrophoneFormat.audioType] to its channel. */
+        const val MAIN_AUDIO = 100
         const val SIRI = "speechrecognition"
         const val RECORD_AUDIO = "android.permission.RECORD_AUDIO"
         const val OPUS_SAMPLES = 960

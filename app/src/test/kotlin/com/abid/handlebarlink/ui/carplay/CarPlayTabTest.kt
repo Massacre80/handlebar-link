@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.ui.carplay
 
+import android.Manifest
 import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
@@ -10,6 +11,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import org.junit.Test
 import java.time.Instant
@@ -176,6 +178,73 @@ class CarPlayTabTest {
             connected,
         ).isEqualTo(LinkRow(R.string.carplay_link_connected, R.string.carplay_link_both, live = true))
         assertThat(linkRow(CarPlayStatus.Held).hint).isEqualTo(R.string.carplay_link_off)
+    }
+
+    @Test
+    fun `connected, the Link row names the Wi-Fi Direct band and channel and the picture's quality`() {
+        val clean = CarPlayVideoStats(300, 300, 60.0, dropped = 0, decodeP90Millis = 12.0, recoveries = 0)
+        assertThat(linkRow(engine(CarPlayState.Connected("p", now, wifiChannel = 36)), clean)).isEqualTo(
+            LinkRow(
+                R.string.carplay_link_connected,
+                R.string.carplay_link_wifi_5,
+                live = true,
+                channel = 36,
+                quality = LinkQuality.STRONG,
+            ),
+        )
+        val onTwoFour = linkRow(engine(CarPlayState.Connected("p", now, wifiChannel = 6)))
+        assertThat(onTwoFour.detail).isEqualTo(R.string.carplay_link_wifi_2_4)
+        assertThat(onTwoFour.quality).isNull()
+        // Channel 14 is the last 2.4 GHz channel; 36 the first 5 GHz one the port uses.
+        assertThat(linkRow(engine(CarPlayState.Connected("p", now, wifiChannel = 14))).detail)
+            .isEqualTo(R.string.carplay_link_wifi_2_4)
+        // Not connected: no channel and no quality, whatever the last window said.
+        assertThat(linkRow(CarPlayStatus.Held, clean).quality).isNull()
+    }
+
+    @Test
+    fun `the link is strong only with nothing lost and decoding within two frames`() {
+        fun quality(
+            dropped: Int = 0,
+            decode: Double? = 12.0,
+            recoveries: Int = 0,
+            received: Int = 100,
+        ) = linkQuality(CarPlayVideoStats(received, received, 20.0, dropped, decode, recoveries))
+
+        assertThat(quality()).isEqualTo(LinkQuality.STRONG)
+        assertThat(quality(decode = null)).isEqualTo(LinkQuality.STRONG)
+        assertThat(quality(decode = 34.0)).isEqualTo(LinkQuality.STRONG)
+        assertThat(quality(decode = 34.1)).isEqualTo(LinkQuality.FAIR)
+        assertThat(quality(dropped = 1)).isEqualTo(LinkQuality.FAIR)
+        assertThat(quality(dropped = 4)).isEqualTo(LinkQuality.FAIR)
+        // 5 % of the pictures lost, a decoder replaced, or decoding slower than six frames: weak.
+        assertThat(quality(dropped = 5)).isEqualTo(LinkQuality.WEAK)
+        assertThat(quality(recoveries = 1)).isEqualTo(LinkQuality.WEAK)
+        assertThat(quality(decode = 100.0)).isEqualTo(LinkQuality.FAIR)
+        assertThat(quality(decode = 100.1)).isEqualTo(LinkQuality.WEAK)
+        // No window, or a window with nothing received: no verdict.
+        assertThat(linkQuality(null)).isNull()
+        assertThat(quality(received = 0)).isNull()
+    }
+
+    @Test
+    fun `a missing permission names itself, Nearby devices, the microphone, or both`() {
+        fun needs(vararg missing: String) = hero(CarPlayStatus.NeedsPermission(missing.toList()))
+
+        assertThat(
+            needs(Manifest.permission.NEARBY_WIFI_DEVICES).title,
+        ).isEqualTo(R.string.carplay_tab_permission_title)
+        assertThat(needs(Manifest.permission.RECORD_AUDIO).title).isEqualTo(R.string.carplay_tab_microphone_title)
+        assertThat(needs(Manifest.permission.RECORD_AUDIO).detail)
+            .isEqualTo(HeroDetail.Text(R.string.carplay_tab_microphone_detail))
+        assertThat(needs(Manifest.permission.BLUETOOTH_CONNECT, Manifest.permission.RECORD_AUDIO).title)
+            .isEqualTo(R.string.carplay_tab_both_title)
+        assertThat(needs(Manifest.permission.RECORD_AUDIO).primary).isEqualTo(TabAction.ALLOW)
+        // The engine's own permission error, for the microphone.
+        assertThat(heroTitle(CarPlayError.PermissionMissing(Manifest.permission.RECORD_AUDIO)))
+            .isEqualTo(R.string.carplay_tab_microphone_title)
+        assertThat(heroTitle(CarPlayError.PermissionMissing(Manifest.permission.BLUETOOTH_CONNECT)))
+            .isEqualTo(R.string.carplay_tab_permission_title)
     }
 
     @Test

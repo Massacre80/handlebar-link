@@ -34,20 +34,22 @@ import java.security.SecureRandom
  * suspending port calls, on the ports' own threads. Create one
  * per process (Hilt `@Singleton`). The app binds it as `CarPlayPortsSource { createAndroidCarPlayPorts(context, time,
  * logger, screen) }` and asks for [CarPlayPermissions.runtime] in its permission flow. The iPhone's picture goes to
- * [screen] ([createCarPlayScreen]), which the app also shows.
+ * [screen] ([createCarPlayScreen]), which the app also shows. Calls and Siri use the rider's Bluetooth headset from
+ * [headsets] when it is connected (docs/PLAN.md "C5 audio", "Routes").
  */
 public fun createAndroidCarPlayPorts(
     context: Context,
     time: TimeProvider,
     logger: Logger,
     screen: CarPlayScreen,
+    headsets: CarPlayHeadsetSource = CarPlayHeadsetSource.ANY,
 ): CarPlayPorts {
     val platform = AndroidPlatform(context, time, logger)
     val settings = PreferenceSettings { platform.preferences }
     val random = SecureRandom()
     val identities = IdentityStore({ File(platform.noBackupDirectory, IDENTITY_FILE) }, random, logger)
     val selector = IphoneSelector(platform, settings)
-    val audio = AndroidAudioSystem(platform)
+    val audio = AndroidAudioSystem(platform, headsets)
     return CarPlayPorts(
         bluetooth = AndroidBluetoothPort(platform, selector, identities),
         wifiDirect = AndroidWifiDirectPort(platform, selector, StableNetworks(settings, random), identities),

@@ -11,6 +11,7 @@ import android.media.MediaCodec
 import android.media.MediaFormat
 import android.os.Process
 import com.abid.handlebarlink.carplay.engine.android.AndroidPlatform
+import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
 import com.abid.handlebarlink.carplay.engine.spi.AudioPlayer
 import com.abid.handlebarlink.carplay.engine.spi.AudioPort
 import com.abid.handlebarlink.carplay.engine.spi.AudioStreamInfo
@@ -23,18 +24,27 @@ import android.media.AudioFormat as PlatformFormat
 
 /**
  * What CarPlay's sound and microphone share on this phone: the audio manager (looked up when first used, never while
- * the ports are built, docs/LESSONS.md 60), the one focus request and the call's audio mode.
+ * the ports are built, docs/LESSONS.md 60), the one focus request, and the route and mode of calls and Siri, which
+ * prefer the rider's [headsets].
  */
 internal class AndroidAudioSystem(
     val platform: AndroidPlatform,
+    private val headsets: CarPlayHeadsetSource,
 ) {
     val manager: AudioManager by lazy { checkNotNull(platform.context.getSystemService(AudioManager::class.java)) }
 
     val focus: AudioFocus by lazy { AudioFocus(AndroidFocusSystem(this), platform.log) }
 
-    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), platform.log) }
+    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), headsets, platform.log) }
 
     val renderers: RendererPlatform by lazy { AndroidRendererPlatform(this) }
+
+    /** The input or output ([flag]) device that is [device]'s side: same type and Bluetooth address. */
+    fun device(
+        flag: Int,
+        device: CommunicationDevice,
+    ): AudioDeviceInfo? =
+        manager.getDevices(flag).firstOrNull { it.type == device.type && it.address.equals(device.address, true) }
 
     companion object {
         fun attributes(route: AudioRoute): AudioAttributes =
@@ -122,6 +132,16 @@ private class AndroidAudioModeSystem(
         return speaker != null && audio.manager.setCommunicationDevice(speaker)
     }
 
+    override fun communicationDevices(): List<CommunicationDevice> =
+        audio.manager.availableCommunicationDevices.map {
+            CommunicationDevice(it.id, it.type, it.address, it.productName?.toString().orEmpty())
+        }
+
+    override fun setCommunicationDevice(device: CommunicationDevice): Boolean {
+        val info = audio.manager.availableCommunicationDevices.firstOrNull { it.id == device.id } ?: return false
+        return audio.manager.setCommunicationDevice(info)
+    }
+
     override fun clearCommunicationDevice() {
         audio.manager.clearCommunicationDevice()
     }
@@ -151,6 +171,7 @@ private class AndroidRendererPlatform(
         format: AudioFormat,
         plan: PlaybackPlan,
         performanceMode: Int,
+        preferred: CommunicationDevice?,
     ): PcmTrack {
         val channels = format.channels.coerceIn(1, 2)
         val track =
@@ -172,6 +193,18 @@ private class AndroidRendererPlatform(
             track.release()
             error("AudioTrack did not initialize at ${format.sampleRate} Hz")
         }
+        // A call or Siri on the headset: its output device of the same type and address (an SCO or LE Audio sink).
+        preferred
+            ?.let { audio.device(AudioManager.GET_DEVICES_OUTPUTS, it) }
+            ?.let { device ->
+                val set = track.setPreferredDevice(device)
+                audio.platform.log.info(
+                    "carplay.audio.track_device",
+                    "channel" to route.channel,
+                    "device" to preferred.name,
+                    "set" to set,
+                )
+            }
         val listener =
             if (route.channel == AudioChannel.PHONE) {
                 AudioRouting

@@ -33,11 +33,13 @@ internal enum class DropReason(
  * - `decode_p50_ms`/`decode_p90_ms`: submit to decoder output; `render_p50_ms`/`render_p90_ms`: submit to the
  *   display (`onFrameRendered`'s time, docs: "the system time when the frame was rendered");
  * - `queue_max`, `recoveries`, `keyframe_requests`.
+ * Each logged window is also handed to [report] ([CarPlayVideoStats], the CarPlay tab's link quality).
  * Confined to the decoder thread.
  */
 internal class VideoMetrics(
     private val log: Logger,
     private val intervalNanos: Long,
+    private val report: (CarPlayVideoStats) -> Unit = {},
 ) {
     private var windowStart = NOT_STARTED
     private var decoded = 0
@@ -112,6 +114,16 @@ internal class VideoMetrics(
                 "queue_max" to queue.highWater,
                 "recoveries" to recoveries,
                 "keyframe_requests" to keyFrameRequests,
+            )
+            report(
+                CarPlayVideoStats(
+                    received = queue.received,
+                    shown = shown,
+                    framesPerSecond = tenths(shown / seconds),
+                    dropped = queue.droppedFull + queue.droppedSuperseded + drops[DropReason.BAD.ordinal],
+                    decodeP90Millis = decodeLatency.percentileMillis(P90),
+                    recoveries = recoveries,
+                ),
             )
         }
         windowStart = now

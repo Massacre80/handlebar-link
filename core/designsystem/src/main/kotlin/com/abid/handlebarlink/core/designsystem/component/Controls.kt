@@ -1,6 +1,8 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.annotation.DrawableRes
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -11,15 +13,19 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +34,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
@@ -273,52 +280,4 @@ public fun HlSectionLabel(
         HlTheme.colors.ink,
         modifier.padding(horizontal = HlTheme.spacing.s4),
     )
-}
-
-/**
- * A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the
- * right; [chevron] marks a row that opens another page. [tag]: an [HlTag] before the hint ("SOON");
- * [hintColor]: a hint that is a state (End call in danger), muted otherwise.
- */
-@Composable
-public fun HlValueRow(
-    value: String,
-    hint: String?,
-    modifier: Modifier = Modifier,
-    detail: String? = null,
-    onClick: (() -> Unit)? = null,
-    container: Color = HlTheme.colors.raisedLo,
-    chevron: Boolean = false,
-    tag: String? = null,
-    hintColor: Color = Color.Unspecified,
-) {
-    val colors = HlTheme.colors
-    val press = remember { MutableInteractionSource() }
-    Row(
-        modifier
-            .pressScale(press, HlTheme.motion)
-            .fillMaxWidth()
-            .sizeIn(minHeight = HlTheme.sizes.controlLarge)
-            .clip(rowShape(HlTheme.radii.control))
-            .background(container)
-            .then(
-                if (onClick !=
-                    null
-                ) {
-                    Modifier.clickable(press, LocalIndication.current, role = Role.Button, onClick = onClick)
-                } else {
-                    Modifier
-                },
-            ).padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2)) {
-            HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink)
-            detail?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted) }
-        }
-        tag?.let { HlTag(it) }
-        hint?.let { HlText(it, HlTheme.typography.meta, hintColor.takeOrElse { colors.inkMuted }, maxLines = 1) }
-        if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
-    }
 }

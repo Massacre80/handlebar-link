@@ -7,6 +7,7 @@ import android.view.Surface
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -66,6 +67,17 @@ class AndroidScreenPortTest {
 
     private lateinit var decoder: RecordingDecoder
     private val port = AndroidScreenPort { listener -> RecordingDecoder(listener).also { decoder = it } }
+
+    @Test
+    fun `the decoder's numbers reach the screen's stats until a new stream starts`() {
+        val window = CarPlayVideoStats(300, 298, 59.6, 2, 12.5, 0)
+        decoder.listener.onStats(window)
+        assertThat(port.stats.value).isEqualTo(window)
+
+        port.configure(1280, 720, 60)
+
+        assertThat(port.stats.value).isNull()
+    }
 
     @Test
     fun `the stream SETUP configures the decoder with the canvas`() {

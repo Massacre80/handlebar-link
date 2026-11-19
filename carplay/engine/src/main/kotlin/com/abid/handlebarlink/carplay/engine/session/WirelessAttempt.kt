@@ -48,7 +48,8 @@ internal class WirelessAttempt(
     private val config: CarPlayConfig,
     private val env: RuntimeEnv,
     private val onStep: (ConnectStep) -> Unit,
-    private val onConnected: (String) -> Unit,
+    /** The iPhone's pairing id and the Wi-Fi Direct group's channel. */
+    private val onConnected: (phone: String, channel: Int) -> Unit,
     /** Each AirPlay session's media seams and the rider's touches, sent on its event channel. */
     private val plugins: SessionPlugins,
 ) {
@@ -130,7 +131,7 @@ internal class WirelessAttempt(
         val phone = step(PAIRING_TIMEOUT, ConnectStep.PAIRING) { verified.await() }
         watch.connected()
         ports.wifiDirect.groupWorked()
-        onConnected(phone)
+        onConnected(phone, group.network.channel)
         throw ended.await()
     }
 

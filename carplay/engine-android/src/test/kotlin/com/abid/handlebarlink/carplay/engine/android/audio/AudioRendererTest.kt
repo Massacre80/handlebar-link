@@ -9,6 +9,8 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThanOrEqualTo
 import assertk.assertions.isTrue
+import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadset
+import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
 import com.abid.handlebarlink.carplay.engine.spi.AudioStreamInfo
 import com.abid.handlebarlink.carplay.protocol.audio.AudioCodec
 import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
@@ -25,7 +27,8 @@ class AudioRendererTest {
     private val focusSystem = FakeFocusSystem()
     private val focus = AudioFocus(focusSystem, log)
     private val modes = FakeAudioModes()
-    private val calls = CallAudio(modes, log)
+    private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
+    private val calls = CallAudio(modes, headsets, log)
     private val track get() = checkNotNull(platform.track)
 
     private val pcm48Mono = AudioFormat(AudioCodec.LPCM, 48_000, 1, 48_000)
@@ -64,6 +67,24 @@ class AudioRendererTest {
         assertThat(track.written[1].copyOf(2).toHex()).isEqualTo("3412")
         assertThat(track.written[2].copyOf(4).toHex()).isEqualTo("78567856")
         assertThat(sink.events("carplay.audio.playing").size).isEqualTo(1)
+    }
+
+    @Test
+    fun `a call's and Siri's tracks prefer the connected intercom, music and directions never pick a device`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val preferred =
+            listOf("telephony", "speechrecognition", "media", "default").associateWith { audioType ->
+                val renderer = renderer(audioType, pcm48Mono)
+                check(renderer.prepare())
+                platform.preferred.also { renderer.release() }
+            }
+
+        assertThat(preferred).isEqualTo(
+            mapOf("telephony" to INTERCOM, "speechrecognition" to INTERCOM, "media" to null, "default" to null),
+        )
+        // Each voice track routed to the intercom while it played and gave the route back when released.
+        assertThat(modes.routed).containsExactly(INTERCOM, INTERCOM)
+        assertThat(modes.cleared).isEqualTo(2)
     }
 
     @Test

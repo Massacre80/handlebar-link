@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.ride
 
 import android.Manifest
+import android.app.ActivityManager
 import android.app.ForegroundServiceStartNotAllowedException
 import android.content.Context
 import android.content.Intent
@@ -14,6 +15,7 @@ import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.callaudio.IntercomCallRoute
 import com.abid.handlebarlink.callaudio.VoipCallWatcher
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
+import com.abid.handlebarlink.controls.OurCarPlay
 import com.abid.handlebarlink.core.common.log.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,8 +35,9 @@ import javax.inject.Inject
 /**
  * Keeps the process and the Bluetooth link alive during a ride: a `connectedDevice` foreground service
  * (architecture review M2.4–M3-8). Started by the app while it is on screen, and from the background when
- * Android reports the bike nearby (autostart/, docs/PLAN.md M4); ends itself when the ride ends. Not
- * exported: only this app starts it, with explicit intents.
+ * Android reports the bike nearby (autostart/, docs/PLAN.md M4); ends itself when the ride ends. Adds the
+ * `microphone` type while our CarPlay runs, once the app was visible with CarPlay connected ([keepsMicrophone]).
+ * Not exported: only this app starts it, with explicit intents.
  */
 @AndroidEntryPoint
 class RideService : LifecycleService() {
@@ -50,6 +53,8 @@ class RideService : LifecycleService() {
     @Inject lateinit var calls: VoipCallWatcher
 
     @Inject lateinit var callRoute: IntercomCallRoute
+
+    @Inject lateinit var ourCarPlay: OurCarPlay
 
     private val log by lazy { logger.child("service") }
     private var ride: Job? = null
@@ -109,7 +114,13 @@ class RideService : LifecycleService() {
         if (ride != null) {
             // startForegroundService on a running ride: post the foreground notification again, as that start
             // requires (FGS-LAUNCH: startForeground after every startForegroundService).
-            if (foregroundStart) showForeground()
+            if (foregroundStart) {
+                showForeground()
+            } else {
+                // A plain start comes from the app on screen (RideAutoStart on every resume): the moment the
+                // microphone type may be added.
+                updateMicrophone(visible = true)
+            }
             return
         }
         if (!promote()) return
@@ -156,9 +167,13 @@ class RideService : LifecycleService() {
                     }
             }
         val callAudio = lifecycleScope.launch { routeCalls() }
+        val microphoneType =
+            lifecycleScope.launch { ourCarPlay.state.collect { updateMicrophone(visible = appVisible()) } }
         try {
             coordinator.ride(presentHint, carPlay)?.let(notifications::showProblem)
         } finally {
+            microphoneType.cancel()
+            microphone = false
             callAudio.cancel()
             updates.cancel()
             ride = null
@@ -169,15 +184,47 @@ class RideService : LifecycleService() {
 
     private var holdingCall = false
 
+    /** Whether the service runs with the `microphone` type now. */
+    private var microphone = false
+
+    /**
+     * Adds or gives back the `microphone` type as [keepsMicrophone] decides for our CarPlay's state, [visible] and the
+     * permission. A refused upgrade (the app was not visible after all) is logged and retried at the next change.
+     */
+    private fun updateMicrophone(visible: Boolean) {
+        if (ride == null) return
+        val permitted =
+            ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+        val wanted = keepsMicrophone(microphone, ourCarPlay.state.value, visible, permitted)
+        if (wanted == microphone) return
+        microphone = wanted
+        val applied = showForeground()
+        if (!applied && wanted) microphone = false
+        log.info("service.microphone_type", "on" to microphone, "visible" to visible, "applied" to applied)
+    }
+
+    /** Whether one of the app's activities is in the foreground now (our own process's importance, public API). */
+    private fun appVisible(): Boolean {
+        val info = ActivityManager.RunningAppProcessInfo()
+        ActivityManager.getMyMemoryState(info)
+        return info.importance <= ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+    }
+
     /**
      * While another app's call runs (CarLink's CarPlay call), holds a Telecom call so Android carries its
      * sound and microphone over the intercom (callaudio/). The service shows the call notification and adds
-     * the phoneCall type meanwhile, as Core-Telecom asks for calls held in the background.
+     * the phoneCall type meanwhile, as Core-Telecom asks for calls held in the background. A call of our own
+     * CarPlay routes itself and is left alone ([holdsTelecomCall]).
      */
     private suspend fun routeCalls() {
         val inCall = calls.inCall().stateIn(lifecycleScope)
         inCall.collect { call ->
             if (!call) return@collect
+            if (!holdsTelecomCall(ourCarPlay.isConnected)) {
+                log.info("callaudio.call.ours")
+                return@collect
+            }
             log.info("callaudio.call.start")
             asCall(true)
             callRoute.hold { merge(inCall.filter { !it }.map {}, endCall).first() }
@@ -192,31 +239,32 @@ class RideService : LifecycleService() {
         showForeground()
     }
 
-    /** Posts the foreground notification and types for what the service is doing now (ride or held call). */
-    private fun showForeground() {
+    /**
+     * Posts the foreground notification and types for what the service is doing now (ride or held call, with or
+     * without the microphone); false when Android refused.
+     */
+    private fun showForeground(): Boolean =
         try {
-            if (holdingCall) {
-                ServiceCompat.startForeground(
-                    this,
-                    RideNotifications.ID_RIDE,
-                    notifications.callAudio(),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE or
-                        ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL,
-                )
-            } else {
-                ServiceCompat.startForeground(
-                    this,
-                    RideNotifications.ID_RIDE,
-                    notifications.riding(status),
-                    ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
-                )
-            }
+            ServiceCompat.startForeground(
+                this,
+                RideNotifications.ID_RIDE,
+                if (holdingCall) notifications.callAudio() else notifications.riding(status),
+                rideServiceTypes(holdingCall, microphone),
+            )
+            true
         } catch (e: ForegroundServiceStartNotAllowedException) {
             log.warn("service.foreground_refused", "call" to holdingCall, "error" to e.message)
+            false
         } catch (e: SecurityException) {
-            log.warn("service.foreground_denied", "call" to holdingCall, "error" to e.message)
+            // A while-in-use type (microphone) asked for from the background.
+            log.warn(
+                "service.foreground_denied",
+                "call" to holdingCall,
+                "microphone" to microphone,
+                "error" to e.message,
+            )
+            false
         }
-    }
 
     /** Intents for this service; always explicit. */
     companion object {

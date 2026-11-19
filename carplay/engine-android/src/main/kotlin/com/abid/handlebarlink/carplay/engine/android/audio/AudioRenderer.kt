@@ -80,11 +80,13 @@ internal interface RendererPlatform {
 
     fun decoder(format: AudioFormat): PcmDecoder
 
+    /** A track for [route]; [preferred]: the headset a call or Siri plays on (`setPreferredDevice`), else null. */
     fun track(
         route: AudioRoute,
         format: AudioFormat,
         plan: PlaybackPlan,
         performanceMode: Int,
+        preferred: CommunicationDevice?,
     ): PcmTrack
 }
 
@@ -136,6 +138,7 @@ internal class AudioRenderer(
     private var statsAt = 0L
     private var statsUnderruns = 0
     private var focused = false
+    private var voice = false
     private val writePcm: (ByteArray, Int, Int) -> Unit = { data, offset, length -> feed?.write(data, offset, length) }
 
     override fun packet(
@@ -196,7 +199,10 @@ internal class AudioRenderer(
         if (format.codec != AudioCodec.LPCM) decoder = platform.decoder(format)
         val planned = PlaybackPlan.of(route.isMedia, format.sampleRate, channels, minBuffer, platform.burstFrames)
         val mode = route.performanceMode(format.sampleRate, platform.nativeRate)
-        val built = platform.track(route, format, planned, mode).also { track = it }
+        // Calls and Siri play on the rider's headset when it is connected (CallAudio); music and directions get null.
+        val headset = calls.voiceStarted(this, route.channel)
+        voice = route.channel.voiceUsesHeadset
+        val built = platform.track(route, format, planned, mode, headset).also { track = it }
         val usable = attach(built, planned)
         statsAt = time.elapsedMillis() + STATS_MILLIS
         log.info(
@@ -216,6 +222,7 @@ internal class AudioRenderer(
             "bufferFrames" to usable.initialFrames,
             "startMs" to millis(usable.startFrames.toLong(), format.sampleRate),
             "decoder" to decoder?.name,
+            "headset" to headset?.name,
         )
         if (route.focusGain != null) {
             focus.acquire(this, route) { volume -> built.setVolume(volume) }
@@ -345,6 +352,8 @@ internal class AudioRenderer(
                 log.warn("carplay.audio.release_failed", "part" to part, "error" to e.toString())
             }
         }
+        if (voice) calls.voiceEnded(this)
+        voice = false
     }
 
     private companion object {

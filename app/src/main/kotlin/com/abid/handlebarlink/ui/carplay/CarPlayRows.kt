@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.ui.carplay
 
+import android.Manifest
 import androidx.annotation.StringRes
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayStatus
@@ -7,6 +8,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.usedIphone
 
 // The CarPlay tab's parts beside the hero: the error titles and fixes, the four connection steps, and the status
@@ -19,9 +21,21 @@ import com.abid.handlebarlink.carplay.usedIphone
 @StringRes
 internal fun heroTitle(error: CarPlayError): Int =
     when (error) {
-        CarPlayError.WifiOff -> R.string.carplay_tab_wifi_off_title
-        is CarPlayError.PermissionMissing -> R.string.carplay_tab_permission_title
-        else -> errorText(error)
+        CarPlayError.WifiOff -> {
+            R.string.carplay_tab_wifi_off_title
+        }
+
+        is CarPlayError.PermissionMissing -> {
+            if (error.permission == Manifest.permission.RECORD_AUDIO) {
+                R.string.carplay_tab_microphone_title
+            } else {
+                R.string.carplay_tab_permission_title
+            }
+        }
+
+        else -> {
+            errorText(error)
+        }
     }
 
 /** The one action that fixes [error], if the rider can do it from here. */
@@ -96,14 +110,28 @@ internal fun iphoneRow(
 
 /**
  * The Link row from what the engine reports: Bluetooth while the iPhone is called and checked, Wi-Fi Direct with
- * Bluetooth from the join on. Link quality and the Wi-Fi Direct channel are not in CarPlayState, so they are not shown
- * (no guessing).
+ * Bluetooth from the join on; connected, the Wi-Fi Direct band and channel ([CarPlayState.Connected.wifiChannel]) and
+ * the link's quality from the picture's last window ([linkQuality] of [video]).
  */
-internal fun linkRow(status: CarPlayStatus): LinkRow {
+internal fun linkRow(
+    status: CarPlayStatus,
+    video: CarPlayVideoStats? = null,
+): LinkRow {
     val state = (status as? CarPlayStatus.Engine)?.state
     return when {
         state is CarPlayState.Connected -> {
-            LinkRow(R.string.carplay_link_connected, R.string.carplay_link_both, live = true)
+            val channel = state.wifiChannel
+            LinkRow(
+                R.string.carplay_link_connected,
+                when {
+                    channel == null -> R.string.carplay_link_both
+                    channel <= LAST_2_4_GHZ_CHANNEL -> R.string.carplay_link_wifi_2_4
+                    else -> R.string.carplay_link_wifi_5
+                },
+                live = true,
+                channel = channel,
+                quality = linkQuality(video),
+            )
         }
 
         state is CarPlayState.Connecting && connectPhase(state.step).first >= WIFI_PHASE -> {
@@ -122,3 +150,34 @@ internal fun linkRow(status: CarPlayStatus): LinkRow {
 
 /** The first step that uses Wi-Fi Direct. */
 private const val WIFI_PHASE = 3
+
+/**
+ * How well the iPhone's picture comes through, from one window of its numbers (5 s; [CarPlayVideoStats]); null
+ * without a window that received anything (no verdict without data). A wireless link that struggles shows first as
+ * pictures lost on the way to the decoder (the queue drops them when they arrive in bursts or too late) and as a
+ * decoder that falls behind:
+ * - [LinkQuality.WEAK]: at least 5 % of the pictures lost, a decoder replaced after an error, or decoding slower than
+ *   [WEAK_DECODE_MILLIS] at the 90th percentile;
+ * - [LinkQuality.FAIR]: any picture lost, or decoding slower than two frames at 60 fps ([FAIR_DECODE_MILLIS]);
+ * - [LinkQuality.STRONG]: nothing lost and decoding within two frames.
+ */
+internal fun linkQuality(video: CarPlayVideoStats?): LinkQuality? {
+    if (video == null || video.received <= 0) return null
+    val decode = video.decodeP90Millis ?: 0.0
+    val lostShare = video.dropped.toDouble() / video.received
+    return when {
+        video.recoveries > 0 || lostShare >= WEAK_LOSS_SHARE || decode > WEAK_DECODE_MILLIS -> LinkQuality.WEAK
+        video.dropped > 0 || decode > FAIR_DECODE_MILLIS -> LinkQuality.FAIR
+        else -> LinkQuality.STRONG
+    }
+}
+
+/** Channels 1-14 are 2.4 GHz; the Android port creates groups on 2.4 or 5 GHz only (GroupFacts.channel). */
+private const val LAST_2_4_GHZ_CHANNEL = 14
+private const val WEAK_LOSS_SHARE = 0.05
+
+/** Two frames at 60 fps. */
+private const val FAIR_DECODE_MILLIS = 34.0
+
+/** Six frames at 60 fps: the picture visibly lags the touch. */
+private const val WEAK_DECODE_MILLIS = 100.0

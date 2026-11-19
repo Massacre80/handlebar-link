@@ -4,7 +4,10 @@ import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * The engine's [ScreenPort] on the [ScreenDecoder] (docs/PLAN.md C4): the stream SETUP prewarms the decoder, each frame
@@ -24,6 +27,11 @@ internal class AndroidScreenPort(
     private val requests =
         MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
+    private val statsFlow = MutableStateFlow<CarPlayVideoStats?>(null)
+
+    /** The last window of the picture's numbers in this stream; null until one ended. */
+    val stats: StateFlow<CarPlayVideoStats?> = statsFlow.asStateFlow()
+
     /** The decoder, for [com.abid.handlebarlink.carplay.engine.android.CarPlayScreen.show]. */
     val decoder: ScreenDecoder =
         decoderFactory(
@@ -31,6 +39,10 @@ internal class AndroidScreenPort(
                 // The decoder thread only emits; the engine decides (AGENTS.md, platform callbacks only trySend).
                 override fun onKeyFrameNeeded() {
                     requests.tryEmit(Unit)
+                }
+
+                override fun onStats(stats: CarPlayVideoStats) {
+                    statsFlow.value = stats
                 }
             },
         )
@@ -42,6 +54,8 @@ internal class AndroidScreenPort(
         height: Int,
         framesPerSecond: Int,
     ) {
+        // A new screen stream: the last one's numbers say nothing about this link.
+        statsFlow.value = null
         decoder.configure(width, height, framesPerSecond)
     }
 

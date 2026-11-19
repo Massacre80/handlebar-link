@@ -1,7 +1,12 @@
 package com.abid.handlebarlink.carplay.engine.android.audio
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaCodec
 import android.media.MediaCodecList
@@ -9,6 +14,7 @@ import android.media.MediaFormat
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.AudioEffect
 import android.media.audiofx.NoiseSuppressor
+import androidx.core.content.ContextCompat
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneFormat
@@ -52,7 +58,9 @@ internal class AndroidMicrophonePort(
     @Suppress("TooGenericExceptionCaught") // Any platform failure ends only this microphone, as a CarPlayException.
     override fun capture(format: MicrophoneFormat): Flow<ByteArray> =
         callbackFlow {
-            val capture = MicrophoneCapture(format, platform, audio.calls, audio.platform.log) { trySend(it) }
+            val mute = MicrophoneMuteWatch(audio).also { it.start() }
+            val capture =
+                MicrophoneCapture(format, platform, audio.calls, audio.platform.log, mute::muted) { trySend(it) }
             val thread =
                 Thread({
                     audioPriority()
@@ -71,6 +79,7 @@ internal class AndroidMicrophonePort(
             awaitClose {
                 capture.stop()
                 thread.interrupt()
+                mute.stop()
             }
         }.buffer(BUFFERED_BODIES, BufferOverflow.DROP_OLDEST)
 
@@ -98,6 +107,7 @@ private class AndroidMicrophonePlatform(
         source: Int,
         format: MicrophoneFormat,
         bufferBytes: Int,
+        preferred: CommunicationDevice?,
     ): Recorder {
         // Checked here, next to the build, so lint sees it (docs/LESSONS.md 28).
         if (audio.platform.context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) !=
@@ -121,6 +131,11 @@ private class AndroidMicrophonePlatform(
         if (record.state != AudioRecord.STATE_INITIALIZED) {
             record.release()
             throw UnsupportedOperationException("AudioRecord did not initialize (source $source)")
+        }
+        // A call or Siri on the headset: its microphone (the input side of the same SCO or LE Audio device).
+        preferred?.let { audio.device(AudioManager.GET_DEVICES_INPUTS, it) }?.let { device ->
+            val set = record.setPreferredDevice(device)
+            audio.platform.log.info("carplay.audio.microphone_device", "device" to preferred.name, "set" to set)
         }
         return object : Recorder {
             override val audioSessionId: Int get() = record.audioSessionId
@@ -250,5 +265,49 @@ private class MediaCodecOpusEncoder(
         const val MAX_INPUT_BYTES = 4_096
         const val INPUT_TIMEOUT_MICROS = 10_000L
         const val FRAME_MICROS = 20_000L
+    }
+}
+
+/**
+ * Android's microphone mute while one capture runs: read once at [start], then again on every
+ * `AudioManager.ACTION_MICROPHONE_MUTE_CHANGED` ("use isMicrophoneMute() to check the mute state"; it reaches only
+ * receivers registered at runtime). AudioService sends it from the system server, whose broadcasts reach a
+ * not-exported receiver (broadcasts guide; the Wi-Fi Direct port's receiver relies on the same, proven on the Poco),
+ * so it is not exported. The intent is never trusted either way: a delivery only makes us read `isMicrophoneMute()`.
+ */
+internal class MicrophoneMuteWatch(
+    private val audio: AndroidAudioSystem,
+) {
+    @Volatile var muted: Boolean = false
+        private set
+
+    private val receiver =
+        object : BroadcastReceiver() {
+            override fun onReceive(
+                context: Context,
+                intent: Intent,
+            ) {
+                muted = audio.manager.isMicrophoneMute
+            }
+        }
+
+    fun start() {
+        ContextCompat.registerReceiver(
+            audio.platform.context,
+            receiver,
+            IntentFilter(AudioManager.ACTION_MICROPHONE_MUTE_CHANGED),
+            null,
+            audio.platform.handler,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        muted = audio.manager.isMicrophoneMute
+    }
+
+    fun stop() {
+        try {
+            audio.platform.context.unregisterReceiver(receiver)
+        } catch (_: IllegalArgumentException) {
+            // Never registered.
+        }
     }
 }

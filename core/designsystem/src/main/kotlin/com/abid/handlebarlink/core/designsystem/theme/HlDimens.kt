@@ -110,6 +110,12 @@ public data class HlSizes(
     val handleWidth: Dp = 40.dp,
     /** Sheet handle height. */
     val handleHeight: Dp = 5.dp,
+    /** A switch's track width (Paper "CarPlay — flow v2": 44 x 26). */
+    val switchWidth: Dp = 44.dp,
+    /** A switch's track height. */
+    val switchHeight: Dp = 26.dp,
+    /** A switch's thumb (20 dp, 3 dp from the track's edge). */
+    val switchThumb: Dp = 20.dp,
 )
 
 /** Stroke widths (`--stroke-*`) and the dashed-outline pattern (`--dash-*`). */

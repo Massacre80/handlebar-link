@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.CarPlayStatus
+import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -40,6 +41,7 @@ class CarPlayViewModel
         private val settings: CarPlaySettings,
         pairing: IphonePairing,
         lines: CarPlayStatusLines,
+        video: CarPlayVideoStatsSource,
     ) : ViewModel() {
         /** The page's state; off until loaded. */
         val uiState: StateFlow<CarPlayUiState> =
@@ -48,9 +50,10 @@ class CarPlayViewModel
                 coordinator.status,
                 pairing.iphones(),
                 pairing.chosen(),
-                lines.lines,
-                ::carPlayTab,
-            ).stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
+                combine(lines.lines, video.stats(), ::Pair),
+            ) { enabled, status, iphones, chosen, (line, stats) ->
+                carPlayTab(enabled, status, iphones, chosen, line, stats)
+            }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
 
         /** Turns our own receiver on or off; a running ride follows at once (CarPlayCoordinator). */
         fun setEnabled(enabled: Boolean) {

@@ -25,6 +25,9 @@ class OurCarPlay
     constructor(
         private val link: CarPlayLink?,
     ) {
+        /** What our CarPlay is doing ([CarPlayLink.state]); always stopped without a link. */
+        val state: StateFlow<CarPlayState> = link?.state ?: MutableStateFlow(CarPlayState.Stopped)
+
         /** Whether our CarPlay is connected to the iPhone now. */
         val isConnected: Boolean get() = link?.state?.value is CarPlayState.Connected
 

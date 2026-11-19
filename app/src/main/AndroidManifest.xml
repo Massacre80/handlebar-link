@@ -50,9 +50,12 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
-    <!-- CarPlay's microphone for Siri and calls (C5): asked with CarPlay's other runtime permissions. Recording works
-         while the app is in use (the CarPlay display); RideService keeps its connectedDevice type for now. -->
+    <!-- CarPlay's microphone for Siri and calls (C5): asked with CarPlay's other runtime permissions. RideService adds
+         the microphone foreground type while CarPlay runs, from the moment the app is visible with CarPlay connected,
+         so recording goes on with the screen off (FGS types: Microphone, runtime prerequisite RECORD_AUDIO; a
+         while-in-use type, never added from the background: ride/ServiceTypes.kt keepsMicrophone). -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- Linking the meter through Android's companion-device consent (companion-device-pairing). -->
     <uses-feature android:name="android.software.companion_device_setup" />
     <!-- Auto-start on ignition (docs/PLAN.md M4): Android watches for the linked meter and binds
@@ -102,7 +105,7 @@
         <service
             android:name=".ride.RideService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|phoneCall" />
+            android:foregroundServiceType="connectedDevice|phoneCall|microphone" />
 
         <!-- Android binds it when the linked meter comes or goes (CompanionDeviceService reference: exported,
              guarded by BIND_COMPANION_DEVICE_SERVICE, which only the system holds). -->

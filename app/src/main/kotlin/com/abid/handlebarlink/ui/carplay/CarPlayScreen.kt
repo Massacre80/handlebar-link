@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -31,7 +33,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,6 +42,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
+import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
@@ -48,7 +50,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
-import com.abid.handlebarlink.core.designsystem.component.HlTag
+import com.abid.handlebarlink.core.designsystem.component.HlSwitchRow
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.component.SignalRing
@@ -158,8 +160,10 @@ private fun HeroDial(
 }
 
 /**
- * The hero's state tag: running and starting as the brand [HlTag]; needs you in the danger colour; idle states quiet.
- * Night tints, Bento fills (docs/LESSONS.md 31).
+ * The hero's state tag (Paper "CarPlay — flow v2"): a 6 dp dot before the words, both in the tag's ink, on a tinted
+ * pill. Night: running and starting lime on lime 12 % with a lime 28 % edge, needs you the same in danger, the quiet
+ * states (Ready, Not set up, Off) muted on white 7 % with a white 10 % edge. Bento fills instead, since lime and danger
+ * text vanish on white (docs/LESSONS.md 31): brand with brand ink, danger with white ink, raisedLo with muted ink.
  */
 @Composable
 private fun StateTag(
@@ -167,38 +171,31 @@ private fun StateTag(
     tone: SignalTone,
     modifier: Modifier = Modifier,
 ) {
-    if (tone == SignalTone.ON || tone == SignalTone.PROGRESS) {
-        HlTag(text, modifier)
-        return
-    }
     val colors = HlTheme.colors
     val night = HlTheme.variant == HlThemeVariant.NIGHT
-    val danger = tone == SignalTone.ERROR
+    val accent =
+        when (tone) {
+            SignalTone.ON, SignalTone.PROGRESS -> colors.brand
+            SignalTone.ERROR -> colors.danger
+            SignalTone.IDLE -> null
+        }
     val (fill, edge, ink) =
         when {
-            danger && night -> {
-                Triple(
-                    colors.danger.copy(alpha = TAG_FILL),
-                    colors.danger.copy(alpha = TAG_EDGE),
-                    colors.danger,
-                )
-            }
-
-            danger -> {
-                Triple(colors.danger, Color.Transparent, colors.inkInverse)
-            }
-
-            else -> {
-                Triple(colors.raisedLo, colors.line, colors.inkMuted)
-            }
+            accent != null && night -> Triple(accent.copy(alpha = TAG_FILL), accent.copy(alpha = TAG_EDGE), accent)
+            accent == colors.brand -> Triple(colors.brand, Color.Transparent, colors.brandInk)
+            accent != null -> Triple(accent, Color.Transparent, colors.inkInverse)
+            night -> Triple(colors.panel, colors.line, colors.inkMuted)
+            else -> Triple(colors.raisedLo, colors.line, colors.inkMuted)
         }
-    Box(
+    Row(
         modifier
             .background(fill, CircleShape)
             .border(HlTheme.strokes.hairline, edge, CircleShape)
             .padding(horizontal = HlTheme.spacing.s8, vertical = HlTheme.spacing.s4),
-        contentAlignment = Alignment.Center,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s6),
     ) {
+        Box(Modifier.size(HlTheme.sizes.dotSmall).background(ink, CircleShape))
         HlText(text.uppercase(), HlTheme.typography.caps.copy(fontWeight = FontWeight.SemiBold), ink, maxLines = 1)
     }
 }
@@ -220,27 +217,26 @@ private fun StatusList(
             onClick = onIphone,
             container = Color.Transparent,
             chevron = true,
+            icon = HlIcons.Phone,
         )
         HlGroupDivider()
         HlValueRow(
             value = stringResource(R.string.carplay_link_row),
             hint = stringResource(state.link.hint),
-            detail = stringResource(state.link.detail),
+            detail = state.link.detailWords(),
             container = Color.Transparent,
             hintColor = if (state.link.live) colors.success else Color.Unspecified,
+            icon = HlIcons.Wifi,
         )
         HlGroupDivider()
-        val switchState = stringResource(if (state.enabled) R.string.carplay_on else R.string.carplay_off)
-        HlValueRow(
+        // A real switch; the whole row toggles it (Role.Switch reads "on"/"off").
+        HlSwitchRow(
             value = stringResource(R.string.carplay_switch),
-            hint = switchState,
-            modifier = Modifier.semantics { stateDescription = switchState },
+            checked = state.enabled,
+            onCheckedChange = { onToggle() },
             detail = stringResource(R.string.carplay_switch_detail),
-            onClick = onToggle,
             container = Color.Transparent,
-            // A live state, as rows mark one ("Connected" on Add device); brand lime would vanish on Bento
-            // (docs/LESSONS.md 31).
-            hintColor = if (state.enabled) colors.success else Color.Unspecified,
+            icon = HlIcons.CarPlay,
         )
     }
 }
@@ -283,10 +279,11 @@ internal val PreviewCarPlayConnecting =
 internal val PreviewCarPlayConnected =
     carPlayTab(
         true,
-        CarPlayStatus.Engine(CarPlayState.Connected("phone", Instant.EPOCH)),
+        CarPlayStatus.Engine(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 36)),
         listOf(PreviewIphone),
         PreviewIphone.address,
         PreviewLine,
+        CarPlayVideoStats(received = 300, shown = 300, framesPerSecond = 60.0, 0, decodeP90Millis = 12.0, 0),
     )
 
 internal val PreviewCarPlayWifiOff =

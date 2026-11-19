@@ -6,12 +6,16 @@ import android.media.MediaRecorder
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.containsExactly
+import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import assertk.assertions.prop
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadset
+import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneFormat
 import com.abid.handlebarlink.carplay.protocol.audio.AudioCodec
 import com.abid.handlebarlink.core.testing.RecordingLogSink
@@ -22,7 +26,8 @@ import org.junit.Test
 class MicrophoneCaptureTest {
     private val log = testLogger(RecordingLogSink(), ManualTime())
     private val modes = FakeAudioModes()
-    private val calls = CallAudio(modes, log)
+    private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
+    private val calls = CallAudio(modes, headsets, log)
     private val bodies = mutableListOf<String>()
 
     private val call = MicrophoneFormat("telephony", AudioCodec.LPCM, 16_000, 1, 20, 0)
@@ -34,10 +39,11 @@ class MicrophoneCaptureTest {
         vararg reads: Any,
         configure: FakeMicrophonePlatform.() -> Unit = {},
         starts: List<Boolean> = emptyList(),
+        muted: () -> Boolean = { false },
     ): Pair<FakeMicrophonePlatform, FakeRecorder> {
         val recorder = FakeRecorder(ArrayDeque(reads.toList()), ArrayDeque(starts))
         val platform = FakeMicrophonePlatform(recorder).apply(configure)
-        val capture = MicrophoneCapture(format, platform, calls, log) { bodies += it.toHex() }
+        val capture = MicrophoneCapture(format, platform, calls, log, muted) { bodies += it.toHex() }
         recorder.onEmpty = { capture.stop() }
         capture.run()
         return platform to recorder
@@ -127,6 +133,63 @@ class MicrophoneCaptureTest {
             .prop(CarPlayException::error)
             .isEqualTo(CarPlayError.PermissionMissing("android.permission.RECORD_AUDIO"))
         assertThat(modes.modes).containsExactly()
+    }
+
+    @Test
+    fun `a call and Siri record from the connected intercom, which is given back when they end`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val (callPlatform, _) = capture(call, ByteArray(640))
+        val (siriPlatform, _) = capture(siri, ByteArray(1_920))
+
+        assertThat(callPlatform.preferred).isEqualTo(INTERCOM)
+        assertThat(siriPlatform.preferred).isEqualTo(INTERCOM)
+        assertThat(modes.routed).containsExactly(INTERCOM, INTERCOM)
+        assertThat(modes.cleared).isEqualTo(2)
+        // Siri keeps the normal mode; only the call entered communication mode.
+        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+    }
+
+    @Test
+    fun `app audio never takes the intercom route`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val (platform, _) = capture(MicrophoneFormat("default", AudioCodec.LPCM, 48_000, 1, 10, 0), ByteArray(960))
+
+        assertThat(platform.preferred).isNull()
+        assertThat(modes.routed).isEmpty()
+    }
+
+    @Test
+    fun `while Android's microphone mute is on, a call's uplink is silence of the same length`() {
+        var muted = false
+        val reads = ArrayDeque(listOf<() -> Unit>({ muted = true }, {}))
+        val recorder = FakeRecorder(ArrayDeque(listOf<Any>(ByteArray(640) { 5 }, ByteArray(640) { 5 })))
+        val platform = FakeMicrophonePlatform(recorder)
+        val capture =
+            MicrophoneCapture(call, platform, calls, log, { muted }) {
+                bodies += it.toHex()
+                reads.removeFirstOrNull()?.invoke()
+            }
+        recorder.onEmpty = { capture.stop() }
+        capture.run()
+
+        assertThat(bodies.size).isEqualTo(2)
+        assertThat(bodies[0]).isEqualTo("05".repeat(640))
+        assertThat(bodies[1]).isEqualTo("00".repeat(640))
+    }
+
+    @Test
+    fun `while muted, Siri's Opus encoder is fed silence`() {
+        val fed = mutableListOf<ByteArray>()
+        capture(siri, ByteArray(1_920) { 9 }, configure = {
+            encode = {
+                fed += it
+                listOf(byteArrayOf(0xF8.toByte()))
+            }
+        }, muted = { true })
+
+        assertThat(fed.single().all { it == 0.toByte() }).isTrue()
+        assertThat(fed.single().size).isEqualTo(1_920)
+        assertThat(bodies).containsExactly("f8")
     }
 
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }

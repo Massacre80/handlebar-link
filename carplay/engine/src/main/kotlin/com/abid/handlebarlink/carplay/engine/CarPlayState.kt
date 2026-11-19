@@ -22,6 +22,11 @@ public sealed interface CarPlayState {
         val phone: String,
         /** When the connection was established. */
         val since: Instant,
+        /**
+         * The Wi-Fi Direct group's channel number (1-14 on 2.4 GHz, 36-165 on 5 GHz; the Android port creates no
+         * other band), as offered to the iPhone in the iAP2 Wi-Fi information; null when unknown.
+         */
+        val wifiChannel: Int? = null,
     ) : CarPlayState
 
     /** An attempt failed; the next one starts at [retryAt]. */

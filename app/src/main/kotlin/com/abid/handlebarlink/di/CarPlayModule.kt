@@ -7,8 +7,10 @@ import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPortsSource
 import com.abid.handlebarlink.carplay.CarPlaySettings
+import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.DataStoreCarPlaySettings
 import com.abid.handlebarlink.carplay.IphonePairing
+import com.abid.handlebarlink.carplay.RiderHeadsets
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
 import com.abid.handlebarlink.carplay.engine.android.createAndroidCarPlayPorts
@@ -55,8 +57,13 @@ abstract class CarPlayModule {
             time: TimeProvider,
             logger: Logger,
             screen: CarPlayScreen,
+            headsets: RiderHeadsets,
         ): CarPlayPortsSource =
-            CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen) }
+            CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen, headsets) }
+
+        /** The picture's numbers for the CarPlay tab's Link quality. */
+        @Provides
+        fun carPlayVideoStats(screen: CarPlayScreen): CarPlayVideoStatsSource = CarPlayVideoStatsSource { screen.stats }
 
         /**
          * In-app iPhone pairing and the rider's iPhone choice (`:carplay:engine-android`): Bluetooth calls and the

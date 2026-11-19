@@ -505,6 +505,17 @@ class DecoderCoreTest {
         assertThat(stats["decode_p50_ms"]).isEqualTo(10.0)
         assertThat(stats["render_p90_ms"]).isEqualTo(30.0)
         assertThat(listener.firstFrames).isEqualTo(1)
+        // The same window reaches the app; a wait for a keyframe is not a picture lost on the way.
+        assertThat(listener.stats.single()).isEqualTo(
+            CarPlayVideoStats(
+                received = 2,
+                shown = 1,
+                framesPerSecond = 0.2,
+                dropped = 0,
+                decodeP90Millis = 10.0,
+                recoveries = 0,
+            ),
+        )
     }
 
     /** A running decoder: display, surface and configuration given. */

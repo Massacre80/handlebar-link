@@ -65,6 +65,9 @@ public interface ScreenDecoder {
 
         /** The first picture of this decoder reached the screen. */
         public fun onFirstFrameRendered() {}
+
+        /** One window of the picture's numbers ended (the `carplay.video.stats` line). */
+        public fun onStats(stats: CarPlayVideoStats) {}
     }
 
     /** Limits and timing. */

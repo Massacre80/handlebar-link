@@ -119,6 +119,9 @@ public object HlIcons {
     /** Headset or earbuds. */
     @DrawableRes public val Earbuds: Int = R.drawable.hl_ic_earbuds
 
+    /** Wi-Fi: the signal icon's three arcs and dot in one (the CarPlay tab's Link row). */
+    @DrawableRes public val Wifi: Int = R.drawable.hl_ic_wifi
+
     /** Signal: the two outer arcs. */
     @DrawableRes public val SignalOuter: Int = R.drawable.hl_ic_signal_outer
 

@@ -154,7 +154,7 @@ internal class CarPlayRuntime(
             }
 
             is Event.Connected -> {
-                if (event.generation == loop.current && loop.started) connected(loop, event.phone)
+                if (event.generation == loop.current && loop.started) connected(loop, event.phone, event.channel)
             }
 
             is Event.Ended -> {
@@ -195,11 +195,12 @@ internal class CarPlayRuntime(
     private fun connected(
         loop: Loop,
         phone: String,
+        channel: Int,
     ) {
         loop.failures = 0
         loop.lastError = null
-        stateFlow.value = CarPlayState.Connected(phone, env.time.clock.instant())
-        env.log.info("carplay.connected", "phone" to phone)
+        stateFlow.value = CarPlayState.Connected(phone, env.time.clock.instant(), channel)
+        env.log.info("carplay.connected", "phone" to phone, "channel" to channel)
     }
 
     private fun ended(
@@ -268,7 +269,7 @@ internal class CarPlayRuntime(
                 config,
                 env,
                 onStep = { inbox.trySend(Event.Step(generation, it)) },
-                onConnected = { inbox.trySend(Event.Connected(generation, it)) },
+                onConnected = { phone, channel -> inbox.trySend(Event.Connected(generation, phone, channel)) },
                 plugins = plugins,
             ).run()
         } catch (e: CancellationException) {
@@ -315,6 +316,7 @@ internal class CarPlayRuntime(
         data class Connected(
             val generation: Int,
             val phone: String,
+            val channel: Int,
         ) : Event
 
         data class Ended(

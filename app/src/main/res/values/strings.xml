@@ -259,8 +259,6 @@
     <!-- CarPlay page and Home's CarPlay card: our own receiver behind the beta switch (ui/carplay/) -->
     <string name="carplay_switch">Handlebar Link CarPlay</string>
     <string name="carplay_switch_detail">Beta · instead of CarLink</string>
-    <string name="carplay_on">On</string>
-    <string name="carplay_off">Off</string>
     <!-- The CarPlay tab's hero (Paper "CarPlay — flow v2", Tab 1–4): tag, title, detail and its actions. -->
     <string name="carplay_tag_not_set_up">Not set up</string>
     <string name="carplay_tag_carlink">CarLink</string>
@@ -290,6 +288,10 @@
     <string name="carplay_tab_wifi_off_title">Wi-Fi is off</string>
     <string name="carplay_tab_permission_title">Allow Nearby devices</string>
     <string name="carplay_tab_permission_detail">CarPlay needs it to reach your iPhone over Bluetooth and Wi-Fi Direct</string>
+    <string name="carplay_tab_microphone_title">Allow the microphone</string>
+    <string name="carplay_tab_microphone_detail">CarPlay uses it for Siri and calls</string>
+    <string name="carplay_tab_both_title">Allow Nearby devices and the microphone</string>
+    <string name="carplay_tab_both_detail">CarPlay needs them to reach your iPhone, and for Siri and calls</string>
     <string name="carplay_tab_failed_title">CarPlay stopped</string>
     <string name="carplay_tab_choose_title">Choose your iPhone</string>
     <string name="carplay_tab_choose_detail">More than one iPhone is paired. Pick the one CarPlay connects to.</string>
@@ -318,6 +320,13 @@
     <string name="carplay_link_connecting">Connecting</string>
     <string name="carplay_link_off">Not connected</string>
     <string name="carplay_link_both">Wi-Fi Direct · Bluetooth</string>
+    <string name="carplay_link_wifi_2_4">Wi-Fi Direct · 2.4 GHz ch %1$d</string>
+    <string name="carplay_link_wifi_5">Wi-Fi Direct · 5 GHz ch %1$d</string>
+    <!-- The Link row's detail and its quality word: "Wi-Fi Direct · 5 GHz ch 36 · Strong". -->
+    <string name="carplay_link_with_quality">%1$s · %2$s</string>
+    <string name="carplay_link_quality_strong">Strong</string>
+    <string name="carplay_link_quality_fair">Fair</string>
+    <string name="carplay_link_quality_weak">Weak</string>
     <string name="carplay_link_bluetooth">Bluetooth</string>
     <string name="carplay_link_idle">Wi-Fi Direct and Bluetooth, while CarPlay runs</string>
     <!-- The iPhone sheet (Paper "Sheet 6") and its "Forget …?" dialog. -->
@@ -371,6 +380,8 @@
     <string name="carplay_display_hint">‹ Swipe back for Handlebar Link</string>
     <string name="carplay_status_not_available">Not in this version of the app yet</string>
     <string name="carplay_status_permission">Needs Nearby devices: allow it in Settings › Permissions</string>
+    <string name="carplay_status_permission_microphone">Allow the microphone for Siri and calls</string>
+    <string name="carplay_status_permission_both">Needs Nearby devices and the microphone: allow them in Settings › Permissions</string>
     <string name="carplay_status_failed">Stopped after an error. Turn it off and on to try again</string>
     <string name="carplay_status_held">Stopped. Start it on the CarPlay tab</string>
     <string name="carplay_status_waiting">Starts with the next ride</string>
@@ -399,6 +410,7 @@
     <!-- For the engine errors that arrive with CarPlay C2's engine part (PermissionMissing, WifiOff, Stalled): the
          coordinator wires them into ui/carplay/CarPlayLine.kt errorText() at merge. Unused until then. -->
     <string name="carplay_error_permission">Allow Nearby devices for CarPlay</string>
+    <string name="carplay_error_permission_microphone">Allow the microphone for Siri and calls</string>
     <string name="carplay_error_wifi_off">Turn on Wi-Fi</string>
     <string name="carplay_error_stalled_not_joined">The iPhone didn\'t join the Wi-Fi</string>
     <string name="carplay_error_stalled_no_start">The iPhone didn\'t start CarPlay</string>
@@ -442,7 +454,7 @@
         <item quantity="other">Allow all %d</item>
     </plurals>
     <string name="permission_carplay">CarPlay (beta)</string>
-    <string name="permission_carplay_why">Wi-Fi Direct and the local network to your iPhone, for Handlebar Link CarPlay. Nothing is located with it</string>
+    <string name="permission_carplay_why">Wi-Fi Direct and the local network to your iPhone, and the microphone for Siri and calls, for Handlebar Link CarPlay. Nothing is located with it</string>
     <string name="permission_brightness">Modify system settings</string>
     <string name="permission_brightness_why">Only for screen brightness: lets the handlebar make the screen brighter or dimmer</string>
     <string name="permission_media_why">Lets the handlebar play, pause and skip songs in CarPlay. Your notifications are never read</string>
