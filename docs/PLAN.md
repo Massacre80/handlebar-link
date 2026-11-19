@@ -428,8 +428,16 @@ ptsMicros, isConfig)`, `release()`; `ScreenSurface.bind(surfaceView, decoder)`).
   `releaseOutputBuffer(index, now)`, so the `SurfaceView` shows it at the next VSYNC and drops older ones on the same
   VSYNC. No pacing on the iPhone's timestamps (DiPlay measured smoother cadence with it, at a display delay of about
   100 ms; not worth the touch latency on a bike; revisit with device numbers).
+- **Prewarm:** the decoder is created, configured and started at `configure()` (on a decoder with
+  `FEATURE_DetachedSurface`, configured detached, `CONFIGURE_FLAG_DETACHED_SURFACE`), otherwise at `attach()`, without
+  CSD; the first config then goes in as one `BUFFER_FLAG_CODEC_CONFIG` buffer with SPS and PPS concatenated (MediaCodec
+  reference, "Codec-specific Data"). A refused detached start waits for the surface without counting as a failure.
+  Why: on the Poco (2026-11-19) a cold start held the decoder thread about 200 ms (list 100 ms, create and configure
+  94 ms), the queue limit dropped the first IDR and the screen stayed black for a second. `carplay.video.decoder` logs
+  `start_ms`, `prewarmed` and `surface`; `carplay.video.candidates` logs `list_ms`.
 - **Backpressure:** at most 6 pictures (100 ms) or 8 MiB wait; a full queue drops them all and waits for a keyframe; a
-  keyframe drops the pictures waiting before it. `submit` never waits. Keyframes are asked for at most once a second.
+  keyframe drops the pictures waiting before it. Until a decoder's first output only the 8 MiB limit applies, so nothing
+  from the first IDR on is lost while it starts. `submit` never waits. Keyframes are asked for at most once a second.
 - **Recovery:** any error releases the decoder and starts a new one from the configuration; two failures before a first
   output move to the next candidate; four failures in 10 s, or none left, wait 1 s. Surface loss releases the decoder,
   except on decoders with `FEATURE_DetachedSurface` (API 35), which keep decoding; `SURFACE_LIFECYCLE_FOLLOWS_ATTACHMENT`

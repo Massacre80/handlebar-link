@@ -6,7 +6,12 @@ import com.abid.handlebarlink.core.common.log.Logger
  * The screen decoder's logic, confined to the decoder thread: what the decoder is fed, what it shows and how it
  * recovers. [AndroidScreenDecoder] runs it on a `HandlerThread` with `MediaCodec`; tests run it with fakes.
  *
- * - **Configuration before pictures.** No decoder exists before the first configuration; pictures before it are
+ * - **Prewarm.** The decoder is created, configured and started as soon as the display is known and there is a
+ *   surface (or the decoder supports a detached surface), without CSD; the first configuration then reaches it as a
+ *   codec-config buffer. A cold start cost about 200 ms on the Poco (list 100 ms, create and configure 94 ms), which
+ *   otherwise falls on the first pictures. Until its first output the queue keeps every picture
+ *   ([FrameQueue.starting]).
+ * - **Configuration before pictures.** No picture is fed before the first configuration; pictures before it are
  *   dropped. Each decoder starts with the configuration's SPS/PPS as CSD and is fed from a keyframe on. A changed
  *   configuration replaces the decoder (DiPlay `configureDecoder`), an unchanged one keeps it. Units are taken in
  *   order, so pictures queued before a new configuration still go to the old decoder.
@@ -33,7 +38,7 @@ internal class DecoderCore<S : Any>(
     statsIntervalNanos: Long,
 ) : CodecEvents<S> {
     private val metrics = VideoMetrics(log, statsIntervalNanos)
-    private val slot = DecoderSlot(platform, this, clock, log)
+    private val slot = DecoderSlot(platform, this, clock, log, metrics)
     private val keyFrames = KeyFrameRequests(listener, clock, log, metrics)
     private val times = PresentationTimes(clock)
 
@@ -55,7 +60,8 @@ internal class DecoderCore<S : Any>(
         slot.forgetCandidates()
         log.info("carplay.video.display", "width" to next.width, "height" to next.height, "fps" to next.framesPerSecond)
         surface?.let { platform.setFrameRate(it, next.framesPerSecond) }
-        if (slot.active != null) startFresh("display changed", replace = true)
+        // A running decoder is replaced for the new size; otherwise one is prewarmed now, before the stream starts.
+        startFresh(if (slot.active != null) "display changed" else null, replace = slot.active != null)
     }
 
     fun attach(next: S) {
@@ -78,7 +84,13 @@ internal class DecoderCore<S : Any>(
                     false
                 }
         log.info("carplay.video.surface", "state" to "attached", "decoder" to if (kept) "kept" else "new")
-        if (kept) keyFrames.request("surface attached") else startFresh("surface attached", replace = true)
+        if (!kept) {
+            startFresh("surface attached", replace = true)
+        } else if (config !=
+            null
+        ) {
+            keyFrames.request("surface attached")
+        }
         pump()
     }
 
@@ -133,9 +145,7 @@ internal class DecoderCore<S : Any>(
                     }
 
                     is PendingUnit.Config -> {
-                        queue.poll()
-                        if (configs.accept(unit.config)) startFresh(reason = null, replace = true)
-                        true
+                        handleConfig(unit)
                     }
 
                     is PendingUnit.Picture -> {
@@ -186,12 +196,13 @@ internal class DecoderCore<S : Any>(
         try {
             codec.releaseOutput(index, if (show) now else null)
         } catch (e: CodecCallException) {
-            fail(running, e.failure)
+            if (slot.fail(running, e.failure)) startFresh("decoder recovered", replace = true)
             return
         }
         if (show) metrics.onShown()
         if (!running.firstOutput) {
             running.firstOutput = true
+            queue.starting = false
             slot.onFirstOutput()
             val afterMs = (now - running.startedNanos) / DecoderSlot.NANOS_PER_MILLI
             log.info("carplay.video.first_output", "decoder" to codec.name, "after_ms" to afterMs)
@@ -214,7 +225,7 @@ internal class DecoderCore<S : Any>(
         failure: CodecFailure,
     ) {
         val running = slot.active?.takeIf { it.codec === codec } ?: return
-        fail(running, failure)
+        if (slot.fail(running, failure)) startFresh("decoder recovered", replace = true)
     }
 
     override fun onRendered(
@@ -241,19 +252,34 @@ internal class DecoderCore<S : Any>(
             }
         val dropReason =
             when {
-                running == null -> if (surface == null) DropReason.NO_SURFACE else DropReason.NO_DECODER
-                needsKeyFrame && !unit.idr -> DropReason.WAIT_KEY
-                else -> null
+                surface == null && (running == null || config == null) -> {
+                    DropReason.NO_SURFACE
+                }
+
+                config == null -> {
+                    DropReason.NO_CONFIG
+                }
+
+                running == null -> {
+                    DropReason.NO_DECODER
+                }
+
+                needsKeyFrame && !unit.idr -> {
+                    DropReason.WAIT_KEY
+                }
+
+                else -> {
+                    null
+                }
             }
         if (dropReason == null && slot.freeInputs.isEmpty()) return false
         queue.poll()
-        if (running != null && dropReason == null) {
-            feed(running, unit)
+        if (dropReason == null) {
+            feed(checkNotNull(running), unit)
         } else {
-            metrics.onDropped(checkNotNull(dropReason))
+            metrics.onDropped(dropReason)
             queue.recycle(unit)
-            if (dropReason == DropReason.WAIT_KEY) keyFrames.request("waiting for keyframe")
-            if (dropReason == DropReason.NO_DECODER && config == null) keyFrames.request("no configuration")
+            dropReason.keyFrameReason?.let(keyFrames::request)
         }
         return true
     }
@@ -291,39 +317,51 @@ internal class DecoderCore<S : Any>(
                 }
 
                 else -> {
-                    running.codec.queueInput(index, written, times.stamp(unit.submittedNanos), unit.idr)
+                    val kind = if (unit.idr) InputKind.KEY_FRAME else InputKind.PICTURE
+                    running.codec.queueInput(index, written, times.stamp(unit.submittedNanos), kind)
                     needsKeyFrame = false
                 }
             }
         } catch (e: CodecCallException) {
-            fail(running, e.failure)
+            if (slot.fail(running, e.failure)) startFresh("decoder recovered", replace = true)
         } finally {
             queue.recycle(unit)
         }
     }
 
-    private fun fail(
-        running: DecoderSlot.Active<S>,
-        failure: CodecFailure,
-    ) {
-        if (slot.active !== running) return
-        metrics.onRecovery()
-        log.warn(
-            "carplay.video.decoder_error",
-            "decoder" to running.codec.name,
-            "recoverable" to failure.recoverable,
-            "transient" to failure.transient,
-            "had_output" to running.firstOutput,
-            "detail" to failure.detail,
-        )
-        slot.onFailure(running.firstOutput, failure.transient)
-        needsKeyFrame = true
-        startFresh("decoder recovered")
+    /**
+     * Takes the configuration at the head of the queue. A prewarmed decoder without CSD gets it as a codec-config
+     * buffer (it waits for a free input); any other change replaces the decoder. False when it must wait.
+     */
+    private fun handleConfig(unit: PendingUnit.Config): Boolean {
+        val running = slot.active
+        val prewarmed = running != null && running.csd == null && configs.differs(unit.config)
+        if (prewarmed && slot.freeInputs.isEmpty()) return false
+        queue.poll()
+        val next = unit.config
+        if (configs.accept(next) && next != null) {
+            val queued =
+                running != null &&
+                    prewarmed &&
+                    try {
+                        slot.queueCsd(running, next)
+                    } catch (e: CodecCallException) {
+                        log.warn(
+                            "carplay.video.csd_failed",
+                            "decoder" to running.codec.name,
+                            "detail" to e.failure.detail,
+                        )
+                        false
+                    }
+            if (queued) needsKeyFrame = true else startFresh(reason = null, replace = true)
+        }
+        return true
     }
 
     /**
-     * Starts a decoder when there is a configuration and a surface (after releasing the running one when [replace]);
-     * asks for a keyframe with [reason] when one started. True when one started.
+     * Starts a decoder (after releasing the running one when [replace]) once the display or the configuration is
+     * known; without a configuration it is prewarmed, without a surface only a decoder that supports a detached one
+     * starts. Asks for a keyframe with [reason] when one started for a running stream. True when one started.
      */
     private fun startFresh(
         reason: String?,
@@ -333,13 +371,13 @@ internal class DecoderCore<S : Any>(
             slot.release()
             needsKeyFrame = true
         }
-        val target = surface
         val idle = !released && slot.active == null
-        val started =
-            idle && target != null && config?.let { slot.start(it, target, display ?: DEFAULT_DISPLAY) } == true
+        val size = display ?: config?.let { DEFAULT_DISPLAY }
+        val started = idle && size != null && slot.start(config, surface, size)
         if (started) {
             needsKeyFrame = true
-            reason?.let(keyFrames::request)
+            queue.starting = true
+            if (reason != null && config != null) keyFrames.request(reason)
         }
         return started
     }
@@ -359,11 +397,17 @@ internal class ConfigHistory(
     var current: AvcConfig? = null
         private set
 
+    /** Whether [next] is valid and differs from the current configuration. */
+    fun differs(next: AvcConfig?): Boolean {
+        val previous = current
+        return next != null && (previous == null || !previous.sameAs(next))
+    }
+
     /** Takes [next] when it is valid and differs from the current one; true when it did. */
     fun accept(next: AvcConfig?): Boolean {
         val previous = current
         if (next == null) log.warn("carplay.video.config_invalid")
-        val changed = next != null && (previous == null || !previous.sameAs(next))
+        val changed = differs(next)
         if (next != null && changed) {
             current = next
             log.info(

@@ -37,28 +37,33 @@ class DecoderCoreTest {
     private val csd0 = checkNotNull(AvcConfigParser.parse(avcc, 0, avcc.size)).csd0
 
     @Test
-    fun `no decoder exists before the first configuration, and pictures before it are dropped`() {
+    fun `the decoder is prewarmed before the configuration, which then reaches it as a codec-config buffer`() {
         core.configure(Display(1280, 720, 60))
         core.attach(screen)
+        val codec = platform.last
         val early = idr(1)
         submit(early)
 
-        assertThat(platform.created).isEmpty()
-        assertThat(recycler.count(early)).isEqualTo(1)
-
-        submit(avcc, isConfig = true)
-        val codec = platform.last
-        codec.offerInput(0)
-        val key = idr(2)
-        submit(key)
-
+        assertThat(codec.started).isTrue()
         assertThat(
             codec.configured
                 .single()
                 .csd0
                 .toList(),
-        ).isEqualTo(csd0.toList())
-        assertThat(codec.started).isTrue()
+        ).isEmpty()
+        assertThat(codec.surface).isSameInstanceAs(screen)
+        assertThat(recycler.count(early)).isEqualTo(1) // no picture before the configuration
+        assertThat(codec.inputs).isEmpty()
+
+        submit(avcc, isConfig = true)
+        codec.offerInput(0)
+        codec.offerInput(1)
+        val key = idr(2)
+        submit(key)
+
+        val config = checkNotNull(AvcConfigParser.parse(avcc, 0, avcc.size))
+        assertThat(codec.csdInputs.single().toList()).isEqualTo((config.csd0 + config.csd1).toList())
+        assertThat(platform.created).containsExactly(codec)
         assertThat(
             codec.inputs
                 .single()
@@ -67,6 +72,72 @@ class DecoderCoreTest {
         ).isEqualTo(annexB(key))
         assertThat(codec.inputs.single().keyFrame).isTrue()
         assertThat(recycler.count(key)).isEqualTo(1)
+        val started =
+            sink
+                .events("carplay.video.decoder")
+                .single()
+                .fields
+                .toMap()
+        assertThat(started["prewarmed"]).isEqualTo(true)
+        assertThat(started["start_ms"]).isEqualTo(0L)
+    }
+
+    @Test
+    fun `a slow decoder start loses no picture from the first keyframe on`() {
+        // The Poco, 2026-11-19: a cold start held the decoder thread about 200 ms (12 pictures at 60 fps); a 6-picture
+        // limit dropped the first keyframe and the screen stayed black until the next one.
+        core.configure(Display(1280, 720, 60))
+        core.attach(screen)
+        val codec = platform.last
+        submit(avcc, isConfig = true)
+        val pictures = listOf(idr(0)) + List(11) { p(it + 1) }
+        pictures.forEach { submit(it) } // the codec has not handed out an input yet
+
+        repeat(pictures.size + 1) { codec.offerInput(it) }
+
+        assertThat(codec.csdInputs.size).isEqualTo(1)
+        assertThat(codec.inputs.map { it.bytes.toList() }).isEqualTo(pictures.map { annexB(it) })
+        assertThat(listener.keyFrameRequests).isEqualTo(0)
+    }
+
+    @Test
+    fun `a decoder that supports a detached surface is prewarmed before there is a surface`() {
+        platform.decoders = listOf(hardwareDecoder("hw.detach", detachedSurface = true))
+
+        core.configure(Display(1280, 720, 60))
+        val codec = platform.last
+        core.attach(screen)
+
+        assertThat(
+            codec.configured
+                .single()
+                .csd0
+                .toList(),
+        ).isEmpty()
+        assertThat(codec.surface).isSameInstanceAs(screen)
+        assertThat(codec.detached).isFalse()
+        assertThat(platform.created).containsExactly(codec)
+    }
+
+    @Test
+    fun `without a surface a decoder that needs one is not prewarmed`() {
+        core.configure(Display(1280, 720, 60))
+
+        assertThat(platform.created).isEmpty()
+    }
+
+    @Test
+    fun `a refused detached prewarm starts the decoder at the surface without waiting`() {
+        platform.decoders = listOf(hardwareDecoder("hw.detach", detachedSurface = true))
+        platform.refuseDetached = true
+        core.configure(Display(1280, 720, 60))
+        assertThat(platform.live).isEmpty()
+
+        core.attach(screen)
+
+        assertThat(core.decoderName).isEqualTo("hw.detach")
+        assertThat(platform.last.surface).isSameInstanceAs(screen)
+        assertThat(sink.events("carplay.video.decoder_unavailable")).isEmpty()
     }
 
     @Test
@@ -128,6 +199,7 @@ class DecoderCoreTest {
         codec.offerInput(0)
         val first = idr(0)
         submit(first)
+        codec.emitOutput(0, codec.inputs.single().presentationMicros) // running: the picture limit applies
         repeat(7) { submit(p(it + 1)) } // no free input: six wait, the seventh overflows and drops them all
 
         codec.offerInput(1)
@@ -397,11 +469,22 @@ class DecoderCoreTest {
         return platform.last.also { assertThat(it.started).isTrue() }
     }
 
-    /** Gives the display, the surface and the configuration. */
+    /**
+     * Gives the display, the surface and the configuration. The decoder is prewarmed at the surface; it gets the
+     * configuration as a codec-config buffer in input [CSD_INPUT].
+     */
     private fun start() {
         core.configure(Display(1280, 720, 60))
         core.attach(screen)
         submit(avcc, isConfig = true)
+        platform.live
+            .lastOrNull()
+            ?.takeIf {
+                it.configured
+                    .last()
+                    .csd0
+                    .isEmpty()
+            }?.offerInput(CSD_INPUT)
     }
 
     private fun submit(
@@ -424,5 +507,9 @@ class DecoderCoreTest {
         assertThat(avcc[11]).isEqualTo(10.toByte()) // ffmpeg-64x64.avcc: 67 64 00 0a, level 1.0
         assertThat(ByteBuffer.wrap(otherConfig()).get(8)).isEqualTo(0x67.toByte())
         assertThat(AvcConfigParser.parse(otherConfig(), 0, avcc.size)).isNotNull()
+    }
+
+    private companion object {
+        const val CSD_INPUT = 100
     }
 }

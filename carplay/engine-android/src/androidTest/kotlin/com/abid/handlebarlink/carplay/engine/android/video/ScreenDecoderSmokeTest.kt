@@ -92,11 +92,14 @@ class ScreenDecoderSmokeTest {
         val stats = entries.filter { it.event == "carplay.video.stats" }.map { it.fields.toMap() }
         val decoded = stats.sumOf { it["decoded"] as Int }
         val recoveries = stats.sumOf { it["recoveries"] as Int }
+        val lostChain = stats.sumOf { (it["dropped_full"] as Int) + (it["dropped_wait_key"] as Int) }
         report(
             "pictures=${pictures.size} decoded=$decoded images=${images.get()} keyframe_requests=${keyFrameRequests.get()}",
         )
         assertTrue("a decoder started", entries.any { it.event == "carplay.video.decoder" })
         assertEquals("decoder errors", 0, recoveries)
+        // Prewarmed and no picture limit before the first output: nothing is lost at the start (device run 2026-11-19).
+        assertEquals("pictures dropped for a full queue or a missing keyframe", 0, lostChain)
         assertTrue("decoded $decoded of ${pictures.size}", decoded >= pictures.size * MIN_DECODED_PERCENT / PERCENT)
     }
 
@@ -126,7 +129,7 @@ class ScreenDecoderSmokeTest {
         const val SETTLE_MILLIS = 1_500L
         const val STATS_MILLIS = 1_000L
         const val READER_IMAGES = 4
-        const val MIN_DECODED_PERCENT = 90
+        const val MIN_DECODED_PERCENT = 99
         const val PERCENT = 100
         const val SPS = 7
         const val PPS = 8

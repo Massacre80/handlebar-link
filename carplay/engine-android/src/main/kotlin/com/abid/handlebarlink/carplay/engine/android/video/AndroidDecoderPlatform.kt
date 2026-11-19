@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.carplay.engine.android.video
 
+import android.annotation.SuppressLint
 import android.media.MediaCodec
 import android.media.MediaCodecInfo.CodecCapabilities
 import android.media.MediaCodecList
@@ -129,10 +130,29 @@ internal class MediaCodecVideoCodec(
 
     override fun vendorParameters(): List<String> = call { codec.supportedVendorParameters }
 
+    // The configure flags' @IntDef in android.jar (API 37) lists ENCODE, USE_BLOCK_MODEL and USE_CRYPTO_ASYNC but not
+    // CONFIGURE_FLAG_DETACHED_SURFACE (API 35), which the MediaCodec reference documents for "a video decoder" with a
+    // null surface; lint's WrongConstant is a gap in that annotation, so it is suppressed on this one call only.
+    @SuppressLint("WrongConstant")
     override fun configure(
         format: DecoderFormat,
-        surface: Surface,
-    ) = call { codec.configure(format.toMediaFormat(), surface, null, 0) }
+        surface: Surface?,
+    ) = call {
+        when {
+            surface != null -> {
+                codec.configure(format.toMediaFormat(), surface, null, 0)
+            }
+
+            // Only decoders with FEATURE_DetachedSurface (API 35) are started without a surface (DecoderSlot).
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM -> {
+                codec.configure(format.toMediaFormat(), null, null, MediaCodec.CONFIGURE_FLAG_DETACHED_SURFACE)
+            }
+
+            else -> {
+                error("a detached surface needs API 35")
+            }
+        }
+    }
 
     override fun start() = call { codec.start() }
 
@@ -142,16 +162,8 @@ internal class MediaCodecVideoCodec(
         index: Int,
         size: Int,
         presentationMicros: Long,
-        keyFrame: Boolean,
-    ) = call {
-        codec.queueInputBuffer(
-            index,
-            0,
-            size,
-            presentationMicros,
-            if (keyFrame) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0,
-        )
-    }
+        kind: InputKind,
+    ) = call { codec.queueInputBuffer(index, 0, size, presentationMicros, flagsOf(kind)) }
 
     override fun releaseOutput(
         index: Int,
@@ -198,6 +210,13 @@ internal class MediaCodecVideoCodec(
         }
 
     private companion object {
+        fun flagsOf(kind: InputKind): Int =
+            when (kind) {
+                InputKind.PICTURE -> 0
+                InputKind.KEY_FRAME -> MediaCodec.BUFFER_FLAG_KEY_FRAME
+                InputKind.CODEC_CONFIG -> MediaCodec.BUFFER_FLAG_CODEC_CONFIG
+            }
+
         fun failureOf(error: IllegalStateException): CodecFailure =
             if (error is MediaCodec.CodecException) {
                 CodecFailure(error.isRecoverable, error.isTransient, "${error.errorCode} ${error.diagnosticInfo}")
@@ -210,8 +229,10 @@ internal class MediaCodecVideoCodec(
 /** [DecoderFormat] as the `MediaFormat` `configure` takes (MediaFormat reference for each key). */
 internal fun DecoderFormat.toMediaFormat(): MediaFormat =
     MediaFormat.createVideoFormat(mime, width, height).apply {
-        setByteBuffer(CSD_0, ByteBuffer.wrap(csd0))
-        setByteBuffer(CSD_1, ByteBuffer.wrap(csd1))
+        // Without CSD the codec gets the SPS and PPS as one codec-config buffer after start() (MediaCodec reference,
+        // "Codec-specific Data": "In case of H.264 AVC, you can also concatenate all codec-specific data").
+        if (csd0.isNotEmpty()) setByteBuffer(CSD_0, ByteBuffer.wrap(csd0))
+        if (csd1.isNotEmpty()) setByteBuffer(CSD_1, ByteBuffer.wrap(csd1))
         setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, maxInputSize)
         if (lowLatency) setInteger(MediaFormat.KEY_LOW_LATENCY, 1)
         if (realtime) setInteger(MediaFormat.KEY_PRIORITY, 0)

@@ -3,26 +3,32 @@ package com.abid.handlebarlink.carplay.engine.android.video
 import com.abid.handlebarlink.core.common.log.Logger
 import kotlin.math.roundToLong
 
-/** Why the decoder dropped a picture itself (the queue counts its own drops). */
-internal enum class DropReason {
+/** Why the decoder dropped a picture itself (the queue counts its own drops), and the keyframe request it makes. */
+internal enum class DropReason(
+    val keyFrameReason: String?,
+) {
     /** Waiting for a keyframe after the chain broke. */
-    WAIT_KEY,
+    WAIT_KEY("waiting for keyframe"),
 
-    /** No decoder: no configuration yet, no hardware decoder, or recovering. */
-    NO_DECODER,
+    /** No configuration yet: ask the iPhone for a keyframe (and with it the configuration). */
+    NO_CONFIG("no configuration"),
 
-    /** No surface to draw to. */
-    NO_SURFACE,
+    /** No decoder (no hardware decoder, or waiting out a failure; it asks for a keyframe when it starts). */
+    NO_DECODER(null),
 
-    /** The picture's NAL lengths do not add up, or it does not fit. */
-    BAD,
+    /** No surface to draw to: no keyframe until there is one. */
+    NO_SURFACE(null),
+
+    /** The picture's NAL lengths do not add up, or it does not fit (the feeder asks itself). */
+    BAD(null),
 }
 
 /**
  * The screen's numbers, logged as one `carplay.video.stats` line per window so a device run can be compared with
  * CarLink's `DiPlay-VideoStats` line (DiPlay docs/SMOOTH_WIRELESS.md §4: rx, shown, decode p50/p90):
  * - `received`, `decoded`, `shown` (released to the surface), `rendered` (`onFrameRendered`), `fps` = shown per second;
- * - drops by reason: `dropped_full`, `dropped_superseded` (queue), `dropped_wait_key`, `dropped_no_decoder`,
+ * - drops by reason: `dropped_full`, `dropped_superseded` (queue), `dropped_wait_key`, `dropped_no_config`,
+ *   `dropped_no_decoder`,
  *   `dropped_no_surface`, `dropped_bad`;
  * - `decode_p50_ms`/`decode_p90_ms`: submit to decoder output; `render_p50_ms`/`render_p90_ms`: submit to the
  *   display (`onFrameRendered`'s time, docs: "the system time when the frame was rendered");
@@ -95,6 +101,7 @@ internal class VideoMetrics(
                 "dropped_full" to queue.droppedFull,
                 "dropped_superseded" to queue.droppedSuperseded,
                 "dropped_wait_key" to drops[DropReason.WAIT_KEY.ordinal],
+                "dropped_no_config" to drops[DropReason.NO_CONFIG.ordinal],
                 "dropped_no_decoder" to drops[DropReason.NO_DECODER.ordinal],
                 "dropped_no_surface" to drops[DropReason.NO_SURFACE.ordinal],
                 "dropped_bad" to drops[DropReason.BAD.ordinal],

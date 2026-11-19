@@ -55,7 +55,9 @@ internal data class DecoderFormat(
     val mime: String,
     val width: Int,
     val height: Int,
+    /** SPS for `csd-0`; empty when the decoder is started before the stream's configuration is known. */
     val csd0: ByteArray,
+    /** PPS for `csd-1`; empty likewise. */
     val csd1: ByteArray,
     /** `KEY_MAX_INPUT_SIZE`. */
     val maxInputSize: Int,
@@ -87,6 +89,8 @@ internal data class DecoderFormat(
     private fun name(): String = "$mime ${width}x$height"
 }
 
+private val NO_CSD = ByteArray(0)
+
 /** The screen stream's type: H.264 (the only one the receiver offers so far). */
 internal const val AVC_MIME = "video/avc"
 
@@ -99,10 +103,13 @@ internal const val AVC_MIME = "video/avc"
 internal val LOW_LATENCY_VENDOR_KEYS =
     listOf("vendor.qti-ext-dec-low-latency.enable", "vendor.qti-ext-dec-picture-order.enable")
 
-/** What every attempt for one stream shares: the display, the configuration and the input size. */
+/**
+ * What every attempt for one stream shares: the display, the configuration and the input size. [config] is null for
+ * a decoder started ahead of the stream (prewarmed): it gets the SPS and PPS later as one codec-config buffer.
+ */
 internal class StreamSetup(
     val display: Display,
-    val config: AvcConfig,
+    val config: AvcConfig?,
     val maxInputSize: Int,
 )
 
@@ -118,8 +125,8 @@ internal fun decoderFormat(
         mime = AVC_MIME,
         width = stream.display.width,
         height = stream.display.height,
-        csd0 = stream.config.csd0,
-        csd1 = stream.config.csd1,
+        csd0 = stream.config?.csd0 ?: NO_CSD,
+        csd1 = stream.config?.csd1 ?: NO_CSD,
         maxInputSize = stream.maxInputSize,
         lowLatency = tuned && decoder.lowLatency,
         realtime = tuned,

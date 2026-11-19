@@ -11,7 +11,10 @@ import org.junit.Test
 
 class FrameQueueTest {
     private val recycler = RecordingRecycler()
-    private val queue = FrameQueue(maxPictures = 3, maxBytes = 1_000, recycler = recycler, clock = ManualClock())
+    private val queue =
+        FrameQueue(maxPictures = 3, maxBytes = 1_000, recycler = recycler, clock = ManualClock()).apply {
+            starting = false // a running decoder; the start-up case has its own test
+        }
     private val avcc = vector("ffmpeg-64x64.avcc")
 
     @Test
@@ -30,6 +33,21 @@ class FrameQueueTest {
         assertThat(queue.poll() is PendingUnit.Config).isTrue() // the configuration stays
         assertThat(queue.poll()).isNull()
         assertThat(queue.takeCounts().droppedFull).isEqualTo(4)
+    }
+
+    @Test
+    fun `while the decoder is starting only the byte limit applies`() {
+        queue.starting = true
+        val pictures = listOf(idr(0)) + List(9) { p(it + 1) }
+
+        val queued = pictures.map { queue.submit(it, 0, it.size, 0, isConfig = false) }
+
+        assertThat(queued.all { it }).isTrue()
+        assertThat(queue.takeChainBroken()).isFalse()
+        assertThat(generateSequence { queue.poll() }.toList().size).isEqualTo(10)
+        val big = p(20, size = 1_001)
+        assertThat(queue.submit(big, 0, big.size, 0, isConfig = false)).isFalse()
+        assertThat(queue.takeChainBroken()).isTrue()
     }
 
     @Test

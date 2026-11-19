@@ -42,6 +42,7 @@ internal class FakeCodec(
     private val vendor: List<String>,
     private val inputCapacity: Int,
     private val failConfigureWhen: (DecoderFormat) -> Boolean,
+    private val refuseDetached: Boolean = false,
 ) : VideoCodec<FakeSurface> {
     val configured = ArrayList<DecoderFormat>()
     var surface: FakeSurface? = null
@@ -51,6 +52,9 @@ internal class FakeCodec(
     var failQueueInput = false
     val inputs = ArrayList<QueuedInput>()
 
+    /** Codec-config buffers (SPS and PPS for a decoder configured without CSD). */
+    val csdInputs = ArrayList<ByteArray>()
+
     /** Output index to (render time or null). */
     val outputs = ArrayList<Pair<Int, Long?>>()
     private val buffers = HashMap<Int, ByteBuffer>()
@@ -59,12 +63,14 @@ internal class FakeCodec(
 
     override fun configure(
         format: DecoderFormat,
-        surface: FakeSurface,
+        surface: FakeSurface?,
     ) {
         check(!released) { "configure after release" }
         if (failConfigureWhen(format)) throw CodecCallException(failure("refused"))
+        if (surface == null && refuseDetached) throw CodecCallException(failure("no detached surface"))
         configured += format
         this.surface = surface
+        detached = surface == null
     }
 
     override fun start() {
@@ -81,13 +87,19 @@ internal class FakeCodec(
         index: Int,
         size: Int,
         presentationMicros: Long,
-        keyFrame: Boolean,
+        kind: InputKind,
     ) {
         check(!released) { "queueInput after release" }
         if (failQueueInput) throw CodecCallException(failure("queueInput failed"))
         val buffer = checkNotNull(buffers[index])
         val bytes = ByteArray(size).also { buffer.duplicate().apply { flip() }.get(it) }
-        inputs += QueuedInput(index, bytes, presentationMicros, keyFrame)
+        if (kind == InputKind.CODEC_CONFIG) {
+            check(inputs.isEmpty()) { "codec config after pictures" }
+            csdInputs += bytes
+        } else {
+            check(configured.last().csd0.isNotEmpty() || csdInputs.isNotEmpty()) { "picture before any CSD" }
+            inputs += QueuedInput(index, bytes, presentationMicros, kind == InputKind.KEY_FRAME)
+        }
     }
 
     override fun releaseOutput(
@@ -141,6 +153,7 @@ internal class FakePlatform(
     val created = ArrayList<FakeCodec>()
     val createFails = HashSet<String>()
     var failConfigureWhen: (DecoderFormat) -> Boolean = { false }
+    var refuseDetached = false
     val frameRates = ArrayList<Pair<FakeSurface, Int>>()
     val catalogQueries = ArrayList<Triple<String, Int, Int>>()
 
@@ -155,7 +168,10 @@ internal class FakePlatform(
         events: CodecEvents<FakeSurface>,
     ): VideoCodec<FakeSurface> {
         if (name in createFails) throw CodecCallException(failure("no $name"))
-        return FakeCodec(name, events, vendor[name].orEmpty(), inputCapacity, failConfigureWhen).also { created += it }
+        return FakeCodec(name, events, vendor[name].orEmpty(), inputCapacity, failConfigureWhen, refuseDetached).also {
+            created +=
+                it
+        }
     }
 
     override fun setFrameRate(

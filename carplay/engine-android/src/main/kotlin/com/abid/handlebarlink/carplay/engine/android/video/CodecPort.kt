@@ -13,9 +13,10 @@ internal interface VideoCodec<S : Any> {
     /** `getSupportedVendorParameters()` (API 31); empty when the codec lists none. */
     fun vendorParameters(): List<String>
 
+    /** With [surface] null the codec is configured detached (`CONFIGURE_FLAG_DETACHED_SURFACE`, API 35). */
     fun configure(
         format: DecoderFormat,
-        surface: S,
+        surface: S?,
     )
 
     fun start()
@@ -27,7 +28,7 @@ internal interface VideoCodec<S : Any> {
         index: Int,
         size: Int,
         presentationMicros: Long,
-        keyFrame: Boolean,
+        kind: InputKind,
     )
 
     /** `releaseOutputBuffer(index, renderAtNanos)` when set, else `releaseOutputBuffer(index, false)`. */
@@ -44,6 +45,17 @@ internal interface VideoCodec<S : Any> {
 
     /** `stop()` then `release()`, best effort: never throws. */
     fun release()
+}
+
+/** What an input buffer holds: its `queueInputBuffer` flags. */
+internal enum class InputKind {
+    PICTURE,
+
+    /** `BUFFER_FLAG_KEY_FRAME`. */
+    KEY_FRAME,
+
+    /** `BUFFER_FLAG_CODEC_CONFIG`: SPS and PPS for a decoder configured without CSD. */
+    CODEC_CONFIG,
 }
 
 /** What `MediaCodec.CodecException` says about an error (or what another failed call said). */

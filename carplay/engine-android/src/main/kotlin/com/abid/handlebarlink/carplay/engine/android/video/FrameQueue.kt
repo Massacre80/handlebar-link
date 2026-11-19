@@ -45,6 +45,10 @@ internal data class QueueCounts(
  * - A picture that finds [maxPictures] or [maxBytes] already waiting drops every waiting picture and itself, and marks
  *   the reference chain broken (DiPlay `VideoDecodeQueue.offer`: "discardFrames, then Resync"); the decoder then waits
  *   for the next keyframe and asks the iPhone for one.
+ * - While the decoder is [starting] (no output yet) only [maxBytes] applies: everything from the last keyframe on waits
+ *   for it. On the Poco a cold start took about 200 ms on the decoder thread, 12 pictures at 60 fps; the 6-picture
+ *   limit then dropped the first keyframe and the picture stayed black until the next one, a second later (device
+ *   run 2026-11-19, `carplay.video.stats` dropped_full=7 dropped_wait_key=53).
  * - Configurations are never dropped and keep their place, so a picture is always decoded with the configuration
  *   that came before it.
  */
@@ -63,6 +67,9 @@ internal class FrameQueue(
     private var droppedFull = 0
     private var droppedSuperseded = 0
     private var highWater = 0
+
+    /** Set by the decoder thread: no decoder output yet, so the picture limit does not apply. */
+    @Volatile var starting = true
 
     // Framing of the latest submitted configuration; written and read by the submitting thread only.
     private var nalLengthSize = AvcConfig.ANNEX_B
@@ -83,7 +90,7 @@ internal class FrameQueue(
             synchronized(lock) {
                 received++
                 if (idr) droppedSuperseded += removePictures(dropped)
-                if (pictures >= maxPictures || pictureBytes + length > maxBytes) {
+                if ((!starting && pictures >= maxPictures) || pictureBytes + length > maxBytes) {
                     droppedFull += removePictures(dropped) + 1
                     dropped += frame
                     chainBroken = true
