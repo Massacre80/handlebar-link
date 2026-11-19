@@ -11,6 +11,7 @@ import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import com.abid.handlebarlink.carplay.engine.spi.Datagram
 import com.abid.handlebarlink.carplay.engine.spi.GroupClients
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
+import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
@@ -141,6 +142,9 @@ internal class FakePorts(
     var publishMillis = 0L
     var publishError: CarPlayError? = null
 
+    /** The platform's decoder: what reached it, in order. */
+    val screen = FakeScreen()
+
     val group =
         WifiGroup(
             WifiNetwork("DIRECT-hl-Handlebar", "passphrase16chrs", WifiSecurity.WPA_WPA2, channel = 149),
@@ -239,6 +243,7 @@ internal class FakePorts(
                 credentialsError?.let { throw CarPlayException(it) }
                 CarPlayCredentials(mfi, airPlayIdentity, store)
             },
+            screen = screen,
             cipherName = ChaCha20Poly1305.Transformation.JVM,
         )
 
@@ -254,6 +259,51 @@ internal class FakePorts(
                 longTermPublicKey: ByteArray,
             ) = pairings.save(controllerId, longTermPublicKey)
         }
+
+    /** A [ScreenPort] that records every call in order and asks for key frames when the test says. */
+    class FakeScreen : ScreenPort {
+        /** One call: `configure WxH@fps`, or a frame. */
+        sealed interface Call {
+            data class Configure(
+                val width: Int,
+                val height: Int,
+                val fps: Int,
+            ) : Call
+
+            data class Frame(
+                val isConfig: Boolean,
+                val senderNanos: Long,
+                val payload: String,
+            ) : Call
+        }
+
+        val calls = mutableListOf<Call>()
+        val frames: List<Call.Frame> get() = calls.filterIsInstance<Call.Frame>()
+        private val requests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+        override val keyFrameRequests: Flow<Unit> = requests
+
+        /** The decoder asks for a key frame (as its listener does, from its own thread: tryEmit). */
+        fun needKeyFrame() {
+            requests.tryEmit(Unit)
+        }
+
+        override fun configure(
+            width: Int,
+            height: Int,
+            framesPerSecond: Int,
+        ) {
+            calls += Call.Configure(width, height, framesPerSecond)
+        }
+
+        override fun frame(
+            isConfig: Boolean,
+            senderNanos: Long,
+            payload: ByteArray,
+        ) {
+            calls += Call.Frame(isConfig, senderNanos, payload.joinToString("") { "%02x".format(it) })
+        }
+    }
 
     class FakeListener(
         override val port: Int,

@@ -261,7 +261,11 @@
     <string name="carplay_switch">Handlebar Link CarPlay (beta)</string>
     <string name="carplay_on">On</string>
     <string name="carplay_off">Off</string>
-    <string name="carplay_beta_note">Beta: Handlebar Link connects to your iPhone itself, but shows no CarPlay screen yet. Only one receiver can reach the iPhone, so close CarLink while this is on.</string>
+    <string name="carplay_beta_note">Beta: Handlebar Link connects to your iPhone itself and shows CarPlay full screen. Only one receiver can reach the iPhone, so close CarLink while this is on.</string>
+    <!-- The CarPlay display (ui/carplay/CarPlayDisplay): opened from the CarPlay page while connected. -->
+    <string name="carplay_open">Open CarPlay</string>
+    <string name="carplay_display">CarPlay screen</string>
+    <string name="carplay_display_hint">‹ Swipe back for Handlebar Link</string>
     <string name="carplay_status_not_available">Not in this version of the app yet</string>
     <string name="carplay_status_permission">Needs Nearby devices: allow it in Settings › Permissions</string>
     <string name="carplay_status_failed">Stopped after an error. Turn it off and on to try again</string>

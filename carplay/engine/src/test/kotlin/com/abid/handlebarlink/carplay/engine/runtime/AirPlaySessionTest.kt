@@ -122,7 +122,7 @@ class AirPlaySessionTest {
                 mediaContexts += context
                 media.seams
             }
-        val link = CarPlayRuntime(fake.ports, StandardTestDispatcher(testScheduler), env, CarPlayConfig(), factory)
+        val link = CarPlayRuntime(fake.ports, StandardTestDispatcher(testScheduler), env, { CarPlayConfig() }, factory)
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { link.state.collect {} }
         backgroundScope.launch { link.run() }
         link.start()

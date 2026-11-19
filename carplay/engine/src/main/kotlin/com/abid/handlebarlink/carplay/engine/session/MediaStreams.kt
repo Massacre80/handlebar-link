@@ -65,6 +65,7 @@ internal class MediaStreams(
         id: Plist.Integer,
     ): Plist {
         val setup = ScreenStreamSetup(type, StreamKeys.output(context.sharedSecret, id.bits), stream)
+        context.seams.screen.prepare(setup)
         val listener = context.platform.network.listen(context.platform.addresses, 0)
         val job =
             context.launchVital("screen stream $type") {

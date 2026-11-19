@@ -6,7 +6,7 @@ import com.abid.handlebarlink.carplay.protocol.plist.Plist
  * The HID input devices `/info` declares (DiPlay AirPlayHid.kt:22-134, AirPlayInfoPlist.kt:58-63; spec D §4): a
  * two-finger touchscreen whose logical maximum is the canvas size, a knob, media keys and telephony keys, all bound
  * to the main display. DiPlay notes the iPhone aborts a session whose `/info` lacks them (AirPlayInfoPlist.kt:3-8).
- * Reports are sent later on the event channel as `hidSendReport` with the device's `uuid` (docs/PLAN.md C4).
+ * Reports go to the iPhone on the event channel as `hidSendReport` with the device's `uuid` ([touchCommand]).
  */
 internal object HidDevices {
     const val TOUCH_UID = 0x2a2a2a2a
@@ -16,6 +16,42 @@ internal object HidDevices {
 
     /** Touch contacts per report (AirPlayHid.kt:28). */
     const val TOUCH_CONTACTS = 2
+
+    /** Bytes per finger in a touch report: slot, down, X and Y little-endian (AirPlayHid.kt:29, 44-55). */
+    private const val BYTES_PER_FINGER = 6
+    private const val DOWN_OFFSET = 1
+    private const val X_OFFSET = 2
+    private const val Y_OFFSET = 4
+
+    /** One finger in canvas pixels, in report slot [slot] (DiPlay AirPlayContact after its scaling). */
+    class Contact(
+        val slot: Int,
+        val x: Double,
+        val y: Double,
+        val down: Boolean,
+    )
+
+    /**
+     * The touchscreen report (DiPlay AirPlayHid.touchReport, AirPlayHid.kt:44-55): per slot its number, 1 when the
+     * finger is down, then X and Y rounded half up (`Math.round`) as u16 little-endian. A slot without a contact
+     * holds only its number (an up at 0,0).
+     */
+    fun touchReport(contacts: List<Contact>): ByteArray {
+        val report = ByteArray(BYTES_PER_FINGER * TOUCH_CONTACTS)
+        for (slot in 0 until TOUCH_CONTACTS) {
+            val offset = slot * BYTES_PER_FINGER
+            report[offset] = slot.toByte()
+            val contact = contacts.firstOrNull { it.slot == slot } ?: continue
+            report[offset + DOWN_OFFSET] = if (contact.down) 1 else 0
+            writeU16Le(report, offset + X_OFFSET, Math.round(contact.x.coerceAtLeast(0.0)).toInt())
+            writeU16Le(report, offset + Y_OFFSET, Math.round(contact.y.coerceAtLeast(0.0)).toInt())
+        }
+        return report
+    }
+
+    /** `{type: hidSendReport, uuid: "2a2a2a2a", hidReport}`, keys in DiPlay's order (AirPlaySession.kt:444-451). */
+    fun touchCommand(report: ByteArray): Plist.Dict =
+        Plist.dict("type" to "hidSendReport", "uuid" to TOUCH_UID.toString(HEX), "hidReport" to report)
 
     fun all(
         name: String,
@@ -86,6 +122,15 @@ internal object HidDevices {
 
     private const val HEX = 16
     private const val BYTE_BITS = 8
+
+    private fun writeU16Le(
+        target: ByteArray,
+        offset: Int,
+        value: Int,
+    ) {
+        target[offset] = value.toByte()
+        target[offset + 1] = (value ushr BYTE_BITS).toByte()
+    }
 
     private fun u16Le(value: Int): ByteArray = byteArrayOf(value.toByte(), (value shr BYTE_BITS).toByte())
 

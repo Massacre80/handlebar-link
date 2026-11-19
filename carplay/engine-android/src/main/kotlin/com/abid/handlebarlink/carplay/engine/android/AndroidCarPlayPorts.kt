@@ -29,12 +29,14 @@ import java.security.SecureRandom
  * no system service (safe on the main thread, docs/LESSONS.md 60); all real work happens lazily inside the
  * suspending port calls, on the ports' own threads. Create one
  * per process (Hilt `@Singleton`). The app binds it as `CarPlayPortsSource { createAndroidCarPlayPorts(context, time,
- * logger) }` and asks for [CarPlayPermissions.runtime] in its permission flow.
+ * logger, screen) }` and asks for [CarPlayPermissions.runtime] in its permission flow. The iPhone's picture goes to
+ * [screen] ([createCarPlayScreen]), which the app also shows.
  */
 public fun createAndroidCarPlayPorts(
     context: Context,
     time: TimeProvider,
     logger: Logger,
+    screen: CarPlayScreen,
 ): CarPlayPorts {
     val platform = AndroidPlatform(context, time, logger)
     val settings = PreferenceSettings { platform.preferences }
@@ -61,6 +63,7 @@ public fun createAndroidCarPlayPorts(
                 io = platform.io,
                 log = logger,
             ),
+        screen = screen.port,
         cipherName = ChaCha20Poly1305.Transformation.ANDROID,
     )
 }

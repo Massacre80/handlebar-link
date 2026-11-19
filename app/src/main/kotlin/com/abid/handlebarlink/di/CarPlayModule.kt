@@ -2,13 +2,15 @@ package com.abid.handlebarlink.di
 
 import android.content.Context
 import com.abid.handlebarlink.carplay.AndroidCarPlayPermissions
+import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPortsSource
 import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.DataStoreCarPlaySettings
-import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
+import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
 import com.abid.handlebarlink.carplay.engine.android.createAndroidCarPlayPorts
+import com.abid.handlebarlink.carplay.engine.android.createCarPlayScreen
 import com.abid.handlebarlink.carplay.engine.createCarPlayLink
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -45,15 +47,23 @@ abstract class CarPlayModule {
             @ApplicationContext context: Context,
             time: TimeProvider,
             logger: Logger,
-        ): CarPlayPortsSource = CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay")) }
+            screen: CarPlayScreen,
+        ): CarPlayPortsSource =
+            CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen) }
 
-        /** Jitters the engines' retry pauses (the bike link uses the same `Random.Default`). */
+        /**
+         * The CarPlay picture's hardware decoder: fed by the engine through the ports, shown by the CarPlay display.
+         * One per process, so leaving the display keeps it (docs/PLAN.md C4). Creating it only constructs objects.
+         */
         @Provides
-        fun random(): Random = Random.Default
+        @Singleton
+        fun carPlayScreen(logger: Logger): CarPlayScreen = createCarPlayScreen(logger.child("carplay"))
 
         /**
          * The receiver on its own single-threaded dispatcher, with the app's time and logger, or null when there are
-         * no platform ports ([CarPlayPortsSource]).
+         * no platform ports ([CarPlayPortsSource]). The canvas told to the iPhone is this phone's whole screen
+         * ([CarPlayCanvas]), measured on the engine's thread at the first connection attempt. `Random.Default` jitters
+         * the retry pauses, as the bike link's.
          */
         @Provides
         @Singleton
@@ -61,17 +71,17 @@ abstract class CarPlayModule {
             source: CarPlayPortsSource,
             @CarPlayDispatcher dispatcher: CoroutineDispatcher,
             time: TimeProvider,
-            random: Random,
             logger: Logger,
+            canvas: CarPlayCanvas,
         ): CarPlayLink? =
             source.create()?.let {
                 createCarPlayLink(
                     it,
                     dispatcher,
                     time,
-                    random,
+                    Random.Default,
                     logger.child("carplay"),
-                    CarPlayConfig(),
+                    canvas::config,
                 )
             }
     }

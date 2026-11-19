@@ -2,6 +2,7 @@ package com.abid.handlebarlink.carplay.engine.test
 
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
+import com.abid.handlebarlink.carplay.engine.TouchContact
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,7 +13,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Test double of [CarPlayLink] for other modules' tests. Tests drive it from two sides:
  * - **Control:** [setState], [setKeepAlive] set what the fake reports.
- * - **Verification:** [commands] records every [start]/[stop] the code under test made.
+ * - **Verification:** [commands] records every [start]/[stop] the code under test made, [touches] every [touch].
  */
 public class FakeCarPlayLink(
     initial: CarPlayState = CarPlayState.Stopped,
@@ -30,9 +31,13 @@ public class FakeCarPlayLink(
     private val keepAliveFlow = MutableStateFlow(false)
     private val running = AtomicBoolean(false)
     private val recorded = CopyOnWriteArrayList<Command>()
+    private val touched = CopyOnWriteArrayList<List<TouchContact>>()
 
     /** Every command the code under test has called, in order. */
     public val commands: List<Command> get() = recorded.toList()
+
+    /** Every [touch] the code under test made, in order. */
+    public val touches: List<List<TouchContact>> get() = touched.toList()
 
     /** Whether [run] is currently suspended. */
     public val isRunning: Boolean get() = running.get()
@@ -57,6 +62,10 @@ public class FakeCarPlayLink(
 
     override fun stop() {
         recorded += Command.Stop
+    }
+
+    override fun touch(contacts: List<TouchContact>) {
+        touched += contacts.toList()
     }
 
     override suspend fun run() {

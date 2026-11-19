@@ -53,7 +53,7 @@ class CarPlayRuntimeTest {
         val time = TestTimeProvider(testScheduler)
         fake.now = { testScheduler.currentTime }
         val env = RuntimeEnv(time, Random(SEED), random, testLogger(sink, time))
-        return CarPlayRuntime(fake.ports, StandardTestDispatcher(testScheduler), env, CarPlayConfig())
+        return CarPlayRuntime(fake.ports, StandardTestDispatcher(testScheduler), env, { CarPlayConfig() })
     }
 
     private fun TestScope.started(): Pair<CarPlayRuntime, MutableList<CarPlayState>> {

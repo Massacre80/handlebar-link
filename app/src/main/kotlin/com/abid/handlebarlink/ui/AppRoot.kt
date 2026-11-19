@@ -47,6 +47,7 @@ import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
+import com.abid.handlebarlink.ui.carplay.CarPlayDisplayEntry
 import com.abid.handlebarlink.ui.carplay.CarPlayEntry
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
@@ -56,6 +57,7 @@ import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.intercom.intercomEntries
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
+import com.abid.handlebarlink.ui.navigation.CarPlayDisplayRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HandlebarRoute
@@ -154,7 +156,9 @@ private fun BoxScope.Tabs() {
                 )
             }
             entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
-            entry<CarPlayRoute> { CarPlayEntry(barSpace) }
+            entry<CarPlayRoute> { CarPlayEntry(barSpace, onOpen = { navigator.navigate(CarPlayDisplayRoute) }) }
+            // A full page over the CarPlay tab (no tab bar); Back returns to the tab, CarPlay keeps running.
+            entry<CarPlayDisplayRoute> { CarPlayDisplayEntry() }
             entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
             intercomEntries(navigator, barSpace)
             settingsEntries(navigator)

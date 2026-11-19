@@ -33,3 +33,25 @@ class DataStoreCarPlaySettings
             val ENABLED = booleanPreferencesKey("carplay_beta")
         }
     }
+
+/**
+ * Whether the CarPlay display has shown its "Swipe back for Handlebar Link" hint: once, the first time it opens. In the
+ * app's settings DataStore.
+ */
+class CarPlayDisplayHint
+    @Inject
+    constructor(
+        private val store: DataStore<Preferences>,
+    ) {
+        /** True once the hint has been shown. */
+        val shown: Flow<Boolean> = store.data.map { it[SHOWN] ?: false }
+
+        /** The hint was shown; it is not shown again. */
+        suspend fun markShown() {
+            store.edit { it[SHOWN] = true }
+        }
+
+        private companion object {
+            val SHOWN = booleanPreferencesKey("carplay_display_hint_shown")
+        }
+    }

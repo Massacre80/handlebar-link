@@ -42,6 +42,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlPillButton
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -57,7 +58,10 @@ import java.time.Instant
  * that had ended picks CarPlay up while the app is on screen (a foreground service may only start then).
  */
 @Composable
-fun CarPlayEntry(contentPadding: PaddingValues) {
+fun CarPlayEntry(
+    contentPadding: PaddingValues,
+    onOpen: () -> Unit,
+) {
     val viewModel: CarPlayViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -83,19 +87,22 @@ fun CarPlayEntry(contentPadding: PaddingValues) {
             }
         },
         contentPadding = contentPadding,
+        onOpen = onOpen,
     )
 }
 
 /**
  * The CarPlay tab: what runs CarPlay, the "Handlebar Link CarPlay (beta)" switch (an [HlValueRow] whose hint is
- * On or Off), and under its name the one status line. Off keeps today's "Runs in CarLink for now". The page
- * scrolls when it runs out of height (docs/LESSONS.md 22).
+ * On or Off), and under its name the one status line. Off keeps today's "Runs in CarLink for now". While our receiver
+ * is connected, "Open CarPlay" opens the CarPlay display ([onOpen]). The page scrolls when it runs out of height
+ * (docs/LESSONS.md 22).
  */
 @Composable
 fun CarPlayScreen(
     state: CarPlayUiState,
     onToggle: () -> Unit,
     contentPadding: PaddingValues,
+    onOpen: () -> Unit = {},
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -146,6 +153,9 @@ fun CarPlayScreen(
                     // (docs/LESSONS.md 31).
                     hintColor = if (state.enabled) colors.success else Color.Unspecified,
                 )
+            }
+            if (state.canOpen) {
+                HlPillButton(stringResource(R.string.carplay_open), onOpen, Modifier.padding(top = spacing.s8))
             }
         }
     }

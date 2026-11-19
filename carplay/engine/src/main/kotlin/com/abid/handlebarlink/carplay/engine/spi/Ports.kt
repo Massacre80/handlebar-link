@@ -5,6 +5,7 @@ import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.AirPlayIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.PairingStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 // The engine's seams to the platform. `:carplay:engine-android` implements them (RFCOMM, Wi-Fi Direct,
 // sockets, mDNS, files); tests use fakes. Every failure is a CarPlayException with a CarPlayError.
@@ -207,6 +208,70 @@ public fun interface CredentialsPort {
     public suspend fun load(): CarPlayCredentials
 }
 
+/**
+ * The screen CarPlay is shown on: the platform's video decoder (docs/PLAN.md C4). Only the main screen (stream type
+ * 110) comes here; `/info` declares no other display. Every call comes from the engine's dispatcher, in the order the
+ * iPhone sent the stream, and must return at once: it never blocks or waits for the decoder (the screen stream's
+ * reader, and with it the iPhone's TCP sends, would stall). The port outlives sessions: one decoder for the process.
+ */
+public interface ScreenPort {
+    /**
+     * A main screen stream was set up (stream SETUP) for a [width] x [height] picture at up to [framesPerSecond], the
+     * size `/info` reported: prepare the decoder now, before the first frame arrives (on the Poco a cold decoder start
+     * held the first second of pictures, docs/LESSONS.md 77).
+     */
+    public fun configure(
+        width: Int,
+        height: Int,
+        framesPerSecond: Int,
+    )
+
+    /**
+     * One message of the main screen stream, decrypted, exactly as the screen stream reader returns it
+     * (`ScreenStreamReader`, DiPlay ScreenStream.kt:117-124, 172-203):
+     * - [isConfig] true: [payload] is the H.264 decoder configuration record (`avcC`, ISO/IEC 14496-15 §5.3.3.1) as
+     *   the iPhone sent it;
+     * - [isConfig] false: [payload] is one access unit in Annex B form (each 4-byte NAL length replaced by a start
+     *   code), or the decrypted bytes untouched when its lengths do not tile it.
+     *
+     * [senderNanos] is the iPhone's frame time from the 128-byte header. [payload] now belongs to the port; the
+     * engine never touches it again.
+     */
+    public fun frame(
+        isConfig: Boolean,
+        senderNanos: Long,
+        payload: ByteArray,
+    )
+
+    /**
+     * Each emission asks the iPhone for a key frame (`forceKeyFrame` on the event channel, DiPlay
+     * CarPlayMediaEngine.kt:146-157), while a main screen stream runs; emissions with no stream running are dropped.
+     * The decoder asks after it starts, after an error, after dropped pictures and when its surface comes back.
+     */
+    public val keyFrameRequests: Flow<Unit>
+
+    /** Ports without a screen. */
+    public companion object {
+        /** No display: every frame is dropped and no key frame is asked for (a platform that shows no picture). */
+        public val NONE: ScreenPort =
+            object : ScreenPort {
+                override fun configure(
+                    width: Int,
+                    height: Int,
+                    framesPerSecond: Int,
+                ) {}
+
+                override fun frame(
+                    isConfig: Boolean,
+                    senderNanos: Long,
+                    payload: ByteArray,
+                ) {}
+
+                override val keyFrameRequests: Flow<Unit> = emptyFlow()
+            }
+    }
+}
+
 /** The platform the receiver runs on. */
 public class CarPlayPorts(
     /** Bluetooth. */
@@ -219,6 +284,8 @@ public class CarPlayPorts(
     public val bonjour: BonjourPort,
     /** Identities. */
     public val credentials: CredentialsPort,
+    /** Where the iPhone's picture goes; [ScreenPort.NONE] drops it. */
+    public val screen: ScreenPort = ScreenPort.NONE,
     /**
      * The platform's name for ChaCha20-Poly1305 (ChaCha20Poly1305.Transformation.ANDROID on the phone, so
      * every frame is decrypted natively by BoringSSL).

@@ -40,6 +40,20 @@ class CarPlaySettingsTest {
         }
 
     @Test
+    fun `the CarPlay display's hint is due until it was shown once, and that is stored`() =
+        runTest {
+            val file = folder.newFile("hint.preferences_pb").also { it.delete() }
+            val store = PreferenceDataStoreFactory.create(scope = backgroundScope) { file }
+            val hint = CarPlayDisplayHint(store)
+
+            assertThat(hint.shown.first()).isFalse()
+            hint.markShown()
+
+            assertThat(hint.shown.first()).isTrue()
+            assertThat(DataStoreCarPlaySettings(store).enabled.first()).isFalse()
+        }
+
+    @Test
     fun `CarPlay's permissions follow the Android release`() {
         // Android 12/12L: Wi-Fi Direct needs precise location; 13+: Nearby Wi-Fi; 17+: local network as well.
         assertThat(carPlayPermissions(31))

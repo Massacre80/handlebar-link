@@ -19,9 +19,6 @@ internal class AirPlaySession(
     private val channels = SessionChannels(context)
     private val streams = MediaStreams(context, channels.commands)
 
-    /** Event-channel commands, for the touch and knob input that comes later (docs/PLAN.md C4). */
-    val commands: EventCommands get() = channels.commands
-
     suspend fun handle(request: RtspRequest): RtspResponse =
         when {
             request.method == "SETUP" -> setup(request)

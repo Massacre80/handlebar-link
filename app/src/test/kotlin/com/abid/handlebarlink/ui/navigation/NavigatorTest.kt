@@ -6,6 +6,7 @@ import androidx.navigation3.runtime.NavKey
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import org.junit.Test
 
 /** The rules of the Navigation 3 "multiple back stacks" recipe and the navigation principles. */
@@ -54,6 +55,20 @@ class NavigatorTest {
         navigator.goBack()
 
         assertThat(state.current).isEqualTo(HomeRoute)
+    }
+
+    @Test
+    fun `the CarPlay display opens over the CarPlay tab without the tab bar, and Back returns to the tab`() {
+        navigator.navigate(CarPlayRoute)
+        navigator.navigate(CarPlayDisplayRoute)
+        assertThat(state.currentPage).isEqualTo(CarPlayDisplayRoute)
+        assertThat(state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route }).isFalse()
+        assertThat(navigator.backMove()).isEqualTo(Move.POP)
+
+        navigator.goBack()
+
+        assertThat(state.topLevelRoute).isEqualTo(CarPlayRoute)
+        assertThat(state.current).isEqualTo(CarPlayRoute)
     }
 
     @Test

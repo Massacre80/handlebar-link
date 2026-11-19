@@ -1,5 +1,7 @@
 package com.abid.handlebarlink.carplay.engine.session
 
+import com.abid.handlebarlink.carplay.engine.CarPlayConfig
+import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
@@ -9,7 +11,7 @@ import com.abid.handlebarlink.core.common.time.TimeProvider
 // Where the media code plugs into the AirPlay session. The session (this package) negotiates the streams, binds their
 // ports, accepts only the control connection's peer and derives each stream's key; what flows on a stream is the
 // business of these seams. [MediaFactory.receivers] (MediaReceivers.kt) builds the real ones: the timing exchange, the
-// screen reader and the audio decryption; decoded frames go on to a [ScreenFrameSink].
+// screen reader and the audio decryption; decrypted frames go on to the platform's [ScreenPort].
 
 /**
  * Answers the iPhone's NTP-style timing exchange on the session SETUP's `timingPort` (DiPlay NtpClock.kt, spec D
@@ -49,6 +51,12 @@ internal class ScreenStreamSetup(
  * ScreenStream.kt). The session has already accepted the connection from the iPhone and closes it afterwards.
  */
 internal fun interface ScreenStreamSink {
+    /**
+     * The stream SETUP accepted [stream], before its connection exists: the decoder is prepared now, so its start
+     * does not fall on the first pictures (docs/LESSONS.md 77).
+     */
+    fun prepare(stream: ScreenStreamSetup) {}
+
     /**
      * Reads [connection] until it ends (return) or fails (throw), or until cancelled by a TEARDOWN. As in DiPlay, the
      * stream ending without a TEARDOWN ends the whole session (CarPlayMediaEngine.kt:160-169). [events] asks the
@@ -99,11 +107,15 @@ internal interface AudioStreamSink {
     fun feedback(stream: AudioStreamSetup): Plist.Dict? = null
 }
 
-/** What a session's media seams may use: the injected clock, the log and the platform's ChaCha20-Poly1305 name. */
+/**
+ * What a session's media seams may use: the injected clock, the log, the platform's ChaCha20-Poly1305 name and the
+ * attempt's configuration (the canvas `/info` reported).
+ */
 internal class MediaContext(
     val time: TimeProvider,
     val log: Logger,
     val cipherName: String,
+    val config: CarPlayConfig,
 )
 
 /**
@@ -116,11 +128,11 @@ internal fun interface MediaFactory {
     companion object {
         /**
          * The real seams (MediaReceivers.kt): one [com.abid.handlebarlink.carplay.protocol.timing.TimingClock] per
-         * session, the screen stream's frames handed to [frames] (dropped until the decoder exists, docs/PLAN.md C4)
-         * and audio decrypted, counted and dropped (playback is C5).
+         * session, the main screen stream's frames handed to [screen] (the platform's decoder, docs/PLAN.md C4) and
+         * audio decrypted, counted and dropped (playback is C5).
          */
-        fun receivers(frames: ScreenFrameSink = ScreenFrameSink.DROP): MediaFactory =
-            MediaFactory { context -> SessionMedia(context, frames).seams }
+        fun receivers(screen: ScreenPort): MediaFactory =
+            MediaFactory { context -> SessionMedia(context, screen).seams }
     }
 }
 

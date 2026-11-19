@@ -48,8 +48,8 @@ internal class WirelessAttempt(
     private val env: RuntimeEnv,
     private val onStep: (ConnectStep) -> Unit,
     private val onConnected: (String) -> Unit,
-    /** Builds each AirPlay session's media seams. */
-    private val media: MediaFactory,
+    /** Each AirPlay session's media seams and the rider's touches, sent on its event channel. */
+    private val plugins: SessionPlugins,
 ) {
     private val cleanup = Cleanup(env.log)
     private val verified = CompletableDeferred<String>()
@@ -82,7 +82,7 @@ internal class WirelessAttempt(
         cleanup.add("listener") { listener.close() }
         env.log.info("carplay.airplay.listening", "port" to listener.port)
         val receiver = receiver(credentials, group)
-        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, media)
+        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, config, plugins)
         val control = { connection: TcpConnection ->
             AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, platform, env.log)
         }

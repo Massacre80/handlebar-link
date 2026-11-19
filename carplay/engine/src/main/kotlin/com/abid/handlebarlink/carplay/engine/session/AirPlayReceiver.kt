@@ -104,7 +104,7 @@ internal class AirPlayReceiver(
         return Plist.dict(
             "uuid" to MAIN_DISPLAY_UUID,
             "type" to MAIN_SCREEN,
-            "maxFPS" to config.maxFps / FPS_STEP * FPS_STEP,
+            "maxFPS" to config.reportedFps,
             "widthPixels" to width,
             "heightPixels" to height,
             "widthPhysical" to config.widthMillimetres,
@@ -141,7 +141,6 @@ internal class AirPlayReceiver(
         private const val RESOURCE_SCREEN = 1
         private const val RESOURCE_AUDIO = 2
         private const val PRIORITY = 100
-        private const val FPS_STEP = 5
         private const val STATUS_FLAGS = 4L
 
         // App state ids as DiPlay sends them (AirPlayInfoPlist.kt:99-101); only id 1, with speechMode, is evident.

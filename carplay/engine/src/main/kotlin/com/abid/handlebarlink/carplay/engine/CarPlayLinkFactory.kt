@@ -12,6 +12,9 @@ import kotlin.random.Random
 /**
  * Creates a [CarPlayLink] on the given platform [ports]. [dispatcher] must be single-threaded: all receiver
  * state is confined to it. [random] jitters the retry pauses; keys come from the platform's SecureRandom.
+ *
+ * [config] is read at the start of every connection attempt, on [dispatcher], so it may do platform work (the app
+ * measures the screen there) and a changed value takes effect at the next attempt. Creating the link calls nothing.
  */
 public fun createCarPlayLink(
     ports: CarPlayPorts,
@@ -19,5 +22,5 @@ public fun createCarPlayLink(
     time: TimeProvider,
     random: Random,
     logger: Logger,
-    config: CarPlayConfig = CarPlayConfig(),
+    config: () -> CarPlayConfig = { CarPlayConfig() },
 ): CarPlayLink = CarPlayRuntime(ports, dispatcher, RuntimeEnv(time, random, SecureRandom(), logger), config)

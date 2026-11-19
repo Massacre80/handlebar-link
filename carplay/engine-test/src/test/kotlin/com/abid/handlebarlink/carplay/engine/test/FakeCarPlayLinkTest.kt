@@ -12,6 +12,7 @@ import assertk.assertions.isInstanceOf
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.TouchContact
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -27,7 +28,12 @@ class FakeCarPlayLinkTest {
         link.stop()
         link.setState(CarPlayState.Connecting(ConnectStep.PAIRING))
         link.setKeepAlive(true)
+        link.touch(listOf(TouchContact(4, 0.5, 0.5, down = true)))
+        link.touch(emptyList())
 
+        assertThat(
+            link.touches,
+        ).containsExactly(listOf(TouchContact(4, 0.5, 0.5, down = true)), emptyList<TouchContact>())
         assertThat(link.commands).containsExactly(FakeCarPlayLink.Command.Start, FakeCarPlayLink.Command.Stop)
         assertThat(link.state.value).isEqualTo(CarPlayState.Connecting(ConnectStep.PAIRING))
         assertThat(link.keepAlive.value).isTrue()

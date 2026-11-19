@@ -2,6 +2,8 @@ package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * What the session SETUP opens (DiPlay AirPlaySession.kt:706-733, 855-889; spec D §5.1): the timing socket and its
@@ -65,9 +67,14 @@ internal class SessionChannels(
                 listener.close()
                 context.log.info("carplay.airplay.event_connected", "peer" to connection.remoteAddress)
                 try {
-                    EventChannel(connection, context.sharedSecret, context.platform.cipherName, context.log)
-                        .also { events = it }
-                        .run()
+                    val channel =
+                        EventChannel(connection, context.sharedSecret, context.platform.cipherName, context.log)
+                    events = channel
+                    coroutineScope {
+                        // Touches go out while the channel lasts; its end (always a throw) cancels them.
+                        launch { serveTouches(channel) }
+                        channel.run()
+                    }
                 } finally {
                     events = null
                     connection.close()
@@ -75,6 +82,11 @@ internal class SessionChannels(
             }
         track(job) { listener.close() }
         return listener.port
+    }
+
+    private suspend fun serveTouches(channel: EventChannel) {
+        val config = context.platform.config
+        context.platform.touches.serve(channel, config.widthPixels, config.heightPixels, context.log)
     }
 
     /** Incoming keep-alive packets are read and dropped (AirPlaySession.kt:861-882). */

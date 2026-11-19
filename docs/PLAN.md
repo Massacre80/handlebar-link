@@ -452,6 +452,57 @@ ptsMicros, isConfig)`, `release()`; `ScreenSurface.bind(surfaceView, decoder)`).
 - **Device check (coordinator):** `ScreenDecoderSmokeTest` (instrumented) plays an ffmpeg clip at 60 fps on the Poco's
   decoder; test data and commands in `carplay/engine-android/src/test/resources/video/README.md`.
 
+### C4 picture and touch (2026-11-19, worktree `carplay-picture`)
+
+The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Ports.kt` (`ScreenPort`),
+`session/MediaReceivers.kt` (`ScreenReceiver`), `session/TouchInput.kt`, `session/HidDevices.kt`;
+`:carplay:engine-android` `CarPlayScreen.kt`, `video/AndroidScreenPort.kt`, `touch/CarPlayTouch.kt`; `:app`
+`carplay/CarPlayCanvas.kt`, `ui/carplay/CarPlayDisplay*.kt`.
+- **Engine to decoder: a port.** `ScreenPort` in `CarPlayPorts` (`screen`, default `ScreenPort.NONE`): `configure(w, h,
+  fps)` at the main screen's stream SETUP (the canvas `/info` reported, so the decoder prewarms before the first frame),
+  `frame(isConfig, senderNanos, payload)` for each message of stream 110 in order (never blocks: `ScreenDecoder.submit`
+  only queues), and `keyFrameRequests: Flow<Unit>`, collected while the screen stream runs; each emission sends
+  `{type: forceKeyFrame}` (DiPlay CarPlayMediaEngine.kt:146-157, no params for the main screen). Frames of another screen
+  are read and dropped (`/info` declares none).
+- **Framing.** C3's reader hands over the `avcC` as sent and pictures already in Annex B. `AndroidScreenPort` turns an
+  `avcC` with 4-byte lengths into its SPS and PPS behind start codes, so the decoder reads the pictures as the Annex B
+  they are instead of guessing whether lengths tile them (docs/LESSONS.md 71); any other record goes in unchanged.
+- **Decoder lifetime.** `createCarPlayScreen(logger)` (Hilt `@Singleton`) owns the one `ScreenDecoder`; the ports get its
+  port, the display calls `CarPlayScreen.show(surfaceView)` (`ScreenSurface`). Leaving the display detaches the surface
+  (decoders with `FEATURE_DetachedSurface` keep decoding); reattaching asks for a key frame (`carplay.video.surface`,
+  `carplay.video.keyframe_request reason=surface attached`).
+- **Canvas (coordinator's default: portrait, edge to edge).** `CarPlayCanvas` measures the default display's largest
+  window through a window context (`createWindowContext(display, TYPE_APPLICATION)`, `maximumWindowMetrics`; Media
+  projection guide), `DisplayMetrics.xdpi` and the refresh rate, once, when the engine first asks: `createCarPlayLink`
+  now takes `config: () -> CarPlayConfig`, read at the start of each attempt on the engine's dispatcher (no Binder call
+  while Hilt builds, docs/LESSONS.md 60). Width = short side, height = long side, each even (DiPlay
+  `evenDisplaySize`), scaled down above 3840 x 2160 (DiPlay's canvas limit); millimetres = width / xdpi x 25.4, clamped
+  1..2000 (a density outside 100..1000 dpi falls back to `densityDpi`); fps = refresh rate in 30..60. Poco F1
+  (1080 x 2246, about 403 dpi): 1080 x 2246, 68 mm, 60 fps (`carplay.canvas`, `carplay.config`). Landscape later:
+  `CARPLAY_ORIENTATION` in `CarPlayCanvas.kt`; the display keeps the canvas's aspect ratio whichever way the phone turns.
+- **Touch.** `CarPlayLink.touch(contacts)` (non-suspending, any thread) queues `TouchContact(pointerId, x, y, down)` with
+  x and y as 0..1 fractions of the picture; `CarPlayTouch.contacts(event, w, h)` builds them from a `MotionEvent` (DiPlay
+  CarPlayTouchMapper.kt:14-33). The session with the event channel sends each as `{type: hidSendReport, uuid: 2a2a2a2a,
+  hidReport}` (AirPlaySession.kt:351-370, 444-451): two slots kept per finger (AirPlayTouchSlots.kt:14-34), positions
+  times the canvas, rounded half up, u16 little-endian (AirPlayHid.kt:44-55). The queue holds 128 touches and drops the
+  oldest; touches made before an event channel connects are dropped (`carplay.touch.stale_dropped`), never sent late.
+  Logs: `carplay.touch.first`, `carplay.touch.dropped` (once), `carplay.touch.ended sent= failed=`.
+- **App.** "Open CarPlay" (`HlPillButton`) on the CarPlay tab while connected pushes `CarPlayDisplayRoute` on the tab's
+  stack (a full page, no tab bar). The display hides the system bars (immersive, transient by swipe), runs in the
+  cutout (set explicitly below API 35), keeps the screen on, shows the status line over the last picture while not
+  connected, and the first time only the "‹ Swipe back for Handlebar Link" hint for 3 s (`CarPlayDisplayHint`, DataStore
+  key `carplay_display_hint_shown`). Back pops to the tab; CarPlay keeps running.
+- **Screenshots:** the beta note changed ("shows CarPlay full screen"), so `CarPlayConnectingNight/Bento` need new
+  references from Linux CI (`[record screenshots]`); no new screenshot tests (references are recorded on CI only).
+- **Device check (coordinator, release build):** turn the beta switch on, start a ride (`--ez start_ride true` away from
+  the bike), connect the iPhone, wait for "Connected", tap "Open CarPlay". Expect in the log: `carplay.config width=1080
+  height=2246 width_mm=68 fps=60` and `carplay.canvas`, then per session `carplay.screen.configure`,
+  `carplay.video.display`, `carplay.video.decoder … prewarmed=true`, `carplay.screen.receiving`,
+  `carplay.video.first_output`, `carplay.video.first_frame`, `carplay.screen.force_key_frame sent=true` after each
+  `carplay.video.keyframe_request`, `carplay.video.stats` every 5 s; on the first tap `carplay.touch.first contacts=1`.
+  Back to the tab and in again: `carplay.video.surface state=detached decoder=kept`, then `state=attached` and a key
+  frame request. Measure frame rate and latency from `carplay.video.stats` (C4's "done when").
+
 
 ## Things only the phone or bike can settle
 

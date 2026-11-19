@@ -6,7 +6,10 @@ import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
+import com.abid.handlebarlink.carplay.engine.TouchContact
 import com.abid.handlebarlink.carplay.engine.session.MediaFactory
+import com.abid.handlebarlink.carplay.engine.session.SessionPlugins
+import com.abid.handlebarlink.carplay.engine.session.TouchInput
 import com.abid.handlebarlink.carplay.engine.session.WirelessAttempt
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import kotlinx.coroutines.CancellationException
@@ -44,14 +47,17 @@ internal class CarPlayRuntime(
     private val ports: CarPlayPorts,
     private val dispatcher: CoroutineDispatcher,
     private val env: RuntimeEnv,
-    private val config: CarPlayConfig,
+    /** Read at the start of each attempt, on [dispatcher] (createCarPlayLink). */
+    private val config: () -> CarPlayConfig,
     /** Builds each AirPlay session's media seams: the timing exchange, the screen reader and the audio decryption. */
-    private val media: MediaFactory = MediaFactory.receivers(),
+    private val media: MediaFactory = MediaFactory.receivers(ports.screen),
 ) : CarPlayLink {
     private val inbox = Channel<Event>(Channel.UNLIMITED)
     private val running = AtomicBoolean(false)
     private val stateFlow = MutableStateFlow<CarPlayState>(CarPlayState.Stopped)
     private val keepAliveFlow = MutableStateFlow(false)
+    private val touches = TouchInput()
+    private val plugins = SessionPlugins(media, touches)
 
     /** Unique across runs, so a stale event can never match a new attempt. */
     private var generation = 0
@@ -65,6 +71,10 @@ internal class CarPlayRuntime(
 
     override fun stop() {
         inbox.trySend(Event.Stop)
+    }
+
+    override fun touch(contacts: List<TouchContact>) {
+        touches.offer(contacts)
     }
 
     override suspend fun run() {
@@ -230,13 +240,21 @@ internal class CarPlayRuntime(
     ): CarPlayError =
         try {
             delay(pause)
+            val config = config()
+            env.log.info(
+                "carplay.config",
+                "width" to config.widthPixels,
+                "height" to config.heightPixels,
+                "width_mm" to config.widthMillimetres,
+                "fps" to config.maxFps,
+            )
             WirelessAttempt(
                 ports,
                 config,
                 env,
                 onStep = { inbox.trySend(Event.Step(generation, it)) },
                 onConnected = { inbox.trySend(Event.Connected(generation, it)) },
-                media = media,
+                plugins = plugins,
             ).run()
         } catch (e: CancellationException) {
             // Ours (stop, or run cancelled): propagate. A stray one from a port (a withTimeout inside it) while we

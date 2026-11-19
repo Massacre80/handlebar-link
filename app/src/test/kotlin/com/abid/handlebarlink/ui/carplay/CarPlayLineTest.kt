@@ -7,6 +7,8 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.hasSize
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
+import assertk.assertions.isTrue
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayError
@@ -29,6 +31,14 @@ class CarPlayLineTest {
     private val now = Instant.parse("2026-11-19T10:00:00Z")
 
     private fun engine(state: CarPlayState) = carPlayLine(CarPlayStatus.Engine(state), now)
+
+    @Test
+    fun `the CarPlay display can be opened only while our receiver is connected`() {
+        assertThat(CarPlayStatus.Engine(CarPlayState.Connected("phone", now)).isConnected()).isTrue()
+        assertThat(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.PAIRING)).isConnected()).isFalse()
+        assertThat(CarPlayStatus.Off.isConnected()).isFalse()
+        assertThat(CarPlayStatus.Failed.isConnected()).isFalse()
+    }
 
     @Test
     fun `the app's own states have their lines, and off keeps CarLink's`() {

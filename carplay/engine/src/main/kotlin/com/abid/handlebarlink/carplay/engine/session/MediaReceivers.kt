@@ -2,6 +2,7 @@ package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
 import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
@@ -17,42 +18,10 @@ import java.math.BigInteger
 import kotlin.math.max
 import kotlin.math.roundToLong
 
-/**
- * Where the screen's frames go once the stream reader has decrypted them: the Android video decoder plugs in here
- * (docs/PLAN.md C4). Until then [DROP] drops them; the reader has already counted and logged them.
- */
-internal fun interface ScreenFrameSink {
-    /**
-     * One message of screen stream [type] (110 main, 111 alternate), in the order the iPhone sent it.
-     *
-     * - [isConfig] true: [payload] is the codec's decoder configuration record, an avcC record (H.264: `/info`
-     *   offers no HEVC), which DiPlay hands its decoder as is (ScreenStream.kt:119-124; AndroidMediaSink.kt:507-515).
-     * - [isConfig] false: [payload] is one decrypted access unit in Annex B form (start codes in place of the NAL
-     *   lengths, ScreenStream.kt:172-203).
-     * - [senderNanos]: the iPhone's frame time from the 128-byte header (NTP 32.32 in nanoseconds,
-     *   ScreenStream.kt:155-167); DiPlay does not use a configuration's.
-     *
-     * Called on the engine's dispatcher by the stream's reader: it must not block. Suspending holds the reader back,
-     * and with it the iPhone's TCP sends. [payload] belongs to the sink (never reused). Throwing ends the screen
-     * stream and with it the session.
-     */
-    suspend fun frame(
-        type: Int,
-        isConfig: Boolean,
-        senderNanos: Long,
-        payload: ByteArray,
-    )
-
-    companion object {
-        /** Until the decoder exists: frames are dropped. */
-        val DROP = ScreenFrameSink { _, _, _, _ -> }
-    }
-}
-
 /** The media seams of one session around its own timing clock, which `/feedback` reads (CarPlayMediaEngine.kt:514). */
 internal class SessionMedia(
     context: MediaContext,
-    frames: ScreenFrameSink,
+    screen: ScreenPort,
 ) {
     /** Started from the wall clock, then steered onto the iPhone's clock (NtpClock.kt:30). */
     private val clock = TimingClock(context.time::elapsedNanos, context.time.clock.millis())
@@ -60,7 +29,7 @@ internal class SessionMedia(
     val seams =
         MediaSeams(
             timing = TimingExchange(clock, context),
-            screen = ScreenReceiver(context, frames),
+            screen = ScreenReceiver(context, screen),
             audio = AudioReceiver(context, clock),
         )
 }
@@ -143,22 +112,61 @@ internal class TimingExchange(
 }
 
 /**
- * Reads a screen stream with [ScreenStreamReader] and hands each frame to [frames]. It logs the first frame, then a
- * summary about every [SUMMARY_MILLIS] while frames arrive, and the totals at the end. A frame that is too large or
- * does not authenticate ends the stream, and so the session, as DiPlay (ScreenStream.kt:85, 92-98;
+ * Reads a screen stream with [ScreenStreamReader] and hands each frame of the main screen (110) to [screen], the
+ * platform's decoder, which it [ScreenPort.configure]s at the stream SETUP with the canvas `/info` reported. Frames of
+ * another screen are read and dropped (`/info` declares no other display). It logs the first frame, then a summary
+ * about every [SUMMARY_MILLIS] while frames arrive, and the totals at the end. A frame that is too large or does not
+ * authenticate ends the stream, and so the session, as DiPlay (ScreenStream.kt:85, 92-98;
  * CarPlayMediaEngine.kt:160-169).
  *
- * No key frame is asked for at the start: DiPlay sends `forceKeyFrame` only when its decoder asks
- * (CarPlayMediaEngine.kt:146-157; AndroidMediaSink.kt:1121-1124, 1636-1640), which is the decoder's business (C4).
+ * No key frame is asked for at the start: DiPlay sends `forceKeyFrame` (no params for the main screen) only when its
+ * decoder asks (CarPlayMediaEngine.kt:146-157; AndroidMediaSink.kt:1121-1124, 1636-1640), so each
+ * [ScreenPort.keyFrameRequests] emission while the stream runs sends one.
  */
 internal class ScreenReceiver(
     private val context: MediaContext,
-    private val frames: ScreenFrameSink,
+    private val screen: ScreenPort,
 ) : ScreenStreamSink {
+    override fun prepare(stream: ScreenStreamSetup) {
+        if (stream.type != MediaStreams.MAIN_SCREEN) return
+        val config = context.config
+        context.log.info(
+            "carplay.screen.configure",
+            "width" to config.widthPixels,
+            "height" to config.heightPixels,
+            "fps" to config.reportedFps,
+        )
+        screen.configure(config.widthPixels, config.heightPixels, config.reportedFps)
+    }
+
     override suspend fun run(
         stream: ScreenStreamSetup,
         connection: TcpConnection,
         events: EventCommands,
+    ) {
+        if (stream.type != MediaStreams.MAIN_SCREEN) {
+            read(stream, connection) { _, _, _ -> }
+            return
+        }
+        coroutineScope {
+            val keyFrames = launch { screen.keyFrameRequests.collect { forceKeyFrame(events) } }
+            try {
+                read(stream, connection, screen::frame)
+            } finally {
+                keyFrames.cancel()
+            }
+        }
+    }
+
+    private suspend fun forceKeyFrame(events: EventCommands) {
+        val sent = events.send(FORCE_KEY_FRAME)
+        context.log.info("carplay.screen.force_key_frame", "sent" to sent)
+    }
+
+    private suspend fun read(
+        stream: ScreenStreamSetup,
+        connection: TcpConnection,
+        frames: (isConfig: Boolean, senderNanos: Long, payload: ByteArray) -> Unit,
     ) {
         val reader = ScreenStreamReader(stream.key, context.cipherName)
         var count = 0L
@@ -190,7 +198,7 @@ internal class ScreenReceiver(
                     )
                     summaryAt = now + SUMMARY_MILLIS
                 }
-                frames.frame(stream.type, frame.isConfig, frame.senderNanos, frame.payload)
+                frames(frame.isConfig, frame.senderNanos, frame.payload)
             }
         } catch (e: MediaStreamException) {
             throw CarPlayException(CarPlayError.PhoneDisconnected("screen stream ${stream.type}: ${e.message}"), e)
@@ -207,6 +215,9 @@ internal class ScreenReceiver(
 
     private companion object {
         const val SUMMARY_MILLIS = 5_000L
+
+        /** The main screen's key frame request (CarPlayMediaEngine.kt:152). */
+        val FORCE_KEY_FRAME = Plist.dict("type" to "forceKeyFrame")
     }
 }
 

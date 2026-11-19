@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.carplay.engine.session
 
+import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
@@ -15,15 +16,28 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-/** What every AirPlay session of one wireless attempt shares: sockets, the group's addresses, the media factory. */
+/** What the runtime plugs into every AirPlay session: the media seams' factory and the rider's touches. */
+internal class SessionPlugins(
+    val media: MediaFactory,
+    val touches: TouchInput,
+)
+
+/**
+ * What every AirPlay session of one wireless attempt shares: sockets, the group's addresses, the attempt's
+ * configuration, the media factory and the rider's touches.
+ */
 internal class SessionPlatform(
     val network: NetworkPort,
     /** The addresses the AirPlay listener is bound to; the session's TCP listeners use the same. */
     val addresses: List<String>,
     val cipherName: String,
     val time: TimeProvider,
-    val media: MediaFactory,
-)
+    val config: CarPlayConfig,
+    private val plugins: SessionPlugins,
+) {
+    val media: MediaFactory get() = plugins.media
+    val touches: TouchInput get() = plugins.touches
+}
 
 /**
  * One verified control connection's session: [scope] is the connection's, so everything launched here ends with it,
@@ -39,7 +53,10 @@ internal class SessionContext(
     val log: Logger,
 ) {
     /** This session's media seams, built once. */
-    val seams: MediaSeams = platform.media.session(MediaContext(platform.time, log, platform.cipherName))
+    val seams: MediaSeams =
+        platform.media.session(
+            MediaContext(platform.time, log, platform.cipherName, platform.config),
+        )
 
     /** A second UDP socket; [first] is closed when it cannot be bound. */
     suspend fun bindUdpAfter(first: UdpSocket): UdpSocket {

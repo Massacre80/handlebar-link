@@ -6,13 +6,14 @@ package com.abid.handlebarlink.carplay.engine.runtime
 import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isLessThan
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
-import com.abid.handlebarlink.carplay.engine.session.MediaFactory
+import com.abid.handlebarlink.carplay.engine.runtime.FakePorts.FakeScreen.Call.Frame
 import com.abid.handlebarlink.carplay.engine.spi.Datagram
 import com.abid.handlebarlink.carplay.protocol.audio.AudioCodec
 import com.abid.handlebarlink.carplay.protocol.crypto.Ed25519KeyPair
@@ -25,6 +26,7 @@ import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
@@ -55,31 +57,15 @@ class MediaReceiversTest {
     private val sink = RecordingLogSink()
     private val fake = FakePorts(random)
     private val phoneKeys = Ed25519KeyPair.generate(random)
-    private val frames = mutableListOf<Frame>()
+    private val frames get() = fake.screen.frames
 
-    private data class Frame(
-        val type: Int,
-        val isConfig: Boolean,
-        val senderNanos: Long,
-        val payload: String,
-    )
-
-    /** With [defaultMedia] the runtime builds its own media factory, as the app gets it. */
-    private fun TestScope.started(defaultMedia: Boolean = false): CarPlayRuntime {
+    /** The runtime builds its own media factory on the fake ports, as the app gets it; [config] is the canvas. */
+    private fun TestScope.started(config: CarPlayConfig = CarPlayConfig()): CarPlayRuntime {
         val time = TestTimeProvider(testScheduler)
         fake.now = { testScheduler.currentTime }
         val env = RuntimeEnv(time, Random(SEED), random, testLogger(sink, time))
         val dispatcher = StandardTestDispatcher(testScheduler)
-        val link =
-            if (defaultMedia) {
-                CarPlayRuntime(fake.ports, dispatcher, env, CarPlayConfig())
-            } else {
-                val media =
-                    MediaFactory.receivers { type, isConfig, senderNanos, payload ->
-                        frames += Frame(type, isConfig, senderNanos, payload.toHex())
-                    }
-                CarPlayRuntime(fake.ports, dispatcher, env, CarPlayConfig(), media)
-            }
+        val link = CarPlayRuntime(fake.ports, dispatcher, env, { config })
         backgroundScope.launch(start = CoroutineStart.UNDISPATCHED) { link.state.collect {} }
         backgroundScope.launch { link.run() }
         link.start()
@@ -127,6 +113,8 @@ class MediaReceiversTest {
         }
     }
 
+    private fun PhoneAirPlay.secret(): ByteArray = checkNotNull(sharedSecret)
+
     private fun Plist.Dict.port(key: String): Int = checkNotNull(long(key)).toInt()
 
     private fun udp(port: Int) = fake.udp.single { it.port == port }
@@ -139,7 +127,7 @@ class MediaReceiversTest {
     @Test
     fun `the default media answers every timing request to its sender and asks the iPhone every second`() =
         runTest(timeout = TEST_TIMEOUT) {
-            started(defaultMedia = true)
+            started()
             val airPlay = verified()
             val timing = udp(airPlay.setup(SESSION_SETUP).port("timingPort"))
             runCurrent()
@@ -213,7 +201,7 @@ class MediaReceiversTest {
         }
 
     @Test
-    fun `sealed screen frames reach the frame sink in order with their config flags and frame times`() =
+    fun `sealed screen frames reach the screen port in order with their config flags and frame times`() =
         runTest(timeout = TEST_TIMEOUT) {
             val link = started()
             val airPlay = verified()
@@ -229,9 +217,9 @@ class MediaReceiversTest {
             runCurrent()
 
             assertThat(frames).containsExactly(
-                Frame(110, false, 3_250_000_000L, "00000001651100000001419a02"),
-                Frame(110, true, 0L, AVCC),
-                Frame(110, false, 3_250_000_000L + 16_666_666L, "0000000141"),
+                Frame(false, 3_250_000_000L, "00000001651100000001419a02"),
+                Frame(true, 0L, AVCC),
+                Frame(false, 3_250_000_000L + 16_666_666L, "0000000141"),
             )
             assertThat(sink.events("carplay.screen.receiving").single().fields)
                 .isEqualTo(listOf("type" to 110, "config" to false, "bytes" to 13))
@@ -275,6 +263,70 @@ class MediaReceiversTest {
             assertThat(sink.events("carplay.screen.ended").single().fields[1]).isEqualTo("frames" to 1L)
             assertThat(fake.udp.all { it.closed }).isTrue()
             assertThat(fake.listeners.all { it.closed }).isTrue()
+        }
+
+    @Test
+    fun `the decoder is configured at the stream SETUP with the canvas info reported, before the screen connects`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started(CarPlayConfig(widthPixels = 1080, heightPixels = 2250, widthMillimetres = 68, maxFps = 58))
+            val airPlay = verified()
+            airPlay.setup(SESSION_SETUP)
+
+            val screenPort = airPlay.streams(SCREEN_SETUP).single().port("dataPort")
+            runCurrent()
+
+            // /info's maxFPS is maxFps down to a multiple of 5 (AirPlayInfoPlist.kt:211, AirPlayDisplaySettings.kt:30).
+            assertThat(fake.screen.calls).containsExactly(FakePorts.FakeScreen.Call.Configure(1080, 2250, 55))
+            assertThat(fake.listeners.single { it.port == screenPort }.closed).isFalse()
+        }
+
+    @Test
+    fun `a key frame request from the decoder goes to the iPhone as forceKeyFrame while the screen stream runs`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            val airPlay = verified()
+            val eventPort = airPlay.setup(SESSION_SETUP).port("eventPort")
+            val events = PhoneEvents(fake.listeners.single { it.port == eventPort }.connect(), airPlay.secret())
+            val screenPort = airPlay.streams(SCREEN_SETUP).single().port("dataPort")
+            fake.listeners.single { it.port == screenPort }.connect()
+            runCurrent()
+
+            fake.screen.needKeyFrame()
+            runCurrent()
+            val command = events.read()
+
+            // DiPlay's main-screen request has no params (CarPlayMediaEngine.kt:149-153); bytes from plistlib.
+            assertThat(command.startLine).isEqualTo("POST /command RTSP/1.0")
+            assertThat(command.body.toHex()).isEqualTo(FORCE_KEY_FRAME)
+            assertThat(sink.events("carplay.screen.force_key_frame").single().fields).isEqualTo(listOf("sent" to true))
+        }
+
+    @Test
+    fun `no key frame is asked for once the screen is torn down, and a new screen stream asks again`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            val airPlay = verified()
+            val eventPort = airPlay.setup(SESSION_SETUP).port("eventPort")
+            val events = PhoneEvents(fake.listeners.single { it.port == eventPort }.connect(), airPlay.secret())
+            val firstPort = airPlay.streams(SCREEN_SETUP).single().port("dataPort")
+            fake.listeners.single { it.port == firstPort }.connect()
+            runCurrent()
+            airPlay.request("TEARDOWN", "rtsp://192.168.49.1/1", hex(TEARDOWN_SCREEN), contentType = PLIST)
+            runCurrent()
+
+            fake.screen.needKeyFrame()
+            val next = backgroundScope.async { events.read() }
+            runCurrent()
+            assertThat(next.isCompleted).isFalse()
+
+            val secondPort = airPlay.streams(SCREEN_SETUP).single().port("dataPort")
+            fake.listeners.single { it.port == secondPort }.connect()
+            runCurrent()
+            fake.screen.needKeyFrame()
+            runCurrent()
+
+            assertThat(next.await().body.toHex()).isEqualTo(FORCE_KEY_FRAME)
+            assertThat(next.await().headers["cseq"]).isEqualTo("1")
         }
 
     @Test
@@ -352,6 +404,16 @@ class MediaReceiversTest {
         const val SESSION_SETUP =
             "62706c6973743030d201020304556d6f64656c5a74696d696e67506f72745a6950686f6e6531352c3211c822080d131e29" +
                 "000000000000010100000000000000050000000000000000000000000000002c"
+
+        /** {streams: [{type 110}]}, from plistlib. */
+        const val TEARDOWN_SCREEN =
+            "62706c6973743030d101025773747265616d73a103d104055474797065106e080b1315181d0000000000000101000000" +
+                "00000000060000000000000000000000000000001f"
+
+        /** {type: "forceKeyFrame"}, from plistlib. */
+        const val FORCE_KEY_FRAME =
+            "62706c6973743030d1010254747970655d666f7263654b65794672616d65080b10000000000000010100000000000000" +
+                "030000000000000000000000000000001e"
 
         /** {streams: [{type: 110, streamConnectionID: 4575630486994831421}]}, from plistlib. */
         const val SCREEN_SETUP =

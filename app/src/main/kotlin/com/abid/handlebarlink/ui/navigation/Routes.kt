@@ -26,6 +26,13 @@ data object RidesRoute : NavKey
 @Serializable
 data object CarPlayRoute : NavKey
 
+/**
+ * The CarPlay display: the iPhone's CarPlay full screen, pushed over the CarPlay tab while connected; Back returns to
+ * the tab and CarPlay keeps running (docs/PLAN.md C4).
+ */
+@Serializable
+data object CarPlayDisplayRoute : NavKey
+
 /** Garage tab. */
 @Serializable
 data object GarageRoute : NavKey
