@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.session
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
@@ -33,16 +34,20 @@ internal class SessionPlugins(
  * configuration, the media factory and the rider's touches.
  */
 internal class SessionPlatform(
-    val network: NetworkPort,
+    /** Sockets (`network`) and the platform's cipher name. */
+    private val ports: CarPlayPorts,
     /** The addresses the AirPlay listener is bound to; the session's TCP listeners use the same. */
     val addresses: List<String>,
-    val cipherName: String,
     val time: TimeProvider,
     val config: CarPlayConfig,
     private val plugins: SessionPlugins,
+    /** The attempt's iAP2 hand-over from Bluetooth to the tunnel a session opens. */
+    val handoff: WirelessHandoff,
     /** What `/info` offered the microphone this attempt; the audio streams record only with it. */
     val microphone: MicrophoneOffer = MicrophoneOffer.NONE,
 ) {
+    val network: NetworkPort get() = ports.network
+    val cipherName: String get() = ports.cipherName
     val media: MediaFactory get() = plugins.media
     val touches: TouchInput get() = plugins.touches
     val controls: ControlInput get() = plugins.controls

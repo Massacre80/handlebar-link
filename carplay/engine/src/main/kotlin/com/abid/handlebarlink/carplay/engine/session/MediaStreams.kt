@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
+import com.abid.handlebarlink.carplay.protocol.stream.IapTunnelReader
 import com.abid.handlebarlink.carplay.protocol.stream.StreamKeys
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
@@ -12,9 +13,9 @@ import kotlinx.coroutines.launch
  * declined or unknown is left out of the reply and the request still succeeds. A stream replaces an open one with the
  * same type (screen) or the same type and audio type (audio).
  *
- * Declined here: 103 (buffered audio is not offered in `/info`, AirPlaySession.kt:768-776) and 130 (the iAP2 tunnel,
- * docs/PLAN.md C5). At most [MAX_OPEN_STREAMS] streams are open at once: audio types are free text, so without a cap
- * one SETUP could open sockets without limit (DiPlay has none).
+ * Declined here: 103 (buffered audio is not offered in `/info`, AirPlaySession.kt:768-776) and every type-130 data
+ * stream but the iAP2 tunnel (video in car is not offered). At most [MAX_OPEN_STREAMS] streams are open at once: audio
+ * types are free text, so without a cap one SETUP could open sockets without limit (DiPlay has none).
  */
 internal class MediaStreams(
     private val context: SessionContext,
@@ -38,7 +39,8 @@ internal class MediaStreams(
                     stream == null || type == null -> null
                     type == MAIN_SCREEN || type == ALT_SCREEN -> screen(type, stream)
                     type == MAIN_AUDIO || type == ALT_AUDIO || type == MAIN_HIGH_AUDIO -> audio(type, stream)
-                    else -> declined(type, if (type in KNOWN_DECLINED) "not offered" else "unsupported")
+                    type == DATA -> data(stream)
+                    else -> context.declined(type, if (type in KNOWN_DECLINED) "not offered" else "unsupported")
                 }
             }
         return Plist.dict("streams" to accepted)
@@ -52,8 +54,8 @@ internal class MediaStreams(
         val id = stream["streamConnectionID"] as? Plist.Integer
         if (id != null) open.remove(type.toString())?.job?.cancel()
         return when {
-            id == null -> declined(type, NO_ID)
-            open.size >= MAX_OPEN_STREAMS -> declined(type, TOO_MANY)
+            id == null -> context.declined(type, NO_ID)
+            open.size >= MAX_OPEN_STREAMS -> context.declined(type, TOO_MANY)
             else -> openScreen(type, stream, id)
         }
     }
@@ -93,11 +95,11 @@ internal class MediaStreams(
         val id = stream["streamConnectionID"] as? Plist.Integer
         return when {
             id == null -> {
-                declined(type, NO_ID)
+                context.declined(type, NO_ID)
             }
 
             open.size >= MAX_OPEN_STREAMS -> {
-                declined(type, TOO_MANY)
+                context.declined(type, TOO_MANY)
             }
 
             else -> {
@@ -163,12 +165,40 @@ internal class MediaStreams(
         )
     }
 
-    private fun declined(
-        type: Int,
-        reason: String,
-    ): Plist? {
-        context.log.info("carplay.airplay.stream_declined", "type" to type, "reason" to reason)
-        return null
+    /**
+     * The iAP2 tunnel (CarPlayMediaEngine.kt:379-443): declined, as DiPlay returns null, for another `clientTypeUUID`
+     * (compared upper-cased), without a `seed`, or before the bootstrap has its setup. The reply is
+     * `{type 130, streamID 1, dataPort[, streamConnectionID]}` (:437-442), the id echoed as received ([openAudio]).
+     * A new tunnel SETUP replaces the open one (DiPlay `replacePendingIapTunnel`, :605-608); see [IapTunnel.start].
+     */
+    private suspend fun data(stream: Plist.Dict): Plist? {
+        val uuid = stream.text("clientTypeUUID")?.uppercase()
+        val seed = stream["seed"] as? Plist.Integer
+        val bootstrap = context.platform.handoff.setup
+        return when {
+            uuid != IapTunnelReader.CLIENT_TYPE_UUID -> {
+                context.declined(DATA, "unsupported data stream")
+            }
+
+            seed == null -> {
+                context.declined(DATA, "no seed")
+            }
+
+            bootstrap == null -> {
+                context.declined(DATA, "no bootstrap")
+            }
+
+            open.size - (if (open.containsKey(TUNNEL)) 1 else 0) >= MAX_OPEN_STREAMS -> {
+                context.declined(DATA, TOO_MANY)
+            }
+
+            else -> {
+                val started =
+                    IapTunnel.start(context, commands, stream, seed) { open.remove(TUNNEL)?.job?.cancel() }
+                track(TUNNEL, Open(DATA, started.job, null)) { started.listener.close() }
+                started.reply
+            }
+        }
     }
 
     private fun track(
@@ -212,7 +242,10 @@ internal class MediaStreams(
         const val DATA = 130
 
         /** Kinds DiPlay knows (AirPlaySession.kt:1015-1021) that this receiver does not take yet. */
-        private val KNOWN_DECLINED = setOf(MAIN_BUFFERED_AUDIO, DATA)
+        private val KNOWN_DECLINED = setOf(MAIN_BUFFERED_AUDIO)
+
+        /** The open tunnel's key in [open]. */
+        private const val TUNNEL = "130/iap"
 
         /** Ten audio kinds (`/info` audioFormats) plus the screen and spares. */
         const val MAX_OPEN_STREAMS = 16
@@ -238,4 +271,13 @@ internal class MediaStreams(
                 ?.map { it.first }
         }
     }
+}
+
+/** Logs a stream the SETUP leaves out of its reply; returns null, its place in the reply. */
+internal fun SessionContext.declined(
+    type: Int,
+    reason: String,
+): Plist? {
+    log.info("carplay.airplay.stream_declined", "type" to type, "reason" to reason)
+    return null
 }

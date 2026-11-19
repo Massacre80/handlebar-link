@@ -9,3 +9,8 @@ and ChaCha20-Poly1305. Run 2026-11-19 with Python 3.15.2 and cryptography 50.0.2
 
 The DataStream-Salt12345 keys match those in docs/research/carplay-spec/C-airplay-pairing.md §9.2, which
 were computed separately with Python's standard library.
+
+`iap_tunnel_vectors.py` computes the iAP2 tunnel frames and records that `IapTunnelReaderTest` compares against,
+written from DiPlay's IapTunnel.kt (same Python and `cryptography`, run 2026-11-19):
+
+    python3 -I iap_tunnel_vectors.py

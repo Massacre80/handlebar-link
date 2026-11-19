@@ -40,6 +40,10 @@ internal interface BootstrapMilestones {
  * most 3), 0x4E0E → Wi-Fi configuration again; CallStateUpdates (0x4155, asked for by the 0x4154 subscription) go to
  * [calls], as DiPlay forwards them from this loop (Iap2WirelessControlClient.kt:32, CarPlayController.kt:942-943).
  *
+ * The same client runs again over the AirPlay iAP2 tunnel once the iPhone opens it, as DiPlay runs
+ * `Iap2WirelessControlClient` on both links (CarPlayController.kt:1783-1802, 1914-1931): the same identification,
+ * authentication, subscriptions and answers ([IapTunnel]); only the Bluetooth link is nudged.
+ *
  * Unlike DiPlay, a message we do not expect during identification or authentication is logged and skipped
  * instead of aborting (spec B §7.10): a stray 0x4E0D must not cost a whole reconnect. [nudge] re-sends the Wi-Fi
  * configuration and StartSession when no AirPlay connection follows (AllPlay, E-connection.md #3).
@@ -86,7 +90,7 @@ internal class BootstrapControl(
                 }
             }
         }
-        log.info("carplay.iap2.identified")
+        log.info("carplay.iap2.identified", "link" to channel.name)
     }
 
     /** MFi authentication; returns on AuthenticationSucceeded. */
@@ -116,7 +120,7 @@ internal class BootstrapControl(
                 }
             }
         }
-        log.info("carplay.iap2.authenticated")
+        log.info("carplay.iap2.authenticated", "link" to channel.name)
         WirelessCarPlayMessages.subscriptions().forEach { channel.send(it) }
     }
 
@@ -143,7 +147,7 @@ internal class BootstrapControl(
                 }
 
                 Iap2MessageId.WIRELESS_CARPLAY_UPDATE -> {
-                    log.info("carplay.iap2.wireless_update")
+                    log.info("carplay.iap2.wireless_update", "link" to channel.name)
                 }
 
                 CallStateUpdate.MESSAGE_ID -> {
@@ -182,14 +186,14 @@ internal class BootstrapControl(
     private suspend fun sendStartSession(reason: String) {
         channel.send(WirelessCarPlayMessages.startSession(setup.startSession))
         lastStartSessionAt = time.elapsedMillis()
-        log.info("carplay.iap2.start_session", "reason" to reason)
+        log.info("carplay.iap2.start_session", "link" to channel.name, "reason" to reason)
         milestones.startSessionSent()
         firstStartSession.complete(Unit)
     }
 
     private suspend fun offerWifi(reason: String) {
         channel.send(WirelessCarPlayMessages.wifiConfiguration(setup.startSession.network))
-        log.info("carplay.iap2.wifi_offered", "reason" to reason)
+        log.info("carplay.iap2.wifi_offered", "link" to channel.name, "reason" to reason)
         milestones.wifiOffered()
     }
 
@@ -214,7 +218,12 @@ internal class BootstrapControl(
         return WirelessCarPlayMessages.authenticationResponse(setup.mfi.sign(challenge))
     }
 
-    private fun skip(message: Iap2Message) = log.debug("carplay.iap2.skipped", "id" to hex(message.id))
+    private fun skip(message: Iap2Message) =
+        log.debug(
+            "carplay.iap2.skipped",
+            "link" to channel.name,
+            "id" to hex(message.id),
+        )
 
     /** DiPlay's caps on Wi-Fi configuration replies (Iap2WirelessControlClient.kt:247-248). */
     private class WifiOffers {

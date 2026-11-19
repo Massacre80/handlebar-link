@@ -6,6 +6,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.runtime.RuntimeEnv
 import com.abid.handlebarlink.carplay.engine.spi.BonjourService
+import com.abid.handlebarlink.carplay.engine.spi.ByteStream
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
@@ -35,9 +36,10 @@ import kotlinx.coroutines.withTimeoutOrNull
  * group and opens the AirPlay control connection, which must pass pair-verify.
  *
  * [run] lasts as long as the verified control connection and always ends with a [CarPlayException] (or
- * cancellation). Everything it opened is closed in reverse order, also when cancelled. Losing Bluetooth
- * after the AirPlay connection is verified is normal (the iPhone moves iAP2 into the Wi-Fi session) and is
- * only logged.
+ * cancellation). Everything it opened is closed in reverse order, also when cancelled. Once the AirPlay connection
+ * is verified the iPhone moves iAP2 into the Wi-Fi session: a session's type-130 tunnel and `disableBluetooth` let
+ * [WirelessHandoff] close the RFCOMM bootstrap, as DiPlay does (spec D §1.5); losing Bluetooth after the verification
+ * is otherwise only logged.
  *
  * Connection improvements from docs/research/carplay-spec/E-connection.md: Bonjour runs beside the bootstrap and
  * never blocks it (#4), the addresses go IPv4 first (#7), StartSession is nudged when no TCP follows (#3), and a
@@ -87,7 +89,9 @@ internal class WirelessAttempt(
         env.log.info("carplay.airplay.listening", "port" to listener.port)
         val offer = microphone.await()
         val receiver = receiver(credentials, group, offer)
-        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, config, plugins, offer)
+        val ended = CompletableDeferred<CarPlayException>()
+        val handoff = WirelessHandoff(this, plugins.calls, env.time, env.log) { ended.complete(it) }
+        val platform = SessionPlatform(ports, addresses, env.time, config, plugins, handoff, offer)
         val control = { connection: TcpConnection ->
             AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, platform, env.log)
         }
@@ -102,22 +106,10 @@ internal class WirelessAttempt(
         // A dial that finished while the group came up is used even when the group took the whole dial time.
         val stream = if (dial.isCompleted) dial.await() else step(dialLeft, ConnectStep.DIALING_PHONE) { dial.await() }
         env.log.info("carplay.bluetooth.dialed", "after_ms" to env.time.elapsedMillis() - dialStart)
-        val channel = Iap2Channel(stream, env.time, env.log)
         val startSessionSent = CompletableDeferred<Unit>()
         val tcpArrived = CompletableDeferred<Unit>()
-        launch {
-            bootstrap(
-                channel,
-                BootstrapSetup(
-                    identity(credentials),
-                    ports.bluetooth.localAddress(),
-                    credentials.mfi,
-                    startSession(group, addresses, listener, credentials),
-                ),
-                startSessionSent,
-                tcpArrived,
-            )
-        }
+        handoff.setup = bootstrapSetup(credentials, group, addresses, listener)
+        startBootstrap(stream, handoff, startSessionSent, tcpArrived)
 
         step(START_SESSION_TIMEOUT, ConnectStep.AUTHENTICATING) { startSessionSent.await() }
         onStep(ConnectStep.WAITING_FOR_PHONE)
@@ -125,7 +117,6 @@ internal class WirelessAttempt(
         tcpArrived.complete(Unit)
         watch.tcpAccepted()
         onStep(ConnectStep.PAIRING)
-        val ended = CompletableDeferred<CarPlayException>()
         launch { serve(first, control, ended) }
         launch { acceptMore(listener, control, ended) }
         val phone = step(PAIRING_TIMEOUT, ConnectStep.PAIRING) { verified.await() }
@@ -148,10 +139,30 @@ internal class WirelessAttempt(
         }
     }
 
+    /** Launches the bootstrap on [stream]; [handoff] may close it (the coroutine, then the socket). */
+    private fun CoroutineScope.startBootstrap(
+        stream: ByteStream,
+        handoff: WirelessHandoff,
+        startSessionSent: CompletableDeferred<Unit>,
+        tcpArrived: CompletableDeferred<Unit>,
+    ) {
+        val channel = Iap2Channel(stream, env.time, env.log)
+        val setup = checkNotNull(handoff.setup)
+        val bootstrap =
+            launch(start = CoroutineStart.LAZY) { bootstrap(channel, setup, handoff, startSessionSent, tcpArrived) }
+        // DiPlay closeBluetoothBootstrapTransport (CarPlayController.kt:2221-2237): the iAP2 session, then the socket.
+        handoff.bluetoothOpened {
+            bootstrap.cancel()
+            stream.close()
+        }
+        bootstrap.start()
+    }
+
     /** iAP2 over Bluetooth until the iPhone hands over to Wi-Fi; fatal only before AirPlay is verified. */
     private suspend fun bootstrap(
         channel: Iap2Channel,
         setup: BootstrapSetup,
+        handoff: WirelessHandoff,
         startSessionSent: CompletableDeferred<Unit>,
         tcpArrived: CompletableDeferred<Unit>,
     ) {
@@ -182,8 +193,8 @@ internal class WirelessAttempt(
             if (!verified.isCompleted) throw e
             env.log.info("carplay.bootstrap.ended", "reason" to e.error)
         } finally {
-            // Nothing reports calls once this link is gone (also when the attempt ends): never keep a stale ring.
-            plugins.calls.clear("bootstrap ended")
+            // Unless the tunnel carries them now, nothing reports calls once this link is gone: no stale ring.
+            handoff.bluetoothEnded()
         }
     }
 
@@ -257,34 +268,39 @@ internal class WirelessAttempt(
         microphone = microphone,
     )
 
-    private fun identity(credentials: CarPlayCredentials) =
-        AccessoryIdentity(
-            name = config.name,
-            model = config.model,
-            manufacturer = config.manufacturer,
-            serialNumber =
-                "HL-" +
-                    credentials.airPlay.publicKeyHex
-                        .take(SERIAL_HEX)
-                        .uppercase(),
-            firmwareVersion = "1.0",
-            hardwareVersion = "1.0",
-            externalAccessoryProtocol = "com.abid.handlebarlink",
-        )
-
-    private fun startSession(
+    /** What the bootstrap and the tunnel tell the iPhone: identity, Bluetooth address, MFi and StartSession. */
+    private fun bootstrapSetup(
+        credentials: CarPlayCredentials,
         group: WifiGroup,
         addresses: List<String>,
         listener: TcpListener,
-        credentials: CarPlayCredentials,
-    ) = StartSession(
-        network = group.network,
-        // Every bound address, IPv4 first, without the IPv6 scope (DiPlay CarPlayController.kt:1753-1755, 3404-3410).
-        ipAddresses = addresses.map { it.substringBefore('%') }.distinct(),
-        airPlayPort = listener.port,
-        deviceId = group.interfaceMac,
-        publicKeyHex = credentials.airPlay.publicKeyHex,
-        sourceVersion = AirPlayReceiver.SOURCE_VERSION,
+    ) = BootstrapSetup(
+        identity =
+            AccessoryIdentity(
+                name = config.name,
+                model = config.model,
+                manufacturer = config.manufacturer,
+                serialNumber =
+                    "HL-" +
+                        credentials.airPlay.publicKeyHex
+                            .take(SERIAL_HEX)
+                            .uppercase(),
+                firmwareVersion = "1.0",
+                hardwareVersion = "1.0",
+                externalAccessoryProtocol = "com.abid.handlebarlink",
+            ),
+        bluetoothMac = ports.bluetooth.localAddress(),
+        mfi = credentials.mfi,
+        startSession =
+            StartSession(
+                network = group.network,
+                // Every bound address, IPv4 first, without the IPv6 scope (CarPlayController.kt:1753-1755, 3404-3410).
+                ipAddresses = addresses.map { it.substringBefore('%') }.distinct(),
+                airPlayPort = listener.port,
+                deviceId = group.interfaceMac,
+                publicKeyHex = credentials.airPlay.publicKeyHex,
+                sourceVersion = AirPlayReceiver.SOURCE_VERSION,
+            ),
     )
 
     /** Runs [block] within [timeoutMillis]; a timeout fails the attempt as [step] (never a silent cancellation). */

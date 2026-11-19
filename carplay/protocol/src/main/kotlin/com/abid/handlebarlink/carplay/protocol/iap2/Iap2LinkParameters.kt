@@ -88,6 +88,19 @@ public data class Iap2LinkParameters(
             )
 
         /**
+         * What we advertise on the iAP2 link inside the AirPlay type-130 tunnel: DiPlay's zero-acknowledgement SYN
+         * `01 04 FFFF 0000 0000 00 00 0A0002 0B0201 0C0102` (`Iap2LinkChannel.openTunnel` uses `WIRED_LINK_CONFIG`,
+         * Iap2LinkChannel.kt:361-365, 394-399; the zeros from Iap2LinkEngine.kt:601-613; spec A §7.2 B).
+         */
+        public val TUNNEL: Iap2LinkParameters =
+            WIRELESS.copy(
+                retransmitMillis = 0,
+                acknowledgeMillis = 0,
+                maxRetransmissions = 0,
+                maxCumulativeAcknowledgements = 0,
+            )
+
+        /**
          * Parses a peer's SYN payload; null when it is too short or another version
          * (DiPlay Iap2LinkEngine.kt:85-104).
          */

@@ -276,7 +276,7 @@ class AirPlaySessionTest {
         }
 
     @Test
-    fun `the stream SETUP answers screen and audio in request order with their keys and declines the rest`() =
+    fun `the stream SETUP answers screen, audio and the iAP2 tunnel in request order and declines the rest`() =
         runTest(timeout = TEST_TIMEOUT) {
             started()
             val airPlay = verified()
@@ -287,7 +287,8 @@ class AirPlaySessionTest {
 
             assertThat(response.status).isEqualTo(200)
             val streams = checkNotNull(response.plist().array("streams")).map { it as Plist.Dict }
-            assertThat(streams.map { it.long("type") }).containsExactly(110L, 100L, 101L)
+            assertThat(streams.map { it.long("type") }).containsExactly(110L, 100L, 101L, 130L)
+            assertThat(streams[3].entries.keys.toList()).containsExactly("type", "streamID", "dataPort")
             assertThat(streams[0].entries.keys.toList()).containsExactly("type", "dataPort")
             assertThat(streams[1].entries.keys.toList())
                 .containsExactly("type", "dataPort", "controlPort", "streamConnectionID")
@@ -315,7 +316,7 @@ class AirPlaySessionTest {
             assertThat(alt101.audioType).isEqualTo("default")
             assertThat(alt101.key.toHex()).isEqualTo(streamKey(airPlay, "77").toHex())
             assertThat(sink.events("carplay.airplay.stream_declined").map { it.fields.first().second })
-                .containsExactly(130, 103, 999, 110)
+                .containsExactly(103, 999, 110)
 
             listener(streams[0].port("dataPort")).connect()
             runCurrent()

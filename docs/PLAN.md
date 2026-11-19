@@ -623,6 +623,44 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
 - **Open (device):** whether the iPhone keeps sending CallStateUpdates on Bluetooth while we decline the type-130
   iAP2 tunnel (DiPlay forwards them from both links; `CarPlayController.kt:1796, 1927`). If it moves them to the
   tunnel, the tunnel's iAP2 must feed the same `CallStates`. Device steps: see the C5 controls report (2026-11-19).
+  Superseded by "C5 tunnel" below: the tunnel is now taken and feeds the same `CallStates`.
+
+### C5 tunnel: the iAP2 hand-over from Bluetooth to Wi-Fi (2026-11-19, worktree `carplay-c5`)
+
+Why: on our CarPlay the owner's iPhone lost its internet, on CarLink on the same Poco it did not. The one protocol
+difference left: CarLink takes the iPhone's type-130 iAP2 tunnel, re-identifies over it and closes RFCOMM 0.5 s after
+the iPhone's `/command disableBluetooth`; we declined the tunnel and kept iAP2 and Bluetooth up all session (DiPlay's
+`WirelessActiveFallback`). Code: `:carplay:protocol` `stream/IapTunnelReader.kt`, `Iap2Link(…, initiate)`,
+`Iap2LinkParameters.TUNNEL`; `:carplay:engine` `session/IapTunnel.kt`, `session/WirelessHandoff.kt`, `MediaStreams.data`.
+- **SETUP** (CarPlayMediaEngine.kt:379-443): a type-130 stream with `clientTypeUUID` `E9459FD0-BCAD-4C45-820F-1E72447EF2F2`
+  (any case) and a `seed` gets `{type 130, streamID 1, dataPort[, streamConnectionID as received]}` and a TCP listener on
+  the group's addresses; other data streams (video in car) and one without a seed are declined. A new tunnel SETUP
+  replaces the open one; TEARDOWN of 130 (streamID 1 or none) closes it.
+- **Wire** (IapTunnel.kt, AirPlayIapTunnelStream.kt): iPhone to us on the data connection, accepted only from the
+  control connection's address within 15 s: ChaCha20-Poly1305 frames (`u16 LE length` as AAD, nonce 4 zero bytes + LE64
+  counter from 0, key `HKDF-SHA512(shared, "DataStream-Salt" + seed, "DataStream-Output-Encryption-Key")`) holding
+  32-byte APTransportPackage records (size u32 BE at 0, type at 16); only `comm` bodies are iAP2. Us to the iPhone:
+  `POST /command {type: "iAPSendMessage", params: {data}}` on the event channel (waits up to 10 s for it). The iPhone
+  closing the data connection is not the end: its next connection carries on with the counter at 0.
+- **iAP2 over it:** the same `Iap2Channel` and `BootstrapControl` as Bluetooth, no second implementation. The link
+  initiates (marker and SYN in one write) with DiPlay's zero-acknowledgement SYN `01 04 FFFF 0000 0000 00 00 …`
+  (Iap2LinkChannel.openTunnel); then the same identification, MFi authentication, five subscriptions and answers
+  (0x5702/0x4E0E → 0x5703, 0x4300 → 0x4301); its CallStateUpdates go to the same `CallStates`. HID never used iAP2 (it
+  goes as `hidSendReport` on the event channel), so nothing else moves.
+- **Hand-over** (`WirelessHandoff`, CarPlayController.kt:506-525, 2064-2208): tunnel ready (subscriptions sent) and
+  `disableBluetooth` (also `disable-bluetooth`, any case), in either order, close the RFCOMM bootstrap (its coroutine,
+  then the socket). Calls are forgotten only when the last link carrying them ends.
+- **Fallback:** a request with no ready tunnel after 45 s keeps Bluetooth (`carplay.handoff.fallback`); a tunnel that
+  becomes ready later still takes over. Deliberate difference (owner, 2026-11-19): DiPlay fails the whole connection
+  when the tunnel fails; here a tunnel failing while Bluetooth is open only falls back to Bluetooth. After we closed
+  Bluetooth nothing else carries iAP2, so the tunnel ending then ends the attempt and the runtime reconnects (DiPlay).
+- **Logs** (device check): `carplay.iap2.tunnel.setup {dataPort}`, `carplay.iap2.tunnel.connected {peer}`,
+  `carplay.iap2.connected {link=tunnel}`, `carplay.iap2.identified {link=tunnel}`, `carplay.iap2.tunnel.ready
+  {handoffRequested}`, `carplay.handoff.requested {tunnel}`, `carplay.handoff.bluetooth_closed {after_request_ms,
+  was_open, from}`; on trouble `carplay.handoff.fallback {reason}`, `carplay.iap2.tunnel.ended {reason}`,
+  `carplay.iap2.tunnel.peer_eof`, `carplay.handoff.tunnel_lost`.
+- **Unverified on the device:** that the iPhone completes identification and authentication over our tunnel, and
+  whether the iPhone's internet then behaves as on CarLink.
 
 ### C5 audio: sound and the microphone (2026-11-19, worktree `carplay-c5-audio`)
 

@@ -33,6 +33,40 @@ class Iap2LinkTest {
     }
 
     @Test
+    fun `the tunnel link sends the marker and DiPlay's zero-acknowledgement SYN at once, then repeats only the SYN`() {
+        val link = Iap2Link(Iap2LinkParameters.TUNNEL, initiate = true)
+
+        link.start(0)
+
+        // Both in one write, as DiPlay's wired initiator (spec A §2: "Both land in one send()").
+        assertThat(link.drainOutput().toHex()).isEqualTo(MARKER + TUNNEL_SYN)
+        assertThat(link.state).isEqualTo(Iap2Link.State.NEGOTIATING)
+        assertThat(link.nextDeadline()).isEqualTo(500L)
+        link.onTimer(499)
+        assertThat(link.drainOutput()).isEmpty()
+        link.onTimer(500)
+        assertThat(link.drainOutput().toHex()).isEqualTo(TUNNEL_SYN)
+        link.onTimer(1_000)
+        assertThat(link.drainOutput().toHex()).isEqualTo(TUNNEL_SYN)
+    }
+
+    @Test
+    fun `the tunnel link connects on the iPhone's SYN+ACK and skips a marker the iPhone sends first`() {
+        val link = Iap2Link(Iap2LinkParameters.TUNNEL, initiate = true).apply { start(0) }
+        link.drainOutput()
+
+        link.feed(MARKER + PEER_SYN_ACK)
+
+        assertThat(link.drainOutput().toHex()).isEqualTo(ACK_OF_PEER_SYN)
+        assertThat(link.state).isEqualTo(Iap2Link.State.CONNECTED)
+        assertThat(link.drainEvents().single()).isInstanceOf<Iap2LinkEvent.Connected>()
+        // Zero acknowledgements both ways: the iPhone's data is delivered and never acknowledged.
+        link.feed(PEER_DATA_145)
+        assertThat(link.drainOutput()).isEmpty()
+        assertThat(link.nextDeadline()).isNull()
+    }
+
+    @Test
     fun `the iPhone's marker answer makes the link send DiPlay's wireless SYN`() {
         val link = started()
 
@@ -383,6 +417,9 @@ class Iap2LinkTest {
 
         // Spec A §7.2 A: DiPlay's wireless SYN, seq 99.
         const val WIRELESS_SYN = "ff5a001d80630000a7" + "0104ffff0fa001f404030a00020b02010c0102" + "29"
+
+        // Spec A §7.2 B: DiPlay's wired and tunnel SYN (zero-acknowledgement config), seq 99.
+        const val TUNNEL_SYN = "ff5a001d80630000a7" + "0104ffff0000000000000a00020b02010c0102" + "d4"
 
         // Spec A §7.2 C: peer SYN+ACK, seq 0x90, ack 99, zero-acknowledgement parameters.
         const val PEER_SYN_ACK = "ff5a001dc0906300d7" + "0104ffff0000000000000a00020b02010c0102" + "d4"

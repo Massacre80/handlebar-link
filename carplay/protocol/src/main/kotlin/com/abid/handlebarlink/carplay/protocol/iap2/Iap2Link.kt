@@ -18,17 +18,23 @@ public sealed interface Iap2LinkEvent {
 }
 
 /**
- * The iAP2 link layer over the RFCOMM stream, as a pure state machine: bytes and time go in, bytes to
- * write and events come out. No threads, no clock; the owner calls [onTimer] at [nextDeadline]. Not
+ * The iAP2 link layer over the RFCOMM stream or the AirPlay tunnel, as a pure state machine: bytes and time go in,
+ * bytes to write and events come out. No threads, no clock; the owner calls [onTimer] at [nextDeadline]. Not
  * thread-safe: one owner, one thread (the engine's dispatcher).
  *
  * Wireless handshake (DiPlay, spec A §2, §5.3): we send the marker every second until the iPhone echoes
  * it, then our SYN every 500 ms until the iPhone's SYN+ACK, which we acknowledge.
  *
+ * With [initiate] (the link inside the AirPlay type-130 tunnel, DiPlay `Iap2LinkChannel.openTunnel`,
+ * Iap2LinkChannel.kt:394-399) the marker and our SYN go out back to back without waiting for the iPhone's
+ * marker, and only the SYN repeats (Iap2LinkEngine.kt:173-179 with `wiredInitiator = true`, :318-325).
+ *
  * Any [Iap2LinkException] leaves the link [State.FAILED]; open a new one for the next connection.
  */
 public class Iap2Link(
     local: Iap2LinkParameters = Iap2LinkParameters.WIRELESS,
+    /** Start synchronizing at once instead of waiting for the iPhone's marker (the tunnel). */
+    private val initiate: Boolean = false,
 ) {
     /** The link's phase. */
     public enum class State {
@@ -57,12 +63,17 @@ public class Iap2Link(
     /** The largest payload the iPhone accepts in one frame; null before [Iap2LinkEvent.Connected]. */
     public val maxPayloadBytes: Int? get() = machine.peer?.maxPayloadBytes
 
-    /** Starts detection: queues the marker. */
+    /** Starts detection: queues the marker; with [initiate] also our SYN, and the marker is not repeated. */
     public fun start(now: Long) {
         check(machine.state == State.IDLE) { "iAP2 link already started" }
-        machine.state = State.DETECTING
         machine.writer.marker()
-        machine.markerDue = now + LinkMachine.MARKER_RESEND_MILLIS
+        if (initiate) {
+            machine.state = State.NEGOTIATING
+            machine.sendSynchronize(now)
+        } else {
+            machine.state = State.DETECTING
+            machine.markerDue = now + LinkMachine.MARKER_RESEND_MILLIS
+        }
     }
 
     /**

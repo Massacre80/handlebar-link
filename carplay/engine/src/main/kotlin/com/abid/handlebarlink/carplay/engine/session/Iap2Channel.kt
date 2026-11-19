@@ -21,17 +21,20 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Runs the pure [Iap2Link] over the RFCOMM [stream]: a read loop feeds received bytes, a timer loop runs
- * resends and acknowledgements at the link's deadlines, and every output is written in the order the
- * link produced it. Control-session messages come out of [receive]. All link access happens on the
- * engine's single-threaded dispatcher.
+ * Runs the pure [Iap2Link] over [stream] (the RFCOMM socket, or the AirPlay iAP2 tunnel with a link that initiates,
+ * DiPlay `Iap2LinkChannel.openTunnel`): a read loop feeds received bytes, a timer loop runs resends and
+ * acknowledgements at the link's deadlines, and every output is written in the order the link produced it.
+ * Control-session messages come out of [receive]. All link access happens on the engine's single-threaded dispatcher.
+ * The same code serves both links, so the tunnel speaks the iAP2 that the Bluetooth bootstrap does.
  */
 internal class Iap2Channel(
     private val stream: ByteStream,
     private val time: TimeProvider,
     private val log: Logger,
+    /** Which link this is, in logs: "bluetooth" or "tunnel". */
+    val name: String = BLUETOOTH,
+    private val link: Iap2Link = Iap2Link(),
 ) {
-    private val link = Iap2Link()
     private val control = Iap2ControlStream()
     private val incoming = Channel<Iap2Message>(Channel.UNLIMITED)
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -81,7 +84,7 @@ internal class Iap2Channel(
         } catch (e: Iap2LinkException) {
             throw CarPlayException(CarPlayError.LinkFailed(e.message ?: "iAP2 send failed"), e)
         }
-        log.debug("carplay.iap2.tx", "id" to "0x%04X".format(message.id))
+        log.debug("carplay.iap2.tx", "link" to name, "id" to "0x%04X".format(message.id))
         flush()
     }
 
@@ -89,7 +92,7 @@ internal class Iap2Channel(
         val buffer = ByteArray(READ_CHUNK)
         while (true) {
             val count = stream.read(buffer)
-            if (count < 0) throw CarPlayException(CarPlayError.LinkFailed("iPhone closed the Bluetooth link"))
+            if (count < 0) throw CarPlayException(CarPlayError.LinkFailed("iPhone closed the $name link"))
             link.receive(buffer, 0, count, time.elapsedMillis())
             flush()
         }
@@ -122,7 +125,7 @@ internal class Iap2Channel(
     private suspend fun deliver(event: Iap2LinkEvent) {
         when (event) {
             is Iap2LinkEvent.Connected -> {
-                log.info("carplay.iap2.connected", "maxPayload" to event.peer.maxPayloadBytes)
+                log.info("carplay.iap2.connected", "link" to name, "maxPayload" to event.peer.maxPayloadBytes)
                 connected.complete(event.peer)
             }
 
@@ -142,8 +145,11 @@ internal class Iap2Channel(
         incoming.send(message)
     }
 
-    private companion object {
+    companion object {
+        const val BLUETOOTH = "bluetooth"
+        const val TUNNEL = "tunnel"
+
         /** DiPlay's read chunk (BluetoothRfcommDuplexStream.kt READ_CHUNK_BYTES). */
-        const val READ_CHUNK = 8_192
+        private const val READ_CHUNK = 8_192
     }
 }
