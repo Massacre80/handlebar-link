@@ -19,14 +19,18 @@ internal data class BondedDevice(
  * Two deliberate differences: "connected" comes from ACL broadcasts, not DiPlay's reflection on the hidden
  * `isConnected` (AGENTS.md: no hidden APIs); and DiPlay's last rule, "the only bonded device of any name", is left
  * out: on the bike the meter and the intercom are bonded too, so it would dial a device that is not a phone.
+ *
+ * iPhones the rider [forgot] in the app (upper-case addresses, pairing/IphoneChoices) are left out of the automatic
+ * choice: they stay paired with Android, which offers apps no public way to unpair.
  */
 internal object IphoneChoice {
     fun choose(
         chosenAddress: String?,
         bonded: List<BondedDevice>,
         connected: Set<String>,
+        forgot: Set<String> = emptySet(),
     ): BondedDevice {
-        val (device, problem) = pick(chosenAddress, bonded, connected)
+        val (device, problem) = pick(chosenAddress, bonded.filterNot { it.address.uppercase() in forgot }, connected)
         return device ?: throw CarPlayException(CarPlayError.BluetoothUnavailable(problem))
     }
 

@@ -26,8 +26,12 @@ import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.NearbyDevice
 import com.abid.handlebarlink.ui.carplay.CarPlayScreen
 import com.abid.handlebarlink.ui.carplay.CarPlayUiState
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnected
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnecting
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnectingLine
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayNotSetUp
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayOff
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayWifiOff
 import com.abid.handlebarlink.ui.devices.AddDeviceActions
 import com.abid.handlebarlink.ui.devices.AddDeviceScreen
 import com.abid.handlebarlink.ui.devices.AddDeviceUiState
@@ -134,24 +138,27 @@ fun EmptyTabNight() = Garage(HlThemeVariant.NIGHT)
 @Composable
 fun EmptyTabBento() = Garage(HlThemeVariant.BENTO)
 
-// The CarPlay tab: the beta switch off (CarLink runs CarPlay) at every size, and on while connecting.
+// The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4, plus the switch off): no iPhone yet at every size, the
+// others at the artboard's size; each with large text.
 @Composable
 private fun CarPlay(
     variant: HlThemeVariant,
     state: CarPlayUiState,
-) = TabFrame(variant, selected = 2) { CarPlayScreen(state, onToggle = {}, contentPadding = it) }
+) = TabFrame(variant, selected = 2) {
+    CarPlayScreen(state, onAction = {}, onToggle = {}, onIphone = {}, contentPadding = it)
+}
 
 @PreviewTest
 @ScreenSizes
 @LargeText
 @Composable
-fun CarPlayOffNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayOff)
+fun CarPlayNotSetUpNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayNotSetUp)
 
 @PreviewTest
 @ScreenSizes
 @LargeText
 @Composable
-fun CarPlayOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayOff)
+fun CarPlayNotSetUpBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayNotSetUp)
 
 @PreviewTest
 @Artboard
@@ -165,12 +172,46 @@ fun CarPlayConnectingNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayConne
 @Composable
 fun CarPlayConnectingBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayConnecting)
 
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayConnectedNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayConnected)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayConnectedBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayConnected)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayWifiOffNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayWifiOff)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun CarPlayWifiOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayWifiOff)
+
+@PreviewTest
+@Artboard
+@Composable
+fun CarPlayOffNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayOff)
+
+@PreviewTest
+@Artboard
+@Composable
+fun CarPlayOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayOff)
+
 // Home's CarPlay card with our own receiver connecting (off, it keeps CarLink's line: HomeNight, HomeBento).
 @Composable
 private fun HomeCarPlay(variant: HlThemeVariant) =
     TabFrame(variant, selected = 0) {
         HomeScreen(
-            HomeUiState(LinkStatus.CONNECTED, carPlay = PreviewCarPlayConnecting.line),
+            HomeUiState(LinkStatus.CONNECTED, carPlay = PreviewCarPlayConnectingLine),
             onSettings = {},
             contentPadding = it,
         )

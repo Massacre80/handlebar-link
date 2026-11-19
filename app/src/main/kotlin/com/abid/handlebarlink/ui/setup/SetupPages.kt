@@ -293,7 +293,7 @@ private fun Wordmark(below: @Composable () -> Unit) {
 
 /** A centred muted line at the bottom, a touch target tall like the artboards. */
 @Composable
-private fun Footnote(
+internal fun Footnote(
     text: String,
     modifier: Modifier = Modifier,
 ) {
@@ -307,10 +307,10 @@ private fun Footnote(
 
 /**
  * The Bluetooth mark in the signal ring, its lit arc turning while Android works; [failed] stops it and
- * turns it to the danger colour (pairing did not finish).
+ * turns it to the danger colour (pairing did not finish). Also CarPlay's iPhone pairing (ui/carplay).
  */
 @Composable
-private fun WaitingRing(
+internal fun WaitingRing(
     failed: Boolean,
     modifier: Modifier = Modifier,
 ) {

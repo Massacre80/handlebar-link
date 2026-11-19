@@ -2,15 +2,19 @@ package com.abid.handlebarlink.di
 
 import android.content.Context
 import com.abid.handlebarlink.carplay.AndroidCarPlayPermissions
+import com.abid.handlebarlink.carplay.AndroidIphonePairing
 import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayPermissions
 import com.abid.handlebarlink.carplay.CarPlayPortsSource
 import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.DataStoreCarPlaySettings
+import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
 import com.abid.handlebarlink.carplay.engine.android.createAndroidCarPlayPorts
 import com.abid.handlebarlink.carplay.engine.android.createCarPlayScreen
+import com.abid.handlebarlink.carplay.engine.android.pairing.CarPlayPairing
+import com.abid.handlebarlink.carplay.engine.android.pairing.createCarPlayPairing
 import com.abid.handlebarlink.carplay.engine.createCarPlayLink
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
@@ -37,6 +41,9 @@ abstract class CarPlayModule {
     @Binds
     abstract fun carPlayPermissions(permissions: AndroidCarPlayPermissions): CarPlayPermissions
 
+    @Binds
+    abstract fun iphonePairing(pairing: AndroidIphonePairing): IphonePairing
+
     companion object {
         /**
          * The Android ports (`:carplay:engine-android`). Creating them only constructs objects, so this is safe
@@ -50,6 +57,19 @@ abstract class CarPlayModule {
             screen: CarPlayScreen,
         ): CarPlayPortsSource =
             CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen) }
+
+        /**
+         * In-app iPhone pairing and the rider's iPhone choice (`:carplay:engine-android`): Bluetooth calls and the
+         * choice's preferences on the IO dispatcher. Creating it only constructs objects (docs/LESSONS.md 60).
+         */
+        @Provides
+        @Singleton
+        fun carPlayPairing(
+            @ApplicationContext context: Context,
+            time: TimeProvider,
+            logger: Logger,
+            @IoDispatcher io: CoroutineDispatcher,
+        ): CarPlayPairing = createCarPlayPairing(context, time, logger.child("carplay"), io)
 
         /**
          * The CarPlay picture's hardware decoder: fed by the engine through the ports, shown by the CarPlay display.
