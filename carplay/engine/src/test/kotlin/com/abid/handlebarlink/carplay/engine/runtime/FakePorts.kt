@@ -2,6 +2,9 @@ package com.abid.handlebarlink.carplay.engine.runtime
 
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.AudioPlayer
+import com.abid.handlebarlink.carplay.engine.spi.AudioPort
+import com.abid.handlebarlink.carplay.engine.spi.AudioStreamInfo
 import com.abid.handlebarlink.carplay.engine.spi.BluetoothPort
 import com.abid.handlebarlink.carplay.engine.spi.BonjourPort
 import com.abid.handlebarlink.carplay.engine.spi.BonjourService
@@ -10,6 +13,9 @@ import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
 import com.abid.handlebarlink.carplay.engine.spi.Datagram
 import com.abid.handlebarlink.carplay.engine.spi.GroupClients
+import com.abid.handlebarlink.carplay.engine.spi.MicrophoneFormat
+import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
+import com.abid.handlebarlink.carplay.engine.spi.MicrophonePort
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
@@ -145,6 +151,10 @@ internal class FakePorts(
     /** The platform's decoder: what reached it, in order. */
     val screen = FakeScreen()
 
+    /** The platform's sound and microphone. */
+    val audio = FakeAudio()
+    val microphone = FakeMicrophone()
+
     val group =
         WifiGroup(
             WifiNetwork("DIRECT-hl-Handlebar", "passphrase16chrs", WifiSecurity.WPA_WPA2, channel = 149),
@@ -244,6 +254,8 @@ internal class FakePorts(
                 CarPlayCredentials(mfi, airPlayIdentity, store)
             },
             screen = screen,
+            audio = audio,
+            microphone = microphone,
             cipherName = ChaCha20Poly1305.Transformation.JVM,
         )
 
@@ -303,6 +315,72 @@ internal class FakePorts(
         ) {
             calls += Call.Frame(isConfig, senderNanos, payload.joinToString("") { "%02x".format(it) })
         }
+    }
+
+    /** An [AudioPort] that records every player and what reached it; [failPackets] makes players throw. */
+    class FakeAudio : AudioPort {
+        val players = mutableListOf<FakePlayer>()
+        val ducks = mutableListOf<Boolean>()
+        var failPackets = false
+
+        override fun open(stream: AudioStreamInfo): AudioPlayer = FakePlayer(stream).also { players += it }
+
+        override fun duck(ducked: Boolean) {
+            ducks += ducked
+        }
+
+        inner class FakePlayer(
+            val stream: AudioStreamInfo,
+        ) : AudioPlayer {
+            /** `sequence/timestamp/payload hex`, in order. */
+            val packets = mutableListOf<String>()
+            var closes = 0
+
+            override fun packet(
+                sequence: Int,
+                timestamp: Long,
+                payload: ByteArray,
+            ) {
+                check(!failPackets) { "audio device gone" }
+                check(closes == 0) { "packet after close" }
+                packets += "$sequence/$timestamp/" + payload.joinToString("") { "%02x".format(it) }
+            }
+
+            override fun close() {
+                closes++
+            }
+        }
+    }
+
+    /** A [MicrophonePort]: the test sends [bodies]; every capture's format and lifetime is recorded. */
+    class FakeMicrophone : MicrophonePort {
+        var offer = MicrophoneOffer.NONE
+        var offerError: CarPlayError? = null
+
+        /** The recorder cannot start. */
+        var failure: CarPlayError? = null
+        val formats = mutableListOf<MicrophoneFormat>()
+        val bodies = Channel<ByteArray>(Channel.UNLIMITED)
+        var recording = 0
+        var stopped = 0
+
+        override suspend fun offer(): MicrophoneOffer {
+            offerError?.let { throw CarPlayException(it) }
+            return offer
+        }
+
+        override fun capture(format: MicrophoneFormat): Flow<ByteArray> =
+            flow {
+                formats += format
+                recording++
+                try {
+                    failure?.let { throw CarPlayException(it) }
+                    for (body in bodies) emit(body)
+                } finally {
+                    recording--
+                    stopped++
+                }
+            }
     }
 
     class FakeListener(

@@ -64,17 +64,23 @@ internal class AirPlaySession(
     }
 
     /**
-     * `POST /command` (AirPlaySession.kt:794-821): always 200. The type is logged; `disableBluetooth` (the hand-over
-     * to the Wi-Fi iAP2 tunnel, spec D §1.5) and `requestUI` arrive with C5.
+     * `POST /command` (AirPlaySession.kt:794-821): always 200. The type is logged; `duckAudio` and `unduckAudio` go to
+     * the audio (:810-811); `disableBluetooth` (the hand-over to the Wi-Fi iAP2 tunnel, spec D §1.5) and `requestUI`
+     * arrive with C5.
      */
     private fun command(request: RtspRequest): RtspResponse {
         val body = decode(request.body) as? Plist.Dict
         val params = body?.dictionary("params")
+        val type = body?.text("type")
         context.log.info(
             "carplay.airplay.command",
-            "type" to body?.text("type"),
+            "type" to type,
             "params" to params?.entries?.keys?.sorted(),
         )
+        when (type) {
+            "duckAudio" -> context.seams.audio.duck(true)
+            "unduckAudio" -> context.seams.audio.duck(false)
+        }
         return RtspResponse()
     }
 
@@ -97,6 +103,7 @@ internal class AirPlaySession(
     fun close() {
         streams.close()
         channels.close()
+        context.seams.audio.close()
     }
 
     private fun decode(body: ByteArray): Plist? =

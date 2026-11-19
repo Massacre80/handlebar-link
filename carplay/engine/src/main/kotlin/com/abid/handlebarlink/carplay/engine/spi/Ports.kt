@@ -1,5 +1,7 @@
 package com.abid.handlebarlink.carplay.engine.spi
 
+import com.abid.handlebarlink.carplay.protocol.audio.AudioCodec
+import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
 import com.abid.handlebarlink.carplay.protocol.iap2.WifiNetwork
 import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.AirPlayIdentity
@@ -272,6 +274,141 @@ public interface ScreenPort {
     }
 }
 
+/**
+ * One audio stream the iPhone set up (type 100, 101 or 102), as DiPlay hands it to its renderer: the stream's identity
+ * and decode format (MediaSink.onAudioStarted, CarPlayMediaEngine.kt:177-229; AudioStream.kt:221-242).
+ */
+public data class AudioStreamInfo(
+    /** 100 main, 101 alternate, 102 main high audio. */
+    val type: Int,
+    /** The SETUP's `audioType`, lower-cased, "default" when absent: media, default, alert, telephony, … */
+    val audioType: String,
+    /** What the payloads are: codec, decode rate, channels and the RTP clock ([AudioFormat.fromBits]). */
+    val format: AudioFormat,
+    /** The SETUP's `audioLatencyMs`, 0 when absent. */
+    val latencyMillis: Int,
+)
+
+/**
+ * Where CarPlay's sound plays: the platform's decoders and audio output (docs/PLAN.md C5). Every call comes from the
+ * engine's dispatcher and must return at once: decoding, the output device and audio focus live on the port's own
+ * threads, and a failing device stops only its own sound, never the session. The port outlives sessions.
+ */
+public interface AudioPort {
+    /**
+     * The first packet of [stream] arrived (DiPlay starts its renderer then, CarPlayMediaEngine.kt:224-228): a player
+     * for it. The engine closes it at the stream's TEARDOWN, a replacing SETUP or the session's end.
+     */
+    public fun open(stream: AudioStreamInfo): AudioPlayer
+
+    /**
+     * The iPhone asked to lower other sound for a navigation prompt ([ducked] true, `duckAudio`) or to restore it
+     * (`unduckAudio`; AirPlaySession.kt:810-811). A session that ends while ducked is restored by the engine
+     * (CarPlayMediaEngine.kt:551-553).
+     */
+    public fun duck(ducked: Boolean)
+
+    /** Ports without sound. */
+    public companion object {
+        /** Plays nothing: every packet is dropped. */
+        public val NONE: AudioPort =
+            object : AudioPort {
+                override fun open(stream: AudioStreamInfo): AudioPlayer =
+                    object : AudioPlayer {
+                        override fun packet(
+                            sequence: Int,
+                            timestamp: Long,
+                            payload: ByteArray,
+                        ) {}
+
+                        override fun close() {}
+                    }
+
+                override fun duck(ducked: Boolean) {}
+            }
+    }
+}
+
+/** One stream's playback. Calls come from the engine's dispatcher and never block. */
+public interface AudioPlayer {
+    /**
+     * One decrypted RTP packet, in arrival order (the player puts reordered packets back in sequence, as DiPlay's
+     * RtpReorderQueue): its 16-bit [sequence], its 32-bit [timestamp] on the stream's RTP clock (0..2^32 − 1), and its
+     * [payload] as on the wire: an AAC-LC access unit, an Opus packet, or big-endian 16-bit PCM
+     * (MicrophonePacketizer.kt:128). [payload] now belongs to the player.
+     */
+    public fun packet(
+        sequence: Int,
+        timestamp: Long,
+        payload: ByteArray,
+    )
+
+    /** Stops the sound and releases everything; idempotent, returns at once. */
+    public fun close()
+}
+
+/** What the platform's microphone can send: `/info`'s `audioInputFormats` (AirPlayInfoPlist.kt:155-162). */
+public enum class MicrophoneOffer {
+    /** No microphone (no permission or no recorder): `/info` offers none. */
+    NONE,
+
+    /** 16-bit PCM only. */
+    PCM,
+
+    /** PCM and Opus (DiPlay offers Opus whenever an encoder works; wireless iPhones use it, #718). */
+    PCM_AND_OPUS,
+}
+
+/**
+ * How to capture one microphone stream, from the stream SETUP (DiPlay MicrophoneConfig, CarPlayMediaEngine.kt:624-663;
+ * MicrophonePacketizer.kt:6-41).
+ */
+public data class MicrophoneFormat(
+    /** The stream's audio type: telephony (a call), speechrecognition (Siri), default or compatibility. */
+    val audioType: String,
+    /** [AudioCodec.LPCM] or [AudioCodec.OPUS]. */
+    val codec: AudioCodec,
+    /** The capture rate: the PCM rate, or 48 kHz for Opus. */
+    val sampleRate: Int,
+    /** 1 or 2. */
+    val channels: Int,
+    /** Milliseconds of sound per packet: 20 for Opus, else what the iPhone asked for or what fits one MTU. */
+    val frameMillis: Int,
+    /** The Opus bitrate (96, 64 or 48 kbit/s by the format's rate), 0 for PCM. */
+    val bitrate: Int,
+)
+
+/**
+ * The microphone for Siri and calls (docs/PLAN.md C5). The engine seals and sends what it captures to the iPhone.
+ */
+public interface MicrophonePort {
+    /**
+     * What `/info` may offer, asked once per wireless attempt before `/info` is served; it may look at the platform's
+     * permissions and codecs (on the port's own thread). [MicrophoneOffer.NONE] when the microphone cannot be used.
+     */
+    public suspend fun offer(): MicrophoneOffer
+
+    /**
+     * Records while collected: each emission is one packet body, in order: [MicrophoneFormat.frameMillis] of
+     * little-endian 16-bit PCM ([MicrophoneFormat.sampleRate] x [MicrophoneFormat.channels]), or one Opus access unit
+     * of 20 ms. Collecting starts the recorder and cancelling stops and releases it; recording runs on the port's own
+     * thread, so a slow collector loses old bodies, never blocks the recorder. A recorder that cannot start or dies
+     * throws a [com.abid.handlebarlink.carplay.engine.CarPlayException]; only that stream's microphone ends.
+     */
+    public fun capture(format: MicrophoneFormat): Flow<ByteArray>
+
+    /** Ports without a microphone. */
+    public companion object {
+        /** No microphone: offers none and records nothing. */
+        public val NONE: MicrophonePort =
+            object : MicrophonePort {
+                override suspend fun offer(): MicrophoneOffer = MicrophoneOffer.NONE
+
+                override fun capture(format: MicrophoneFormat): Flow<ByteArray> = emptyFlow()
+            }
+    }
+}
+
 /** The platform the receiver runs on. */
 public class CarPlayPorts(
     /** Bluetooth. */
@@ -286,6 +423,10 @@ public class CarPlayPorts(
     public val credentials: CredentialsPort,
     /** Where the iPhone's picture goes; [ScreenPort.NONE] drops it. */
     public val screen: ScreenPort = ScreenPort.NONE,
+    /** Where CarPlay's sound plays; [AudioPort.NONE] drops it. */
+    public val audio: AudioPort = AudioPort.NONE,
+    /** Siri's and calls' microphone; [MicrophonePort.NONE] offers none. */
+    public val microphone: MicrophonePort = MicrophonePort.NONE,
     /**
      * The platform's name for ChaCha20-Poly1305 (ChaCha20Poly1305.Transformation.ANDROID on the phone, so
      * every frame is decrypted natively by BoringSSL).

@@ -109,6 +109,7 @@ internal class MediaStreams(
                         id,
                         StreamKeys.output(context.sharedSecret, id.bits),
                         stream,
+                        StreamKeys.input(context.sharedSecret, id.bits),
                     ),
                 )
             }

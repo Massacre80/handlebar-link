@@ -21,6 +21,11 @@
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />
+    <!-- Siri's and calls' microphone (docs/PLAN.md C5). Without the grant /info offers no microphone. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- MODE_IN_COMMUNICATION and the loudspeaker for CarPlay calls (AudioManager.setMode,
+         setCommunicationDevice); a normal permission. -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
     <!-- Wi-Fi Direct (wifi-direct guide). -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />

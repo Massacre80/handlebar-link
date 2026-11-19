@@ -14,8 +14,9 @@ import javax.inject.Inject
  * permissions table decided 2026-11-19): Bluetooth for the RFCOMM dial to the iPhone; Nearby Wi-Fi for the
  * Wi-Fi Direct group from Android 13 (Android 12/12L ask for precise location instead, wifi-direct guide); local
  * network from Android 17, where apps targeting SDK 37 (ours) are blocked from it without the grant
- * (local-network-permission guide). All but location are in the Nearby devices group, so a rider who allowed
- * Bluetooth is not asked again ("Pre-granted scenario"). Lint's InlinedApi cannot see a guard on the [sdk] parameter,
+ * (local-network-permission guide); the microphone for Siri and calls (C5). Bluetooth, Nearby Wi-Fi and local network
+ * are in the Nearby devices group, so a rider who allowed Bluetooth is not asked again for them ("Pre-granted
+ * scenario"); the microphone is its own dialog. Lint's InlinedApi cannot see a guard on the [sdk] parameter,
  * which keeps the list testable for every release; the guards are the `if`s below.
  */
 @SuppressLint("InlinedApi") // String constants copied in at compile time, each added only when [sdk] has it.
@@ -28,6 +29,7 @@ internal fun carPlayPermissions(sdk: Int): List<String> =
             add(Manifest.permission.ACCESS_FINE_LOCATION)
         }
         if (sdk >= ANDROID_17) add(Manifest.permission.ACCESS_LOCAL_NETWORK)
+        add(Manifest.permission.RECORD_AUDIO)
     }
 
 /** The [carPlayPermissions] of the running Android release. */

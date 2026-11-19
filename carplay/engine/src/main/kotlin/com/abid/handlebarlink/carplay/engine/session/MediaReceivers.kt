@@ -5,8 +5,6 @@ import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
-import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
-import com.abid.handlebarlink.carplay.protocol.audio.RealtimeAudioDecryptor
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
 import com.abid.handlebarlink.carplay.protocol.stream.MediaStreamException
 import com.abid.handlebarlink.carplay.protocol.stream.ScreenStreamReader
@@ -14,14 +12,12 @@ import com.abid.handlebarlink.carplay.protocol.timing.TimingClock
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.math.BigInteger
-import kotlin.math.max
-import kotlin.math.roundToLong
 
 /** The media seams of one session around its own timing clock, which `/feedback` reads (CarPlayMediaEngine.kt:514). */
 internal class SessionMedia(
     context: MediaContext,
     screen: ScreenPort,
+    audio: AudioOutputs,
 ) {
     /** Started from the wall clock, then steered onto the iPhone's clock (NtpClock.kt:30). */
     private val clock = TimingClock(context.time::elapsedNanos, context.time.clock.millis())
@@ -30,7 +26,7 @@ internal class SessionMedia(
         MediaSeams(
             timing = TimingExchange(clock, context),
             screen = ScreenReceiver(context, screen),
-            audio = AudioReceiver(context, clock),
+            audio = AudioReceiver(context, clock, audio),
         )
 }
 
@@ -218,107 +214,5 @@ internal class ScreenReceiver(
 
         /** The main screen's key frame request (CarPlayMediaEngine.kt:152). */
         val FORCE_KEY_FRAME = Plist.dict("type" to "forceKeyFrame")
-    }
-}
-
-/**
- * Decrypts each audio datagram with [RealtimeAudioDecryptor] (DiPlay AudioStream.kt:91-178) and counts it; the audio
- * itself is dropped until playback exists (docs/PLAN.md C5). A datagram that is too short or does not authenticate
- * is dropped and the stream goes on, as DiPlay.
- *
- * [feedback] is DiPlay's per-stream `/feedback` entry (CarPlayMediaEngine.kt:489-523): `type` and `sampleRate` (the
- * stream's RTP clock rate) from the SETUP on; once the first packet was decrypted also `streamConnectionID`,
- * `timestamp` (the session's timing clock), `timestampRawNs` (the monotonic clock) and `sampleTime`: the first
- * packet's RTP timestamp plus the time since it arrived, less the SETUP's `audioLatencyMs`, on the RTP clock, as u32.
- */
-internal class AudioReceiver(
-    private val context: MediaContext,
-    private val clock: TimingClock,
-) : AudioStreamSink {
-    /** When a stream's first packet was decrypted (CarPlayMediaEngine.kt:224-227). */
-    private class Start(
-        val firstSample: Long,
-        val originNanos: Long,
-    )
-
-    /** The running streams' starts, by identity: a replacing SETUP is a new [AudioStreamSetup]. */
-    private val starts = HashMap<AudioStreamSetup, Start>()
-
-    override suspend fun run(
-        stream: AudioStreamSetup,
-        data: UdpSocket,
-    ) {
-        val decryptor = RealtimeAudioDecryptor(stream.key, context.cipherName)
-        val counts = AudioCounts()
-        try {
-            while (true) {
-                val datagram = data.receive() ?: break
-                receive(stream, decryptor, datagram.bytes, counts)
-            }
-        } finally {
-            starts.remove(stream)
-            context.log.info(
-                "carplay.audio.ended",
-                "type" to stream.type,
-                "audioType" to stream.audioType,
-                "packets" to counts.packets,
-                "dropped" to counts.dropped,
-            )
-        }
-    }
-
-    private class AudioCounts {
-        var packets = 0L
-        var dropped = 0L
-    }
-
-    /** Decrypts and counts one datagram; the first packet starts the stream's `/feedback` position. */
-    private fun receive(
-        stream: AudioStreamSetup,
-        decryptor: RealtimeAudioDecryptor,
-        datagram: ByteArray,
-        counts: AudioCounts,
-    ) {
-        val packet = decryptor.open(datagram)
-        if (packet == null) {
-            if (counts.dropped++ == 0L) {
-                context.log.warn("carplay.audio.dropped", "type" to stream.type, "bytes" to datagram.size)
-            }
-            return
-        }
-        if (counts.packets++ == 0L) {
-            starts[stream] = Start(packet.timestamp, context.time.elapsedNanos())
-            val format = AudioFormat.fromBits(stream.audioFormat)
-            context.log.info(
-                "carplay.audio.receiving",
-                "type" to stream.type,
-                "audioType" to stream.audioType,
-                "codec" to format.codec,
-                "sampleRate" to format.sampleRate,
-            )
-        }
-    }
-
-    override fun feedback(stream: AudioStreamSetup): Plist.Dict {
-        val clockRate = AudioFormat.fromBits(stream.audioFormat).rtpClockRate
-        val entry = linkedMapOf<String, Plist>("type" to Plist.of(stream.type), "sampleRate" to Plist.of(clockRate))
-        val start = starts[stream] ?: return Plist.Dict(entry)
-        val nowNanos = context.time.elapsedNanos()
-        val latencyMillis = stream.request.long("audioLatencyMs")?.toInt() ?: 0
-        val elapsedSeconds =
-            max(0.0, (nowNanos - start.originNanos) / NANOS_PER_SECOND - latencyMillis / MILLIS_PER_SECOND)
-        entry["streamConnectionID"] = stream.streamConnectionId
-        // NTP64 values are above 2^63: their 64 bits go out as an 8-byte integer, as DiPlay's codec writes them
-        // (spec D §3, deviation 2), not as Apple's 16-byte form.
-        entry["timestamp"] = Plist.Integer(BigInteger.valueOf(clock.now()))
-        entry["timestampRawNs"] = Plist.of(nowNanos)
-        entry["sampleTime"] = Plist.of((start.firstSample + (elapsedSeconds * clockRate).roundToLong()) and U32)
-        return Plist.Dict(entry)
-    }
-
-    private companion object {
-        const val NANOS_PER_SECOND = 1e9
-        const val MILLIS_PER_SECOND = 1000.0
-        const val U32 = 0xFFFF_FFFFL
     }
 }

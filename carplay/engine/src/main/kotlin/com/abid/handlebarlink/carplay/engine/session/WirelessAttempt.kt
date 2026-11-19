@@ -8,6 +8,7 @@ import com.abid.handlebarlink.carplay.engine.runtime.RuntimeEnv
 import com.abid.handlebarlink.carplay.engine.spi.BonjourService
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayCredentials
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
+import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
 import com.abid.handlebarlink.carplay.engine.spi.WifiGroup
@@ -70,6 +71,8 @@ internal class WirelessAttempt(
     private suspend fun CoroutineScope.connect(): Nothing {
         onStep(ConnectStep.LOADING_IDENTITY)
         val credentials = ports.credentials.load()
+        // Asked beside the group's start, off the critical path: /info needs it only once the iPhone connects.
+        val microphone = async { offeredMicrophone(ports.microphone, env.log) }
         onStep(ConnectStep.PREPARING)
         val dialStart = env.time.elapsedMillis()
         val dial = async { ports.bluetooth.dialIap2().also { stream -> cleanup.add("rfcomm") { stream.close() } } }
@@ -81,8 +84,9 @@ internal class WirelessAttempt(
         val listener = ports.network.listen(addresses, AIRPLAY_PORT)
         cleanup.add("listener") { listener.close() }
         env.log.info("carplay.airplay.listening", "port" to listener.port)
-        val receiver = receiver(credentials, group)
-        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, config, plugins)
+        val offer = microphone.await()
+        val receiver = receiver(credentials, group, offer)
+        val platform = SessionPlatform(ports.network, addresses, ports.cipherName, env.time, config, plugins, offer)
         val control = { connection: TcpConnection ->
             AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, platform, env.log)
         }
@@ -239,12 +243,14 @@ internal class WirelessAttempt(
     private fun receiver(
         credentials: CarPlayCredentials,
         group: WifiGroup,
+        microphone: MicrophoneOffer,
     ) = AirPlayReceiver(
         config,
         deviceId = group.interfaceMac,
         bluetoothId = ports.bluetooth.localAddress().joinToString(":") { "%02X".format(it) },
         pairingId = credentials.airPlay.pairingId,
         publicKeyHex = credentials.airPlay.publicKeyHex,
+        microphone = microphone,
     )
 
     private fun identity(credentials: CarPlayCredentials) =

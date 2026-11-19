@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.session
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
@@ -34,6 +35,8 @@ internal class SessionPlatform(
     val time: TimeProvider,
     val config: CarPlayConfig,
     private val plugins: SessionPlugins,
+    /** What `/info` offered the microphone this attempt; the audio streams record only with it. */
+    val microphone: MicrophoneOffer = MicrophoneOffer.NONE,
 ) {
     val media: MediaFactory get() = plugins.media
     val touches: TouchInput get() = plugins.touches
@@ -55,7 +58,7 @@ internal class SessionContext(
     /** This session's media seams, built once. */
     val seams: MediaSeams =
         platform.media.session(
-            MediaContext(platform.time, log, platform.cipherName, platform.config),
+            MediaContext(platform, log, peer),
         )
 
     /** A second UDP socket; [first] is closed when it cannot be bound. */
