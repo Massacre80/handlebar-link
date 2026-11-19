@@ -8,8 +8,8 @@ import com.abid.handlebarlink.core.common.time.TimeProvider
 
 // Where the media code plugs into the AirPlay session. The session (this package) negotiates the streams, binds their
 // ports, accepts only the control connection's peer and derives each stream's key; what flows on a stream is the
-// business of these seams. [MediaSeams.placeholders] only drains and logs, so the iPhone keeps the session while the
-// real readers (timing and stream decryption, the video decoder) are built elsewhere and wired in at merge.
+// business of these seams. [MediaFactory.receivers] (MediaReceivers.kt) builds the real ones: the timing exchange, the
+// screen reader and the audio decryption; decoded frames go on to a [ScreenFrameSink].
 
 /**
  * Answers the iPhone's NTP-style timing exchange on the session SETUP's `timingPort` (DiPlay NtpClock.kt, spec D
@@ -114,8 +114,13 @@ internal fun interface MediaFactory {
     fun session(context: MediaContext): MediaSeams
 
     companion object {
-        /** Until the media readers are wired in. */
-        val PLACEHOLDERS = MediaFactory { MediaSeams.placeholders(it.log) }
+        /**
+         * The real seams (MediaReceivers.kt): one [com.abid.handlebarlink.carplay.protocol.timing.TimingClock] per
+         * session, the screen stream's frames handed to [frames] (dropped until the decoder exists, docs/PLAN.md C4)
+         * and audio decrypted, counted and dropped (playback is C5).
+         */
+        fun receivers(frames: ScreenFrameSink = ScreenFrameSink.DROP): MediaFactory =
+            MediaFactory { context -> SessionMedia(context, frames).seams }
     }
 }
 
@@ -124,57 +129,4 @@ internal class MediaSeams(
     val timing: TimingResponder,
     val screen: ScreenStreamSink,
     val audio: AudioStreamSink,
-) {
-    companion object {
-        /**
-         * Seams that only receive and log (the first bytes of each stream at info): they keep every socket read so the
-         * iPhone's sends never block, but answer nothing. The real timing responder, stream readers and decoder replace
-         * them here.
-         */
-        fun placeholders(log: Logger): MediaSeams =
-            MediaSeams(
-                timing = { socket, _, _ ->
-                    var seen = 0L
-                    while (socket.receive() != null) {
-                        if (seen++ == 0L) log.info("carplay.timing.first_packet", "port" to socket.port)
-                    }
-                },
-                screen = { stream, connection, _ -> drain(stream.type, connection, log) },
-                audio = DrainingAudio(log),
-            )
-
-        private suspend fun drain(
-            type: Int,
-            connection: TcpConnection,
-            log: Logger,
-        ) {
-            val buffer = ByteArray(DRAIN_CHUNK)
-            var total = 0L
-            while (true) {
-                val count = connection.read(buffer)
-                if (count < 0) break
-                if (total == 0L) log.info("carplay.screen.receiving", "type" to type, "bytes" to count)
-                total += count
-            }
-            log.info("carplay.screen.ended", "type" to type, "bytes" to total)
-        }
-
-        private const val DRAIN_CHUNK = 64 * 1024
-    }
-
-    private class DrainingAudio(
-        private val log: Logger,
-    ) : AudioStreamSink {
-        override suspend fun run(
-            stream: AudioStreamSetup,
-            data: UdpSocket,
-        ) {
-            var seen = 0L
-            while (data.receive() != null) {
-                if (seen++ == 0L) {
-                    log.info("carplay.audio.receiving", "type" to stream.type, "audioType" to stream.audioType)
-                }
-            }
-        }
-    }
-}
+)

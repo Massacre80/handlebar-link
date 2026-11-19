@@ -17,6 +17,7 @@ class TestTimeProviderTest {
             delay(2_500)
 
             assertThat(time.elapsedMillis()).isEqualTo(2_500L)
+            assertThat(time.elapsedNanos()).isEqualTo(2_500_000_000L)
             assertThat(time.clock.instant()).isEqualTo(Instant.parse("2026-11-16T15:30:02.500Z"))
         }
 

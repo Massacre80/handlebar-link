@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
+import com.abid.handlebarlink.carplay.protocol.stream.StreamKeys
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -63,7 +64,7 @@ internal class MediaStreams(
         stream: Plist.Dict,
         id: Plist.Integer,
     ): Plist {
-        val setup = ScreenStreamSetup(type, context.streamKey(id), stream)
+        val setup = ScreenStreamSetup(type, StreamKeys.output(context.sharedSecret, id.bits), stream)
         val listener = context.platform.network.listen(context.platform.addresses, 0)
         val job =
             context.launchVital("screen stream $type") {
@@ -105,7 +106,7 @@ internal class MediaStreams(
                         audioType,
                         stream.long("audioFormat") ?: 0L,
                         id,
-                        context.streamKey(id),
+                        StreamKeys.output(context.sharedSecret, id.bits),
                         stream,
                     ),
                 )

@@ -6,8 +6,6 @@ import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
-import com.abid.handlebarlink.carplay.protocol.crypto.Hkdf
-import com.abid.handlebarlink.carplay.protocol.plist.Plist
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
 import kotlinx.coroutines.CancellationException
@@ -54,15 +52,6 @@ internal class SessionContext(
             if (!done) first.close()
         }
     }
-
-    /**
-     * HKDF-SHA-512 of pair-verify's secret, salt `"DataStream-Salt"` + the id's 64 bits as an unsigned decimal, info
-     * `"DataStream-Output-Encryption-Key"`, 32 bytes (CarPlayMediaEngine.kt:665-677, 705, 715-722; spec D §5.3). The
-     * iPhone sends ids from 2^63 as 8-byte (signed) plist integers. Same as `protocol.stream.StreamKeys.output(secret,
-     * id.bits)` from the streams work, which replaces this at merge.
-     */
-    fun streamKey(id: Plist.Integer): ByteArray =
-        Hkdf.sha512(sharedSecret, SALT + java.lang.Long.toUnsignedString(id.bits), OUTPUT_INFO, KEY_BYTES)
 
     /**
      * Accepts until a connection comes from [peer]; others are closed unread (DiPlay `acceptFrom`,
@@ -128,10 +117,4 @@ internal class SessionContext(
             log.error("carplay.airplay.part_crashed", e, "part" to name)
             e
         }
-
-    private companion object {
-        const val SALT = "DataStream-Salt"
-        const val OUTPUT_INFO = "DataStream-Output-Encryption-Key"
-        const val KEY_BYTES = 32
-    }
 }

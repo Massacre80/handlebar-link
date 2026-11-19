@@ -8,12 +8,15 @@ import java.time.ZoneId
 
 /**
  * The system's time: wall clock in the phone's current time zone (read on every call, so the meter's
- * clock follows a zone change), and `elapsedRealtime` as the monotonic clock (keeps counting in sleep).
+ * clock follows a zone change), and `elapsedRealtime` as the monotonic clock (keeps counting in sleep),
+ * in milliseconds and nanoseconds.
  */
 class AndroidTimeProvider : TimeProvider {
     override val clock: Clock = SystemZoneClock()
 
     override fun elapsedMillis(): Long = SystemClock.elapsedRealtime()
+
+    override fun elapsedNanos(): Long = SystemClock.elapsedRealtimeNanos()
 
     private class SystemZoneClock : Clock() {
         private val utc = Clock.systemUTC()

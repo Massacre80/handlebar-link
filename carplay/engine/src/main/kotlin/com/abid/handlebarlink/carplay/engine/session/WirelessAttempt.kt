@@ -49,7 +49,7 @@ internal class WirelessAttempt(
     private val onStep: (ConnectStep) -> Unit,
     private val onConnected: (String) -> Unit,
     /** Builds each AirPlay session's media seams. */
-    private val media: MediaFactory = MediaFactory.PLACEHOLDERS,
+    private val media: MediaFactory,
 ) {
     private val cleanup = Cleanup(env.log)
     private val verified = CompletableDeferred<String>()

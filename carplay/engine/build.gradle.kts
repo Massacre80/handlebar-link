@@ -14,4 +14,6 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
 
     testImplementation(projects.core.testing)
+    // An independent HKDF and ChaCha20-Poly1305 for the simulated iPhone's media (AGENTS.md, CarPlay bytes).
+    testImplementation(libs.bouncycastle.bcprov)
 }
