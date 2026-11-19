@@ -71,8 +71,9 @@ internal class SessionChannels(
                         EventChannel(connection, context.sharedSecret, context.platform.cipherName, context.log)
                     events = channel
                     coroutineScope {
-                        // Touches go out while the channel lasts; its end (always a throw) cancels them.
+                        // Touches and keys go out while the channel lasts; its end (always a throw) cancels them.
                         launch { serveTouches(channel) }
+                        launch { context.platform.controls.serve(channel, context.log) }
                         channel.run()
                     }
                 } finally {

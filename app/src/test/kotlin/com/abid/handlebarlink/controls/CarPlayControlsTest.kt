@@ -288,6 +288,7 @@ class CarPlayControlsTest {
                 FakeControlTarget(CARLINK_SUPPORTED),
                 microphone,
                 FakeCallSituations(seesRinging = false),
+                OurCarPlay(null),
             )
 
         listOf(RiderAction.PLAY_PAUSE, RiderAction.NEXT, RiderAction.MUTE_MIC, RiderAction.TIME, RiderAction.NOTHING)
@@ -302,7 +303,13 @@ class CarPlayControlsTest {
 
     @Test
     fun `availability with our own CarPlay, every action and situation works`() {
-        val availability = ActionAvailability(FakeControlTarget(), microphone, FakeCallSituations(seesRinging = true))
+        val availability =
+            ActionAvailability(
+                FakeControlTarget(),
+                microphone,
+                FakeCallSituations(seesRinging = true),
+                OurCarPlay(null),
+            )
 
         RiderAction.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
         CallSituation.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
@@ -311,7 +318,7 @@ class CarPlayControlsTest {
     @Test
     fun `availability says when the microphone cannot be changed`() {
         microphone.canMuteNow = false
-        val availability = ActionAvailability(FakeControlTarget(), microphone, situations)
+        val availability = ActionAvailability(FakeControlTarget(), microphone, situations, OurCarPlay(null))
 
         assertThat(availability.whyUnavailable(RiderAction.MUTE_MIC)).isEqualTo(Unavailable.MIC_REFUSED)
     }

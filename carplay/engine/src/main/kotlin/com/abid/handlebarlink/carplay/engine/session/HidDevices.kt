@@ -6,7 +6,8 @@ import com.abid.handlebarlink.carplay.protocol.plist.Plist
  * The HID input devices `/info` declares (DiPlay AirPlayHid.kt:22-134, AirPlayInfoPlist.kt:58-63; spec D §4): a
  * two-finger touchscreen whose logical maximum is the canvas size, a knob, media keys and telephony keys, all bound
  * to the main display. DiPlay notes the iPhone aborts a session whose `/info` lacks them (AirPlayInfoPlist.kt:3-8).
- * Reports go to the iPhone on the event channel as `hidSendReport` with the device's `uuid` ([touchCommand]).
+ * Reports go to the iPhone on the event channel as `hidSendReport` with the device's `uuid` ([touchCommand],
+ * [KeyCommands]).
  */
 internal object HidDevices {
     const val TOUCH_UID = 0x2a2a2a2a
@@ -50,8 +51,13 @@ internal object HidDevices {
     }
 
     /** `{type: hidSendReport, uuid: "2a2a2a2a", hidReport}`, keys in DiPlay's order (AirPlaySession.kt:444-451). */
-    fun touchCommand(report: ByteArray): Plist.Dict =
-        Plist.dict("type" to "hidSendReport", "uuid" to TOUCH_UID.toString(HEX), "hidReport" to report)
+    fun touchCommand(report: ByteArray): Plist.Dict = hidCommand(TOUCH_UID, report)
+
+    /** `{type: hidSendReport, uuid, hidReport}` for device [uid], keys in DiPlay's order (AirPlaySession.kt:444). */
+    fun hidCommand(
+        uid: Int,
+        report: ByteArray,
+    ): Plist.Dict = Plist.dict("type" to "hidSendReport", "uuid" to uid.toString(HEX), "hidReport" to report)
 
     fun all(
         name: String,

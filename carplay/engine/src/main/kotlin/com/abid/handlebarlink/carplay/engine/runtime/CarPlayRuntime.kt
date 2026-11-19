@@ -1,12 +1,16 @@
 package com.abid.handlebarlink.carplay.engine.runtime
 
+import com.abid.handlebarlink.carplay.engine.CarPlayCall
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.CarPlayKey
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.TouchContact
+import com.abid.handlebarlink.carplay.engine.session.CallStates
+import com.abid.handlebarlink.carplay.engine.session.ControlInput
 import com.abid.handlebarlink.carplay.engine.session.MediaFactory
 import com.abid.handlebarlink.carplay.engine.session.SessionPlugins
 import com.abid.handlebarlink.carplay.engine.session.TouchInput
@@ -57,13 +61,16 @@ internal class CarPlayRuntime(
     private val stateFlow = MutableStateFlow<CarPlayState>(CarPlayState.Stopped)
     private val keepAliveFlow = MutableStateFlow(false)
     private val touches = TouchInput()
-    private val plugins = SessionPlugins(media, touches)
+    private val controls = ControlInput()
+    private val callStates = CallStates(env.log)
+    private val plugins = SessionPlugins(media, touches, controls, callStates)
 
     /** Unique across runs, so a stale event can never match a new attempt. */
     private var generation = 0
 
     override val state: StateFlow<CarPlayState> = stateFlow.asStateFlow()
     override val keepAlive: StateFlow<Boolean> = keepAliveFlow.asStateFlow()
+    override val calls: StateFlow<List<CarPlayCall>> = callStates.current
 
     override fun start() {
         inbox.trySend(Event.Start)
@@ -75,6 +82,14 @@ internal class CarPlayRuntime(
 
     override fun touch(contacts: List<TouchContact>) {
         touches.offer(contacts)
+    }
+
+    override fun press(key: CarPlayKey) {
+        controls.press(key)
+    }
+
+    override fun requestSiri() {
+        controls.requestSiri()
     }
 
     override suspend fun run() {

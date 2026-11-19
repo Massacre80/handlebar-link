@@ -2,7 +2,6 @@ package com.abid.handlebarlink.di
 
 import com.abid.handlebarlink.controls.ActionPerformer
 import com.abid.handlebarlink.controls.AndroidMicrophone
-import com.abid.handlebarlink.controls.AudioCallSituations
 import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.controls.CallSituations
 import com.abid.handlebarlink.controls.ControlTarget
@@ -10,11 +9,12 @@ import com.abid.handlebarlink.controls.DataStoreHandlebarMapping
 import com.abid.handlebarlink.controls.DataStoreMicMuteRecord
 import com.abid.handlebarlink.controls.HandlebarMapping
 import com.abid.handlebarlink.controls.MappedButtonPresses
-import com.abid.handlebarlink.controls.MediaSessionControlTarget
 import com.abid.handlebarlink.controls.MicMuteRecord
 import com.abid.handlebarlink.controls.Microphone
 import com.abid.handlebarlink.controls.PressFeedback
 import com.abid.handlebarlink.controls.RiderActions
+import com.abid.handlebarlink.controls.RoutedCallSituations
+import com.abid.handlebarlink.controls.RoutedControlTarget
 import com.abid.handlebarlink.ride.AndroidBikeLinkProvider
 import com.abid.handlebarlink.ride.BikeLinkProvider
 import com.abid.handlebarlink.ui.overlay.PressBanner
@@ -33,8 +33,9 @@ abstract class BikeModule {
     @Binds
     abstract fun bikeLinkProvider(provider: AndroidBikeLinkProvider): BikeLinkProvider
 
+    /** Our own CarPlay while it is connected, else CarLink's media session. */
     @Binds
-    abstract fun controlTarget(target: MediaSessionControlTarget): ControlTarget
+    abstract fun controlTarget(target: RoutedControlTarget): ControlTarget
 
     @Binds
     abstract fun buttonPresses(presses: MappedButtonPresses): ButtonPresses
@@ -48,9 +49,9 @@ abstract class BikeModule {
     @Binds
     abstract fun actionPerformer(actions: RiderActions): ActionPerformer
 
-    /** Interim, from the phone's audio (never ringing); our own CarPlay engine replaces it (situationOfCalls). */
+    /** Our own CarPlay's iAP2 call states while it is connected, else the phone's audio (never ringing). */
     @Binds
-    abstract fun callSituations(situations: AudioCallSituations): CallSituations
+    abstract fun callSituations(situations: RoutedCallSituations): CallSituations
 
     @Binds
     abstract fun microphone(microphone: AndroidMicrophone): Microphone

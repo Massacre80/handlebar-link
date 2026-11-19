@@ -36,6 +36,27 @@ public interface CarPlayLink {
     public fun touch(contacts: List<TouchContact>)
 
     /**
+     * The iPhone's calls now, from iAP2 CallStateUpdate (0x4155) on the Bluetooth bootstrap link, in the order the
+     * iPhone first reported them; disconnected and disconnecting calls are gone (DiPlay `BydCarPlayCall.kt:34-51`).
+     * Empty while no attempt has heard of a call, and emptied when the bootstrap link or the attempt ends.
+     */
+    public val calls: StateFlow<List<CarPlayCall>>
+
+    /**
+     * One press of [key]: the key's HID report, then its release, back to back on the event channel as DiPlay's
+     * `sendMedia` and `sendTelephony` send them (AirPlaySession.kt:380-388). Presses made while no event channel is
+     * connected are dropped, never delivered to a later session.
+     */
+    public fun press(key: CarPlayKey)
+
+    /**
+     * Opens Siri on the iPhone as a car's voice button does: `requestSiri` with siriAction 2, then 3, on the event
+     * channel (DiPlay AirPlaySession.invokeSiri, AirPlaySession.kt:390-393). Dropped like [press] when no event
+     * channel is connected.
+     */
+    public fun requestSiri()
+
+    /**
      * Runs the receiver until the calling coroutine is cancelled; everything is closed on the way out.
      * Only one [run] at a time.
      */

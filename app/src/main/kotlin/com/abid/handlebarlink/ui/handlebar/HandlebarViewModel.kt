@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -36,12 +35,13 @@ class HandlebarViewModel
 
         /** The page: the chosen situation and its presses. */
         val uiState: StateFlow<HandlebarUiState> =
-            combine(situation, mapping.current) { shown, all -> handlebarState(shown, all, availability) }
-                .stateIn(
-                    viewModelScope,
-                    SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
-                    handlebarState(situation.value, mapping.current.value, availability),
-                )
+            combine(situation, mapping.current, availability.changes) { shown, all, _ ->
+                handlebarState(shown, all, availability)
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS),
+                handlebarState(situation.value, mapping.current.value, availability),
+            )
 
         /** Shows [situation]'s presses. */
         fun select(situation: CallSituation) {
@@ -52,7 +52,11 @@ class HandlebarViewModel
         fun picker(
             situation: CallSituation,
             switch: HandlebarSwitch,
-        ): Flow<PickerUiState> = mapping.current.map { pickerState(situation, switch, it, availability) }
+        ): Flow<PickerUiState> =
+            combine(
+                mapping.current,
+                availability.changes,
+            ) { all, _ -> pickerState(situation, switch, all, availability) }
 
         /** The chooser's first frame, before [picker] has emitted. */
         fun pickerNow(

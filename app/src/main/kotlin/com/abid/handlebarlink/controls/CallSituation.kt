@@ -1,12 +1,14 @@
 package com.abid.handlebarlink.controls
 
 import com.abid.handlebarlink.callaudio.VoipCallWatcher
+import com.abid.handlebarlink.carplay.engine.CarPlayCall
 import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.di.ApplicationScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -26,18 +28,79 @@ enum class CallSituation {
     ON_CALL,
 }
 
-/** Where the [CallSituation] comes from: today the phone's audio (CarLink), later our own CarPlay engine. */
+/**
+ * Where the [CallSituation] comes from: our own CarPlay's iAP2 call states while it is connected, else the phone's
+ * audio (CarLink) ([RoutedCallSituations]).
+ */
 interface CallSituations {
     /** The situation now; a press reads it to choose its layer. */
     val current: StateFlow<CallSituation>
 
     /**
-     * Whether [current] can ever be [CallSituation.RINGING]. When false, presses while a call rings use the
+     * Whether [current] can be [CallSituation.RINGING] now. When false, presses while a call rings use the
      * [CallSituation.RIDING] layer, and the UI can say the ringing layer needs our own CarPlay
      * ([ActionAvailability.whyUnavailable]).
      */
     val seesRinging: Boolean
 }
+
+/**
+ * The situation from our own CarPlay while it is connected ([OurCarPlay]: the iPhone's iAP2 CallStateUpdates through
+ * [situationOfCalls], so a ringing call is seen), else from the phone's audio ([AudioCallSituations], never ringing).
+ * Watched for the process's lifetime like the audio source, so presses and the microphone's auto-unmute
+ * ([CarPlayControls]) always see the current situation. [current] is built on first use (the audio source reads the
+ * audio state then; docs/LESSONS.md 60); the first use is CarPlayControls.start's coroutine.
+ */
+@Singleton
+class RoutedCallSituations(
+    private val carPlay: OurCarPlay,
+    private val audio: CallSituations,
+    private val scope: CoroutineScope,
+    logger: Logger,
+) : CallSituations {
+    @Inject
+    constructor(
+        carPlay: OurCarPlay,
+        audio: AudioCallSituations,
+        @ApplicationScope scope: CoroutineScope,
+        logger: Logger,
+    ) : this(carPlay, audio as CallSituations, scope, logger)
+
+    private val log = logger.child("control")
+
+    override val current: StateFlow<CallSituation> by lazy {
+        val fromAudio = audio.current
+        combine(carPlay.connected, carPlay.calls, fromAudio) { connected, calls, heard ->
+            RoutedSituation(connected, routedSituation(connected, calls, heard))
+        }.distinctUntilChanged()
+            .onEach {
+                log.info(
+                    "control.situation.routed",
+                    "situation" to it.situation,
+                    "source" to if (it.fromCarPlay) "our_carplay" else "audio",
+                )
+            }.map { it.situation }
+            .stateIn(
+                scope,
+                SharingStarted.Eagerly,
+                routedSituation(carPlay.isConnected, carPlay.calls.value, fromAudio.value),
+            )
+    }
+
+    override val seesRinging: Boolean get() = carPlay.isConnected
+
+    private data class RoutedSituation(
+        val fromCarPlay: Boolean,
+        val situation: CallSituation,
+    )
+}
+
+/** [calls] while our CarPlay is [connected] ([situationOfCalls]), else what the phone's audio says ([heard]). */
+internal fun routedSituation(
+    connected: Boolean,
+    calls: List<CarPlayCall>,
+    heard: CallSituation,
+): CallSituation = if (connected) situationOfCalls(calls.map { it.status.iap2 }) else heard
 
 /**
  * Interim [CallSituations] while CarPlay runs in CarLink: [CallSituation.ON_CALL] while the phone's audio shows
@@ -88,10 +151,10 @@ internal fun situationsFrom(
 private fun situationOf(inCall: Boolean): CallSituation = if (inCall) CallSituation.ON_CALL else CallSituation.RIDING
 
 /**
- * The seam for our own CarPlay engine: the situation from the iPhone's calls, each an iAP2 CallStateUpdate
- * (0x4155) status: 0 disconnected, 1 sending, 2 ringing, 3 connecting, 4 active, 5 held, 6 disconnecting
- * (DiPlay `BydCarPlayCall.kt:22-24`). A ringing call wins (call waiting: the keys answer or decline it); any
- * other live call is [CallSituation.ON_CALL]; none, or only disconnected or unknown statuses, is riding.
+ * The situation from the iPhone's calls ([RoutedCallSituations], fed by [OurCarPlay.calls]), each an iAP2
+ * CallStateUpdate (0x4155) status: 0 disconnected, 1 sending, 2 ringing, 3 connecting, 4 active, 5 held,
+ * 6 disconnecting (DiPlay `BydCarPlayCall.kt:22-24`). A ringing call wins (call waiting: the keys answer or decline
+ * it); any other live call is [CallSituation.ON_CALL]; none, or only disconnected or unknown statuses, is riding.
  */
 fun situationOfCalls(statuses: Collection<Int>): CallSituation =
     when {

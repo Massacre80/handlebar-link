@@ -255,17 +255,19 @@ and picks that layer of `HandlebarMapping`.
 - **Storage.** Riding keeps the keys from before (`handlebar_<SWITCH>`), so riders keep their settings;
   `handlebar_ringing_<SWITCH>` and `handlebar_call_<SWITCH>` for the others. Unknown or disallowed stored
   names fall back to the default.
-- **With CarLink today** (`AudioCallSituations`, `MediaSessionControlTarget`): the situation comes from the
+- **Routing (C5 controls, 2026-11-19):** `RoutedControlTarget` and `RoutedCallSituations` choose per press: our own
+  CarPlay while it is `Connected`, CarLink otherwise (see "C5 controls" below).
+- **With CarLink** (`AudioCallSituations`, `MediaSessionControlTarget`): the situation comes from the
   phone's audio (`VoipCallWatcher`), so it is riding or on a call, never ringing (`seesRinging = false`;
   presses while a call rings use the riding layer). Answer, decline, end and Siri come back
   `NEEDS_OUR_CARPLAY`: CarLink takes call keys only from a car's key events or a broadcast that needs the
   system DUMP permission (CarLink `CarPlayCallKeys.kt:52`; docs/LESSONS.md 44). The banner says so
   (`PressFeedback.unavailable`). Music keys, volume and **mute microphone** work.
-- **With our CarPlay** (the seams, `situationOfCalls` and `ControlAction`): the situation from iAP2
+- **With our CarPlay connected** (`OurCarPlayControlTarget`, `situationOfCalls`): the situation from iAP2
   CallStateUpdate 0x4155 (0 disconnected, 1 sending, 2 ringing, 3 connecting, 4 active, 5 held,
-  6 disconnecting; DiPlay `BydCarPlayCall.kt:22-24`; a ringing call wins); answer = telephony HID hook switch,
-  decline/end = HID drop (DiPlay `CarPlayController.kt:750-753`); Siri = AirPlay `requestSiri` (siriAction 2
-  then 3, DiPlay `AirPlaySession.kt:391-392`).
+  6 disconnecting; DiPlay `BydCarPlayCall.kt:22-24`; a ringing call wins), so ringing is seen; answer = telephony
+  HID hook switch, decline/end = HID drop (DiPlay `CarPlayController.kt:750-753`); Siri = AirPlay `requestSiri`
+  (siriAction 2 then 3, DiPlay `AirPlaySession.kt:390-393`); the music keys as media HID keys. Nothing is "Soon".
 - **Mute microphone** = `AudioManager.setMicrophoneMute` (MODIFY_AUDIO_SETTINGS, a normal permission; AOSP
   `AudioService.setMicrophoneMute` has no API-level gate and refuses only unmuting under the OP_MUTE_MICROPHONE
   app op; not part of Android 17's background audio hardening). The mute is global (it also mutes CarLink's
@@ -503,6 +505,39 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   Back to the tab and in again: `carplay.video.surface state=detached decoder=kept`, then `state=attached` and a key
   frame request. Measure frame rate and latency from `carplay.video.stats` (C4's "done when").
 
+
+### C5 controls: handlebar keys and calls through our CarPlay (2026-11-19, worktree `carplay-c5-controls`)
+
+- **Engine API** (`CarPlayLink`): `press(key: CarPlayKey)`, `requestSiri()`, `calls: StateFlow<List<CarPlayCall>>`
+  (`CarPlayCall(status: CarPlayCallStatus)`: SENDING 1, RINGING 2, CONNECTING 3, ACTIVE 4, HELD 5). Commands only
+  queue (`ControlInput`, 16 deep); the session holding the event channel sends them, and requests made before the
+  event channel connected are dropped (`carplay.hid.stale_dropped`), never sent to a later session (a stale answer).
+- **HID bytes** (DiPlay `AirPlayHid.kt:70-72, 117-133`, `AirPlaySession.kt:380-388, 444-451`): one press is two
+  `hidSendReport` commands, the one-byte report (the index into the device's usage array) then 0 (release). Media
+  device `2a2a2a2c`: PLAY 1, PAUSE 2, PLAY_PAUSE 3, NEXT 4, PREVIOUS 5. Telephony device `2a2a2a2d`: HOOK_SWITCH 1,
+  DROP 3 (`CarPlayController.kt:3723-3724`). Not sent, as in DiPlay: Phone Mute (telephony 4; declared, never sent,
+  so MUTE_MIC stays `AudioManager.setMicrophoneMute`), flash, redial, keypad, AC Search. Volume: the media descriptor
+  has no volume usage and DiPlay sends none, so the volume actions stay on the phone's own audio.
+- **Siri:** `{type: requestSiri, params: {siriAction: 2}}` then the same with 3 (`AirPlaySession.kt:390-393`).
+- **Call state:** the bootstrap already subscribes (0x4154, params 0,1,2,3,4,11, `Iap2Messages.kt:305-312`) and
+  declares 0x4155; `BootstrapControl.serve` hands each 0x4155 to `CallStates` (`CallStateUpdate.parse` in
+  `:carplay:protocol`: status u8 param 2, call key = UUID param 4, else trimmed remote id param 0; an update without a
+  one-byte status is ignored, as DiPlay `BydCarPlayCall.kt:34-51`). Disconnected and disconnecting remove a call, an
+  unknown status too (DiPlay keeps but never shows it). The calls are cleared when the Bluetooth link or the attempt
+  ends. Logs never carry the number or the name.
+- **App:** `OurCarPlay` (connected = `CarPlayState.Connected`), `RoutedControlTarget` (ours while connected, else
+  `MediaSessionControlTarget`), `RoutedCallSituations` (`situationOfCalls` of the iAP2 calls while connected, else
+  `AudioCallSituations`; `seesRinging` = connected), `ActionAvailability.changes` so the Handlebar page refreshes
+  when our CarPlay connects or goes. MUTE_MIC and its safety rules are unchanged: the persisted flag, unmute when the
+  situation leaves ON_CALL (also when our CarPlay drops mid-call, or a waiting call rings over a muted one: unmuting is
+  the safe side), never touch a mute we did not make.
+- **Logs:** `carplay.hid.key {key, sent}`, `carplay.siri.requested {sent}`, `carplay.hid.stale_dropped {requests}`,
+  `carplay.calls.update {status, calls, changed}`, `carplay.calls.ignored`, `carplay.calls.unknown_status`,
+  `carplay.calls.cleared {reason}`, `control.route {action, to}`, `control.carplay {action, key}`,
+  `control.situation.routed {situation, source}`.
+- **Open (device):** whether the iPhone keeps sending CallStateUpdates on Bluetooth while we decline the type-130
+  iAP2 tunnel (DiPlay forwards them from both links; `CarPlayController.kt:1796, 1927`). If it moves them to the
+  tunnel, the tunnel's iAP2 must feed the same `CallStates`. Device steps: see the C5 controls report (2026-11-19).
 
 ## Things only the phone or bike can settle
 

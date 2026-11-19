@@ -10,6 +10,9 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isTrue
+import com.abid.handlebarlink.carplay.engine.CarPlayCall
+import com.abid.handlebarlink.carplay.engine.CarPlayCallStatus
+import com.abid.handlebarlink.carplay.engine.CarPlayKey
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.TouchContact
@@ -37,6 +40,21 @@ class FakeCarPlayLinkTest {
         assertThat(link.commands).containsExactly(FakeCarPlayLink.Command.Start, FakeCarPlayLink.Command.Stop)
         assertThat(link.state.value).isEqualTo(CarPlayState.Connecting(ConnectStep.PAIRING))
         assertThat(link.keepAlive.value).isTrue()
+    }
+
+    @Test
+    fun `records presses and Siri in order and reports the calls the test sets`() {
+        val link = FakeCarPlayLink()
+
+        link.press(CarPlayKey.HOOK_SWITCH)
+        link.requestSiri()
+        link.setCalls(listOf(CarPlayCall(CarPlayCallStatus.RINGING)))
+
+        assertThat(link.controls).containsExactly(
+            FakeCarPlayLink.Control.Press(CarPlayKey.HOOK_SWITCH),
+            FakeCarPlayLink.Control.Siri,
+        )
+        assertThat(link.calls.value).containsExactly(CarPlayCall(CarPlayCallStatus.RINGING))
     }
 
     @Test

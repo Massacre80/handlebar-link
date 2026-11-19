@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.session
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.protocol.iap2.AccessoryIdentity
+import com.abid.handlebarlink.carplay.protocol.iap2.CallStateUpdate
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2Message
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2MessageId
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2ProtocolException
@@ -36,7 +37,8 @@ internal interface BootstrapMilestones {
  * The iAP2 control client of the Bluetooth bootstrap, in DiPlay's order (Iap2WirelessControlClient.kt:23-235,
  * spec B §3): identification (one corrected retry after a 0x1D03), MFi authentication, five subscriptions,
  * then answers: 0x5702 → Wi-Fi configuration (at most 5, and 2 after 0x4E0E), 0x4300 → StartSession (at
- * most 3), 0x4E0E → Wi-Fi configuration again.
+ * most 3), 0x4E0E → Wi-Fi configuration again; CallStateUpdates (0x4155, asked for by the 0x4154 subscription) go to
+ * [calls], as DiPlay forwards them from this loop (Iap2WirelessControlClient.kt:32, CarPlayController.kt:942-943).
  *
  * Unlike DiPlay, a message we do not expect during identification or authentication is logged and skipped
  * instead of aborting (spec B §7.10): a stray 0x4E0D must not cost a whole reconnect. [nudge] re-sends the Wi-Fi
@@ -48,6 +50,8 @@ internal class BootstrapControl(
     private val time: TimeProvider,
     private val log: Logger,
     private val milestones: BootstrapMilestones,
+    /** Where the iPhone's CallStateUpdates go. */
+    private val calls: CallStates,
 ) {
     private val firstStartSession = CompletableDeferred<Unit>()
     private var lastStartSessionAt = 0L
@@ -140,6 +144,10 @@ internal class BootstrapControl(
 
                 Iap2MessageId.WIRELESS_CARPLAY_UPDATE -> {
                     log.info("carplay.iap2.wireless_update")
+                }
+
+                CallStateUpdate.MESSAGE_ID -> {
+                    calls.accept(message)
                 }
 
                 else -> {

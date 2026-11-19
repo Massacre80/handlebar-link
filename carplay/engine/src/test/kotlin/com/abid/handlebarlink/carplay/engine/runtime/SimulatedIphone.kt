@@ -50,6 +50,13 @@ internal class PhoneIap2(
         return sequence
     }
 
+    /** Sends a whole control-session message given as bytes (built outside our encoder); returns its sequence. */
+    suspend fun sendRaw(message: ByteArray): Int {
+        sequence = (sequence + 1) and 0xFF
+        stream.write(frame(ACK, sequence, lastReceived, CONTROL_SESSION, message))
+        return sequence
+    }
+
     /** Reads until the receiver acknowledges [sequence] (any frame with the ACK bit carrying it). */
     suspend fun awaitAcknowledgement(sequence: Int) {
         while (true) {

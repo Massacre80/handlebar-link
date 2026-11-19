@@ -16,10 +16,15 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-/** What the runtime plugs into every AirPlay session: the media seams' factory and the rider's touches. */
+/**
+ * What the runtime plugs into every attempt: the media seams' factory, the rider's touches and key presses (sent on
+ * each AirPlay session's event channel), and the iPhone's calls (fed by the Bluetooth bootstrap).
+ */
 internal class SessionPlugins(
     val media: MediaFactory,
     val touches: TouchInput,
+    val controls: ControlInput,
+    val calls: CallStates,
 )
 
 /**
@@ -37,6 +42,7 @@ internal class SessionPlatform(
 ) {
     val media: MediaFactory get() = plugins.media
     val touches: TouchInput get() = plugins.touches
+    val controls: ControlInput get() = plugins.controls
 }
 
 /**

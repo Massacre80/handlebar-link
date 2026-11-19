@@ -12,6 +12,7 @@ import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -101,8 +102,9 @@ class DataStoreMicMuteRecord
 
 /**
  * What a press asks of CarPlay and the call: the music keys, answer, decline, end and Siri through
- * [ControlTarget] (our own CarPlay; CarLink takes only the music keys and returns
- * [Unavailable.NEEDS_OUR_CARPLAY] for the rest), and the microphone mute.
+ * [ControlTarget] (our own CarPlay while it is connected; otherwise CarLink, which takes only the music keys and
+ * returns [Unavailable.NEEDS_OUR_CARPLAY] for the rest), and the microphone mute, which stays Android's
+ * (`AudioManager.setMicrophoneMute`) with our CarPlay too: DiPlay never sends the telephony Phone Mute key.
  *
  * Safety: the microphone mutes only during a call ([CallSituation.ON_CALL]). Before muting, the [MicMuteRecord]
  * flag is stored; it is cleared once unmuted. If this app muted it, it is unmuted as soon as the situation leaves
@@ -242,8 +244,9 @@ class CarPlayControls
 
 /**
  * Which actions work with the CarPlay we have now, and which situations can be told apart: for the Handlebar
- * page, to show what works today and what needs our own CarPlay. Momentary problems (no music session yet,
- * notification access off) are not here: they come back from the press itself.
+ * page, to show what works today and what needs our own CarPlay. While our own CarPlay is connected everything
+ * works and ringing is seen; otherwise answer, decline, end, Siri and the ringing layer need it. Momentary problems
+ * (no music session yet, notification access off) are not here: they come back from the press itself.
  */
 class ActionAvailability
     @Inject
@@ -251,7 +254,11 @@ class ActionAvailability
         private val target: ControlTarget,
         private val microphone: Microphone,
         private val situations: CallSituations,
+        carPlay: OurCarPlay,
     ) {
+        /** Emits whenever the answers may have changed (our CarPlay connecting or going); the page reads them again. */
+        val changes: Flow<Boolean> = carPlay.connected
+
         /** Why [action] can never work now, or null when it can. */
         fun whyUnavailable(action: RiderAction): Unavailable? =
             when {

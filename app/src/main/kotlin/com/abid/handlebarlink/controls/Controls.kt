@@ -1,11 +1,11 @@
 package com.abid.handlebarlink.controls
 
 /**
- * What a handlebar press asks CarPlay to do (docs/research/01-architecture.md §2.4). The call and Siri actions
- * are the seam for our own CarPlay engine (docs/PLAN.md "Smart buttons"), which will send them as:
- * [ANSWER_CALL] the telephony HID hook switch, [DECLINE_CALL] and [END_CALL] the telephony HID drop
- * (DiPlay `CarPlayController.kt:750-753`), [SIRI] the AirPlay command `requestSiri` (siriAction 2, then 3;
- * DiPlay `AirPlaySession.kt:391-392`). CarLink cannot receive them from another app (docs/LESSONS.md 44).
+ * What a handlebar press asks CarPlay to do (docs/research/01-architecture.md §2.4). Our own CarPlay
+ * ([OurCarPlayControlTarget]) sends the music keys as media HID keys, [ANSWER_CALL] as the telephony HID hook switch,
+ * [DECLINE_CALL] and [END_CALL] as the telephony HID drop (DiPlay `CarPlayController.kt:750-753`), and [SIRI] as the
+ * AirPlay command `requestSiri` (siriAction 2, then 3; DiPlay `AirPlaySession.kt:390-393`). CarLink takes only the
+ * music keys from another app (docs/LESSONS.md 44).
  */
 enum class ControlAction {
     /** CarPlay's music: play or pause. */
@@ -35,7 +35,7 @@ enum class Unavailable {
     /** The app may not read media sessions (notification access is off). */
     NO_MEDIA_ACCESS,
 
-    /** CarPlay has no music session yet (nothing has played since it connected). */
+    /** CarPlay has no music session yet (nothing has played since it connected), or our CarPlay just disconnected. */
     NO_CARPLAY_SESSION,
 
     /**
@@ -61,9 +61,9 @@ sealed interface ControlResult {
     ) : ControlResult
 }
 
-/** Where actions go. Today: CarLink's CarPlay media session; later our own CarPlay engine. */
+/** Where actions go: our own CarPlay while it is connected, else CarLink's media session ([RoutedControlTarget]). */
 interface ControlTarget {
-    /** The actions this target can ever perform; the others always come back [Unavailable.NEEDS_OUR_CARPLAY]. */
+    /** The actions this target can perform now; the others come back [Unavailable.NEEDS_OUR_CARPLAY]. */
     val supported: Set<ControlAction>
 
     /** Performs [action]; never throws. */

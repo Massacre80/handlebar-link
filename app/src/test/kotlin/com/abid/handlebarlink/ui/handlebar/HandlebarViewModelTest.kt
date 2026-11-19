@@ -12,6 +12,8 @@ import assertk.assertions.isFalse
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.carplay.engine.CarPlayState
+import com.abid.handlebarlink.carplay.engine.test.FakeCarPlayLink
 import com.abid.handlebarlink.controls.ActionAvailability
 import com.abid.handlebarlink.controls.CARLINK_SUPPORTED
 import com.abid.handlebarlink.controls.CallSituation
@@ -20,10 +22,17 @@ import com.abid.handlebarlink.controls.FakeControlTarget
 import com.abid.handlebarlink.controls.FakeMicrophone
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.InMemoryHandlebarMapping
+import com.abid.handlebarlink.controls.OurCarPlay
+import com.abid.handlebarlink.controls.OurCarPlayControlTarget
 import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.controls.RoutedCallSituations
+import com.abid.handlebarlink.controls.RoutedControlTarget
 import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.controls.allowedActions
 import com.abid.handlebarlink.core.testing.MainDispatcherRule
+import com.abid.handlebarlink.core.testing.RecordingLogSink
+import com.abid.handlebarlink.core.testing.TestTimeProvider
+import com.abid.handlebarlink.core.testing.testLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -32,6 +41,7 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
+import java.time.Instant
 
 class HandlebarViewModelTest {
     @get:Rule
@@ -45,10 +55,12 @@ class HandlebarViewModelTest {
             FakeControlTarget(CARLINK_SUPPORTED),
             FakeMicrophone(),
             FakeCallSituations(seesRinging = false),
+            OurCarPlay(null),
         )
 
     /** Our own CarPlay: everything, ringing included. */
-    private val ourCarPlay = ActionAvailability(FakeControlTarget(), FakeMicrophone(), FakeCallSituations())
+    private val ourCarPlay =
+        ActionAvailability(FakeControlTarget(), FakeMicrophone(), FakeCallSituations(), OurCarPlay(null))
 
     /** A view model whose page is collected (as the screen does), so [HandlebarViewModel.uiState] is live. */
     private fun TestScope.viewModel(availability: ActionAvailability = carLink): HandlebarViewModel {
@@ -186,6 +198,49 @@ class HandlebarViewModelTest {
         }
 
     @Test
+    fun `the page follows our CarPlay connecting and going, the ringing notice and soon tags with it`() =
+        runTest {
+            val link = FakeCarPlayLink(CarPlayState.Idle)
+            val carPlay = OurCarPlay(link)
+            val logger = testLogger(RecordingLogSink(), TestTimeProvider(testScheduler))
+            val availability =
+                ActionAvailability(
+                    RoutedControlTarget(
+                        carPlay,
+                        OurCarPlayControlTarget(carPlay, logger),
+                        FakeControlTarget(CARLINK_SUPPORTED),
+                        logger,
+                    ),
+                    FakeMicrophone(),
+                    RoutedCallSituations(carPlay, FakeCallSituations(seesRinging = false), backgroundScope, logger),
+                    carPlay,
+                )
+            val viewModel = viewModel(availability)
+            viewModel.select(CallSituation.RINGING)
+            assertThat(viewModel.uiState.value.notice).isEqualTo(HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY)
+            assertThat(
+                viewModel.uiState.value
+                    .press(HandlebarSwitch.LEFT)
+                    .soon,
+            ).isTrue()
+
+            link.setState(CarPlayState.Connected("iphone", Instant.EPOCH))
+
+            assertThat(viewModel.uiState.value.notice).isNull()
+            assertThat(
+                viewModel.uiState.value
+                    .press(HandlebarSwitch.LEFT)
+                    .soon,
+            ).isFalse()
+            val picker = viewModel.picker(CallSituation.RIDING, HandlebarSwitch.HOLD_LEFT).first()
+            assertThat(picker.choices.filter { it.unavailable != null }).isEmpty()
+
+            link.setState(CarPlayState.Idle)
+
+            assertThat(viewModel.uiState.value.notice).isEqualTo(HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY)
+        }
+
+    @Test
     fun `with our own CarPlay nothing is marked and no notice shows`() =
         runTest {
             val viewModel = viewModel(ourCarPlay)
@@ -206,6 +261,7 @@ class HandlebarViewModelTest {
                     FakeControlTarget(CARLINK_SUPPORTED),
                     FakeMicrophone(canMuteNow = false),
                     FakeCallSituations(seesRinging = false),
+                    OurCarPlay(null),
                 )
             val viewModel = viewModel(refusing)
 

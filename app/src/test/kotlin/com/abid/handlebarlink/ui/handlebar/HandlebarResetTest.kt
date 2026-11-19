@@ -15,6 +15,7 @@ import com.abid.handlebarlink.controls.FakeControlTarget
 import com.abid.handlebarlink.controls.FakeMicrophone
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.InMemoryHandlebarMapping
+import com.abid.handlebarlink.controls.OurCarPlay
 import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.testing.MainDispatcherRule
 import com.abid.handlebarlink.ui.navigation.HandlebarResetRoute
@@ -42,7 +43,12 @@ class HandlebarResetTest {
     private fun viewModel() =
         HandlebarViewModel(
             mapping,
-            ActionAvailability(FakeControlTarget(CARLINK_SUPPORTED), FakeMicrophone(), FakeCallSituations()),
+            ActionAvailability(
+                FakeControlTarget(CARLINK_SUPPORTED),
+                FakeMicrophone(),
+                FakeCallSituations(),
+                OurCarPlay(null),
+            ),
         )
 
     /** The rider has changed a press in two situations. */

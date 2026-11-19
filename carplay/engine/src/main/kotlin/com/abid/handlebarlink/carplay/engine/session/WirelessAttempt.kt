@@ -162,7 +162,7 @@ internal class WirelessAttempt(
         try {
             coroutineScope {
                 launch { channel.run() }
-                val control = BootstrapControl(channel, setup, env.time, env.log, milestones)
+                val control = BootstrapControl(channel, setup, env.time, env.log, milestones, plugins.calls)
                 onStep(ConnectStep.IDENTIFYING)
                 step(IDENTIFY_TIMEOUT, ConnectStep.IDENTIFYING) {
                     channel.connected.await()
@@ -176,6 +176,9 @@ internal class WirelessAttempt(
         } catch (e: CarPlayException) {
             if (!verified.isCompleted) throw e
             env.log.info("carplay.bootstrap.ended", "reason" to e.error)
+        } finally {
+            // Nothing reports calls once this link is gone (also when the attempt ends): never keep a stale ring.
+            plugins.calls.clear("bootstrap ended")
         }
     }
 
