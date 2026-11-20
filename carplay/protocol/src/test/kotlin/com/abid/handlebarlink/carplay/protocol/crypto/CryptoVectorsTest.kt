@@ -66,6 +66,19 @@ class CryptoVectorsTest {
     }
 
     @Test
+    fun `ChaCha20-Poly1305 opens a slice into a reused buffer`() {
+        val aead = ChaCha20Poly1305(RFC8439_KEY, ChaCha20Poly1305.Transformation.JVM)
+        val framed = RFC8439_CIPHERTEXT + RFC8439_TAG + byteArrayOf(9, 9)
+        val output = ByteArray(framed.size + 3) { 0x55 }
+
+        val length = aead.openInto(RFC8439_NONCE, RFC8439_AAD, framed, framed.size - 2, output)
+
+        assertThat(length).isEqualTo(RFC8439_PLAINTEXT.size)
+        assertThat(output.copyOf(length).contentEquals(RFC8439_PLAINTEXT)).isTrue()
+        assertThat(output.takeLast(3)).isEqualTo(listOf<Byte>(0x55, 0x55, 0x55))
+    }
+
+    @Test
     fun `ChaCha20-Poly1305 refuses a changed byte`() {
         val aead = ChaCha20Poly1305(RFC8439_KEY, ChaCha20Poly1305.Transformation.JVM)
         val tampered = RFC8439_CIPHERTEXT + RFC8439_TAG

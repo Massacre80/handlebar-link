@@ -14,7 +14,7 @@ import com.abid.handlebarlink.carplay.protocol.rtsp.RtspResponse
  * empty 200, as DiPlay answers GET_PARAMETER, OPTIONS, FLUSH and unknown routes.
  */
 internal class AirPlaySession(
-    private val context: SessionContext,
+    val context: SessionContext,
 ) {
     private val channels = SessionChannels(context)
     private val streams = MediaStreams(context, channels.commands)
@@ -52,9 +52,10 @@ internal class AirPlaySession(
         return RtspResponse(RtspResponse.OK, RtspResponse.PLIST, BinaryPlistWriter.write(reply))
     }
 
-    /** The iPhone starts sending (DiPlay marks the session active, AirPlaySession.kt:585-588). */
+    /** The iPhone starts sending: this session is the live one (DiPlay `onSessionActive`, AirPlaySession.kt:585). */
     private fun record(): RtspResponse {
         context.log.info("carplay.airplay.record")
+        context.platform.sessions.recorded(context)
         return RtspResponse()
     }
 
@@ -65,8 +66,8 @@ internal class AirPlaySession(
 
     /**
      * `POST /command` (AirPlaySession.kt:794-821): always 200. The type is logged; `duckAudio` and `unduckAudio` go to
-     * the audio (:810-811); `disableBluetooth` starts the hand-over of iAP2 to the Wi-Fi tunnel (CarPlayController.kt:
-     * 506-525, spec D §1.5).
+     * the audio (:810-811); `disableBluetooth` from the live (RECORDed) session starts the hand-over of iAP2 to the
+     * Wi-Fi tunnel (CarPlayController.kt:506-525, spec D §1.5); from any other session it is only logged, as DiPlay.
      */
     private fun command(request: RtspRequest): RtspResponse {
         val body = decode(request.body) as? Plist.Dict
@@ -81,7 +82,13 @@ internal class AirPlaySession(
             "duckAudio" -> context.seams.audio.duck(true)
             "unduckAudio" -> context.seams.audio.duck(false)
         }
-        if (WirelessHandoff.isHandoffCommand(type)) context.platform.handoff.disableBluetoothRequested()
+        if (WirelessHandoff.isHandoffCommand(type)) {
+            if (context.platform.sessions.isActive(context)) {
+                context.platform.handoff.disableBluetoothRequested()
+            } else {
+                context.log.warn("carplay.handoff.not_active", "type" to type)
+            }
+        }
         return RtspResponse()
     }
 

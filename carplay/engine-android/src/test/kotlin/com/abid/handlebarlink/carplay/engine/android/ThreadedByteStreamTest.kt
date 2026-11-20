@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.android
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isFalse
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isTrue
 import assertk.assertions.prop
@@ -93,6 +94,70 @@ class ThreadedByteStreamTest {
                 val stream = stream(BlockedSocket())
                 stream.close()
                 assertFailure { stream.write(byteArrayOf(1)) }.isInstanceOf<CarPlayException>()
+            }
+        }
+
+    /** A socket whose first write blocks until [release]; every write is recorded whole, in order. */
+    private class SlowWrites : BlockingIo {
+        val writing = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val written = java.util.concurrent.CopyOnWriteArrayList<List<Byte>>()
+        val closed = CountDownLatch(1)
+
+        override fun read(buffer: ByteArray): Int {
+            closed.await()
+            return -1
+        }
+
+        override fun write(bytes: ByteArray) {
+            writing.countDown()
+            release.await()
+            written += bytes.toList()
+        }
+
+        override fun close() {
+            closed.countDown()
+        }
+    }
+
+    @Test
+    fun `cancelling a blocked write keeps the stream open for the other writers, and the frame still goes out whole`():
+        Unit =
+        runBlocking {
+            withTimeout(LIMIT) {
+                val socket = SlowWrites()
+                val stream = stream(socket)
+                val first = launch(start = CoroutineStart.UNDISPATCHED) { stream.write(byteArrayOf(1, 2, 3)) }
+                assertThat(socket.writing.await(LIMIT, TimeUnit.MILLISECONDS)).isTrue()
+
+                first.cancelAndJoin()
+                val second = async(start = CoroutineStart.UNDISPATCHED) { stream.write(byteArrayOf(4, 5)) }
+                socket.release.countDown()
+                second.await()
+
+                assertThat(stream.isClosed).isFalse()
+                assertThat(socket.closed.count).isEqualTo(1L)
+                assertThat(socket.written.toList()).isEqualTo(listOf(listOf<Byte>(1, 2, 3), listOf<Byte>(4, 5)))
+                stream.close()
+            }
+        }
+
+    @Test
+    fun `an unchecked exception from the socket fails the read instead of killing its thread`(): Unit =
+        runBlocking {
+            withTimeout(LIMIT) {
+                val socket =
+                    object : BlockingIo {
+                        override fun read(buffer: ByteArray): Int = error("socket bug")
+
+                        override fun write(bytes: ByteArray) = Unit
+
+                        override fun close() = Unit
+                    }
+                assertFailure { stream(socket).read(ByteArray(8)) }
+                    .isInstanceOf<CarPlayException>()
+                    .prop(CarPlayException::error)
+                    .isInstanceOf<CarPlayError.LinkFailed>()
             }
         }
 

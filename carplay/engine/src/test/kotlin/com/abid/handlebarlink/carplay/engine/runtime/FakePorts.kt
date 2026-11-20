@@ -18,6 +18,7 @@ import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.engine.spi.MicrophonePort
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.ScreenPort
+import com.abid.handlebarlink.carplay.engine.spi.SocketUse
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.TcpListener
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
@@ -111,6 +112,11 @@ internal class FakePorts(
     /** Bluetooth turning on. */
     val radioOn = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
 
+    /** Wi-Fi turning on; [wifiTurnsOnDuringCreate]: once, while a createGroup fails with [createGroupError]. */
+    val wifiOn = MutableSharedFlow<Unit>(extraBufferCapacity = 4)
+    var wifiTurnsOnDuringCreate = false
+    var createGroupCalls = 0
+
     /** The group's clients as the platform reports them; null: the platform reports nothing (an old Android). */
     val clients = MutableStateFlow<GroupClients?>(null)
 
@@ -118,6 +124,9 @@ internal class FakePorts(
     var groupLost: CarPlayError? = null
     var groupsWorked = 0
     var listenedOn: List<String> = emptyList()
+
+    /** What each listener and UDP socket was opened for, by port. */
+    val uses = mutableMapOf<Int, SocketUse>()
     var credentialsError: CarPlayError? = null
 
     var groupsCreated = 0
@@ -191,9 +200,16 @@ internal class FakePorts(
             wifiDirect =
                 object : WifiDirectPort {
                     override suspend fun createGroup(): WifiGroup {
+                        createGroupCalls++
                         delay(createGroupMillis)
                         if (groupTimesOutInside) withTimeout(1) { awaitCancellation() }
-                        createGroupError?.let { throw CarPlayException(it) }
+                        createGroupError?.let {
+                            if (wifiTurnsOnDuringCreate) {
+                                wifiTurnsOnDuringCreate = false
+                                this@FakePorts.wifiOn.emit(Unit)
+                            }
+                            throw CarPlayException(it)
+                        }
                         groupsCreated++
                         return group
                     }
@@ -215,24 +231,30 @@ internal class FakePorts(
                         delay(removeGroupMillis)
                         groupsRemoved++
                     }
+
+                    override val wifiOn: Flow<Unit> = this@FakePorts.wifiOn
                 },
             network =
                 object : NetworkPort {
                     override suspend fun listen(
                         addresses: List<String>,
                         preferredPort: Int,
+                        use: SocketUse,
                     ): TcpListener {
                         listenedOn = addresses
                         // Port 0 asks for any free port (the session's event, screen and data listeners).
                         val port = if (preferredPort == 0) nextPort++ else preferredPort
+                        uses[port] = use
                         return FakeListener(port).also { listeners += it }
                     }
 
-                    override suspend fun bindUdp(): UdpSocket {
+                    override suspend fun bindUdp(use: SocketUse): UdpSocket {
                         if (udpFailsAfter?.let { udp.size >= it } == true) {
                             throw CarPlayException(CarPlayError.NetworkFailed("no UDP socket"))
                         }
-                        return FakeUdp(nextPort++).also { udp += it }
+                        val port = nextPort++
+                        uses[port] = use
+                        return FakeUdp(port).also { udp += it }
                     }
                 },
             bonjour =
@@ -312,8 +334,23 @@ internal class FakePorts(
             isConfig: Boolean,
             senderNanos: Long,
             payload: ByteArray,
+            length: Int,
         ) {
-            calls += Call.Frame(isConfig, senderNanos, payload.joinToString("") { "%02x".format(it) })
+            calls += Call.Frame(isConfig, senderNanos, payload.copyOf(length).joinToString("") { "%02x".format(it) })
+            if (!isConfig) bufferBack = payload
+        }
+
+        /** The last picture's buffer, handed out again by [pictureBuffer] when it is large enough. */
+        private var bufferBack: ByteArray? = null
+        var buffersAsked = 0
+        var buffersReused = 0
+
+        override fun pictureBuffer(size: Int): ByteArray {
+            buffersAsked++
+            val back = bufferBack?.takeIf { it.size >= size }
+            bufferBack = null
+            if (back != null) buffersReused++
+            return back ?: ByteArray(size)
         }
     }
 

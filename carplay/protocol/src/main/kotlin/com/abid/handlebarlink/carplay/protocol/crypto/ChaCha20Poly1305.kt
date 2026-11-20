@@ -63,6 +63,26 @@ public class ChaCha20Poly1305(
         return cipher.doFinal(input, offset, length)
     }
 
+    /**
+     * Decrypts the first [length] bytes of ciphertext-and-tag in [input] into the start of [output], which must have
+     * room for [length] bytes (a provider may ask for the tag's room too); returns the plaintext's length. No array is
+     * allocated: the media streams decrypt into reused buffers.
+     *
+     * @throws javax.crypto.AEADBadTagException when the tag does not verify.
+     */
+    public fun openInto(
+        nonce: ByteArray,
+        aad: ByteArray,
+        input: ByteArray,
+        length: Int,
+        output: ByteArray,
+    ): Int {
+        require(length >= TAG_BYTES) { "Ciphertext shorter than the tag" }
+        require(output.size >= length) { "No room for the plaintext" }
+        init(Cipher.DECRYPT_MODE, nonce, aad)
+        return cipher.doFinal(input, 0, length, output, 0)
+    }
+
     private fun init(
         mode: Int,
         nonce: ByteArray,

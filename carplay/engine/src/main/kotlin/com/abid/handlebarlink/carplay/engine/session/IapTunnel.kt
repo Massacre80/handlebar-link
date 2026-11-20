@@ -84,18 +84,34 @@ internal class IapTunnel(
             launch { channel.run() }
             val control =
                 BootstrapControl(channel, setup, context.platform.time, context.log, NO_MILESTONES, handoff.calls)
-            channel.connected.await()
-            control.identify()
-            control.authenticate()
+            // DiPlay runs the tunnel client without an overall limit, but each step within 5 min
+            // (Iap2WirelessControlClient.kt:50-54, WirelessControlDeadline MAX_POLL_MILLIS :411-413), so a stalled
+            // tunnel ends instead of becoming ready at some arbitrary moment much later.
+            step("identification") {
+                channel.connected.await()
+                control.identify()
+            }
+            step("authentication") { control.authenticate() }
             handoff.tunnelReady(token)
             control.serve()
         }
+
+    private suspend fun step(
+        name: String,
+        block: suspend () -> Unit,
+    ) {
+        withTimeoutOrNull(STEP_TIMEOUT) { block() }
+            ?: throw CarPlayException(CarPlayError.LinkFailed("iAP2 tunnel $name took over ${STEP_TIMEOUT}ms"))
+    }
 
     companion object {
         private const val CHANNEL = "iap2 tunnel"
 
         /** DiPlay's PEER_CONNECT_TIMEOUT_MILLIS (AirPlayIapTunnelStream.kt:169). */
         const val PEER_CONNECT_TIMEOUT = 15_000L
+
+        /** DiPlay's per-step limit of the tunnel's bring-up, MAX_POLL_MILLIS (Iap2WirelessControlClient.kt:411). */
+        const val STEP_TIMEOUT = 5 * 60 * 1_000L
 
         /** The tunnel's streamID in the SETUP reply (CarPlayMediaEngine.kt:437). */
         private const val STREAM_ID = 1L
@@ -169,16 +185,13 @@ internal class IapTunnelStream(
 ) : ByteStream {
     private var reader = IapTunnelReader(readKey, context.platform.cipherName)
     private val chunk = ByteArray(READ_CHUNK)
-    private var pending = ByteArray(0)
+
+    private val pending = ByteQueue(READ_CHUNK)
     private var closed = false
 
     override suspend fun read(buffer: ByteArray): Int {
-        while (pending.isEmpty() && !closed) fill()
-        if (pending.isEmpty()) return -1
-        val count = minOf(buffer.size, pending.size)
-        pending.copyInto(buffer, 0, 0, count)
-        pending = pending.copyOfRange(count, pending.size)
-        return count
+        while (pending.isEmpty && !closed) fill()
+        return if (pending.isEmpty) -1 else pending.read(buffer)
     }
 
     /** One read from the data connection; at its end, the iPhone's next connection. */
@@ -186,7 +199,7 @@ internal class IapTunnelStream(
         val count = connection.read(chunk)
         when {
             count >= 0 -> {
-                pending += decode(count)
+                decode(count).forEach(pending::append)
             }
 
             !closed -> {
@@ -201,21 +214,29 @@ internal class IapTunnelStream(
         }
     }
 
-    private fun decode(count: Int): ByteArray =
+    private fun decode(count: Int): List<ByteArray> =
         try {
-            reader.receive(chunk, 0, count).fold(ByteArray(0)) { all, body -> all + body }
+            reader.receive(chunk, 0, count)
         } catch (e: AEADBadTagException) {
             throw CarPlayException(CarPlayError.LinkFailed("iAP2 tunnel frame failed authentication"), e)
         } catch (e: IapTunnelException) {
             throw CarPlayException(CarPlayError.LinkFailed(e.message ?: "bad iAP2 tunnel record"), e)
         }
 
+    /**
+     * Waits up to [EVENT_READY_TIMEOUT] for the event channel to take the message, as DiPlay waits for it to be ready;
+     * the limit covers only that wait, never a write already under way (cancelling one would only stop waiting).
+     */
     override suspend fun write(bytes: ByteArray) {
         val command = Plist.dict("type" to SEND_MESSAGE, "params" to Plist.dict("data" to bytes))
-        withTimeoutOrNull(EVENT_READY_TIMEOUT) {
-            while (!commands.send(command)) delay(EVENT_READY_POLL)
-            true
-        } ?: throw CarPlayException(CarPlayError.LinkFailed("AirPlay event channel did not take an iAP2 message"))
+        val time = context.platform.time
+        val deadline = time.elapsedMillis() + EVENT_READY_TIMEOUT
+        while (!commands.send(command)) {
+            if (time.elapsedMillis() >= deadline) {
+                throw CarPlayException(CarPlayError.LinkFailed("AirPlay event channel did not take an iAP2 message"))
+            }
+            delay(EVENT_READY_POLL)
+        }
     }
 
     override fun close() {
@@ -235,5 +256,50 @@ internal class IapTunnelStream(
 
         /** DiPlay's READ_CHUNK_BYTES (IapTunnel.kt:223). */
         const val READ_CHUNK = 16 * 1024
+    }
+}
+
+/**
+ * Bytes waiting to be read, in order: appended at the end, read from the front. The buffer is compacted or grown only
+ * when an append does not fit, so reading in small pieces never copies the rest again (the tunnel's records arrive
+ * many to a 16 KiB chunk and are read 8 KiB at a time).
+ */
+internal class ByteQueue(
+    initialBytes: Int,
+) {
+    private var bytes = ByteArray(initialBytes)
+    private var start = 0
+    private var end = 0
+
+    val isEmpty: Boolean get() = start == end
+
+    /** Bytes waiting. */
+    val size: Int get() = end - start
+
+    fun append(body: ByteArray) {
+        if (end + body.size > bytes.size) {
+            val waiting = size
+            if (waiting + body.size > bytes.size) {
+                bytes = bytes.copyOfRange(start, end).copyOf(maxOf(bytes.size * 2, waiting + body.size))
+            } else {
+                bytes.copyInto(bytes, 0, start, end)
+            }
+            start = 0
+            end = waiting
+        }
+        body.copyInto(bytes, end)
+        end += body.size
+    }
+
+    /** Moves up to `buffer.size` bytes into the start of [buffer]; returns how many (0 when empty). */
+    fun read(buffer: ByteArray): Int {
+        val count = minOf(buffer.size, size)
+        bytes.copyInto(buffer, 0, start, start + count)
+        start += count
+        if (start == end) {
+            start = 0
+            end = 0
+        }
+        return count
     }
 }

@@ -37,7 +37,8 @@ class ReceiverIdsTest {
             .isEqualTo("b4:00:00:00:00:01" to ReceiverIds.Source.GROUP_OWNER)
         // What an app sees on Android 11+: no interface MAC and the owner erased (WifiP2pServiceImpl).
         assertThat(ReceiverIds.receiverId(null, ReceiverIds.PLACEHOLDER, counting))
-            .isEqualTo("62:0d:cd:29:66:c4" to ReceiverIds.Source.IDENTITY)
+            // Upper case, as DiPlayBootstrap.deviceId's "%02X" spells it.
+            .isEqualTo("62:0D:CD:29:66:C4" to ReceiverIds.Source.IDENTITY)
     }
 
     @Test

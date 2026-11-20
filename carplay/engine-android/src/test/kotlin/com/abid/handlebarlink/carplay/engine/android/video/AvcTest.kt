@@ -81,6 +81,27 @@ class AvcTest {
     }
 
     @Test
+    fun `in Annex B the first slice decides, after any AUD, SEI or empty NAL unit before it`() {
+        val aud = listOf<Byte>(0, 0, 0, 1, 0x09, 0xF0.toByte())
+        val sei = listOf<Byte>(0, 0, 1, 0x06, 5, 1, 0x80.toByte())
+        val empty = listOf<Byte>(0, 0, 0, 1)
+        val idr = listOf<Byte>(0, 0, 0, 1, 0x65, 0x88.toByte(), 0, 0x10)
+        val slice = listOf<Byte>(0, 0, 1, 0x41, 0x9A.toByte(), 0, 0x10)
+
+        fun idr(vararg parts: List<Byte>): Boolean {
+            val picture = parts.flatMap { it }.toByteArray()
+            return Avc.isIdr(picture, 0, picture.size, AvcConfig.ANNEX_B)
+        }
+
+        assertThat(idr(aud, sei, idr)).isTrue()
+        assertThat(idr(empty, idr)).isTrue()
+        assertThat(idr(aud, slice, idr)).isFalse()
+        assertThat(idr(slice)).isFalse()
+        assertThat(idr(listOf(0x65, 1, 2))).isFalse() // No start code: malformed.
+        assertThat(idr(aud)).isFalse()
+    }
+
+    @Test
     fun `pictures whose lengths do not add up are rejected and nothing is written`() {
         val broken = frame1.copyOf().also { it[3] = (it[3] + 1).toByte() }
         val out = ByteBuffer.allocate(4096)

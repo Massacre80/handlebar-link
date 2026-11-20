@@ -15,8 +15,12 @@ import com.abid.handlebarlink.carplay.protocol.plist.Plist
  * (AirPlayInfoPlist.kt:31-85): identity, features, modes, audio latencies and formats (DiPlay's defaults,
  * `AudioCapabilities`, with input formats on the recording streams when [microphone] allows, Opus among them when the
  * platform can encode it, AirPlayInfoPlist.kt:155-162), the display and the HID devices. DiPlay notes the iPhone aborts
- * a session whose `/info` lacks audio formats and HID devices (AirPlayInfoPlist.kt:3-8). OEM icons are left out, as
- * DiPlay's builder does without icons (AirPlayInfoPlist.kt:64).
+ * a session whose `/info` lacks audio formats and HID devices (AirPlayInfoPlist.kt:3-8).
+ *
+ * Deliberate difference: no OEM icon. DiPlay's builder adds `oemIconVisible`, `oemIconLabel` and `oemIcons` whenever
+ * its host passes icons (AirPlayInfoPlist.kt:64-75), and the host CarLink runs always passes one, its own app icon and
+ * label (CarPlayHostActivity.kt:5204-5205). Those are CarLink's image bytes, which we neither can nor should copy; an
+ * icon of our own is a design decision, so the iPhone shows its generic tile (cosmetic only).
  */
 internal class AirPlayReceiver(
     private val config: CarPlayConfig,

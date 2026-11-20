@@ -236,6 +236,9 @@ class MediaReceiversTest {
             )
             assertThat(frames.size).isEqualTo(4)
             assertThat(link.state.value).isInstanceOf<CarPlayState.Connected>()
+            // Each picture was decrypted into a buffer the port handed out; one given back is handed out again.
+            assertThat(fake.screen.buffersAsked).isEqualTo(3)
+            assertThat(fake.screen.buffersReused).isEqualTo(2)
         }
 
     @Test

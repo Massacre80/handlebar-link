@@ -56,8 +56,9 @@ internal data class HandoffState(
  *
  * Deliberate difference, the owner's choice (2026-11-19): DiPlay fails the whole connection when the tunnel fails or
  * the hand-over times out without a picture (:1934-1956, 2205-2208). Here a tunnel that fails while Bluetooth is still
- * open only falls back to Bluetooth, logged; DiPlay's strictness applies once we closed Bluetooth: then nothing else
- * carries iAP2, so the tunnel ending ends the attempt and the runtime reconnects ([endAttempt]).
+ * open only falls back to Bluetooth, logged; DiPlay's strictness applies once Bluetooth is gone (we closed it, or the
+ * bootstrap ended by itself): then nothing else carries iAP2, so the tunnel ending ends the attempt and the runtime
+ * reconnects ([endAttempt]).
  *
  * The calls (0x4155) come from whichever link is up; they are forgotten only when the last link carrying them ends.
  * One per attempt; touched only on the engine's dispatcher.
@@ -66,6 +67,8 @@ internal class WirelessHandoff(
     private val scope: CoroutineScope,
     /** Where both links' CallStateUpdates go. */
     val calls: CallStates,
+    /** Which verified session is the live one; only its `disableBluetooth` counts. */
+    val sessions: ActiveSession,
     private val time: TimeProvider,
     private val log: Logger,
     /** Ends the attempt (the tunnel was lost after Bluetooth was closed for it). */
@@ -130,13 +133,15 @@ internal class WirelessHandoff(
         )
         if (!before.bluetoothOpen) calls.clear("tunnel ended")
         when {
-            before.phase == HandoffState.Phase.BLUETOOTH_CLOSED && !sessionEnding -> {
-                log.warn("carplay.handoff.tunnel_lost", "reason" to reason)
-                endAttempt(
-                    CarPlayException(
-                        CarPlayError.PhoneDisconnected("iAP2 tunnel ended after the Bluetooth hand-over: $reason"),
-                    ),
-                )
+            sessionEnding -> {}
+
+            before.phase == HandoffState.Phase.BLUETOOTH_CLOSED -> {
+                tunnelLost("iAP2 tunnel ended after the Bluetooth hand-over: $reason", reason)
+            }
+
+            // The RFCOMM bootstrap already ended by itself: there is no Bluetooth link to fall back to.
+            !before.bluetoothOpen -> {
+                tunnelLost("iAP2 tunnel ended and the Bluetooth link is gone: $reason", reason)
             }
 
             before.phase == HandoffState.Phase.BLUETOOTH && before.requested -> {
@@ -145,6 +150,15 @@ internal class WirelessHandoff(
 
             else -> {}
         }
+    }
+
+    /** Nothing carries iAP2 any more: the attempt ends and the runtime reconnects (DiPlay CTL:1934-1945). */
+    private fun tunnelLost(
+        message: String,
+        reason: String,
+    ) {
+        log.warn("carplay.handoff.tunnel_lost", "reason" to reason)
+        endAttempt(CarPlayException(CarPlayError.PhoneDisconnected(message)))
     }
 
     /** The iPhone's `/command disableBluetooth`, also `disable-bluetooth` in any case (CarPlayController.kt:2920). */

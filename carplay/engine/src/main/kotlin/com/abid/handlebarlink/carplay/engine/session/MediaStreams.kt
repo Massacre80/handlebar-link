@@ -1,5 +1,6 @@
 package com.abid.handlebarlink.carplay.engine.session
 
+import com.abid.handlebarlink.carplay.engine.spi.SocketUse
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
 import com.abid.handlebarlink.carplay.protocol.stream.IapTunnelReader
 import com.abid.handlebarlink.carplay.protocol.stream.StreamKeys
@@ -68,7 +69,8 @@ internal class MediaStreams(
     ): Plist {
         val setup = ScreenStreamSetup(type, StreamKeys.output(context.sharedSecret, id.bits), stream)
         context.seams.screen.prepare(setup)
-        val listener = context.platform.network.listen(context.platform.addresses, 0)
+        val use = if (type == MAIN_SCREEN) SocketUse.SCREEN else SocketUse.CONTROL
+        val listener = context.platform.network.listen(context.platform.addresses, 0, use)
         val job =
             context.launchVital("screen stream $type") {
                 val connection = context.acceptFromPeer(listener, "screen $type")
@@ -126,7 +128,7 @@ internal class MediaStreams(
      * Apple-format writer would send 16 bytes instead.
      */
     private suspend fun openAudio(setup: AudioStreamSetup): Plist {
-        val data = context.platform.network.bindUdp()
+        val data = context.platform.network.bindUdp(SocketUse.AUDIO)
         val control = context.bindUdpAfter(data)
         val name = "${setup.type}/${setup.audioType}"
         val job =

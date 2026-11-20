@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- What CarPlay needs (docs/PLAN.md "CarPlay receiver", permissions table). CarPlayPermissions lists the runtime
-     ones for the app's permission flow; every port checks its own before use. -->
+<!-- What CarPlay needs (docs/PLAN.md "CarPlay receiver", permissions table). The app's permission flow asks for the
+     runtime ones; every port checks its own before use. -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- Sockets: the AirPlay listener and the iPhone's connections. Nothing leaves the bike. -->
@@ -14,7 +14,7 @@
          (BluetoothAdapter reference). Nearby devices group; asked for by the pairing screen. -->
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
     <!-- cancelDiscovery() before the dial ("Connect Bluetooth devices"), when granted; the app declares and requests it
-         for its own scans, with the same flag. Not needed for CarPlay, so not in CarPlayPermissions. -->
+         for its own scans, with the same flag. Not needed for CarPlay, so the app does not ask for it for CarPlay. -->
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />

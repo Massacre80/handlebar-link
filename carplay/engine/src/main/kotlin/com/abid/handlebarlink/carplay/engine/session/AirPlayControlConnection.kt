@@ -47,6 +47,9 @@ internal class AirPlayControlConnection(
     private var cipher: ControlCipher? = null
     private var session: AirPlaySession? = null
 
+    /** The verified session's context, once pair-verify succeeded. */
+    val sessionContext: SessionContext? get() = session?.context
+
     /** The iPhone's pairing id once pair-verify succeeded. */
     val verifiedPhone: String? get() = pairVerify.controllerId.takeIf { cipher != null }
 

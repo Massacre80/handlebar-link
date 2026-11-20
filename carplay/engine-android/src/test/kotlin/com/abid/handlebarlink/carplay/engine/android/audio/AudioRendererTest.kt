@@ -28,7 +28,7 @@ class AudioRendererTest {
     private val focus = AudioFocus(focusSystem, log)
     private val modes = FakeAudioModes()
     private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
-    private val calls = CallAudio(modes, headsets, log)
+    private val calls = CallAudio(modes, headsets, log, ManualTime())
     private val track get() = checkNotNull(platform.track)
 
     private val pcm48Mono = AudioFormat(AudioCodec.LPCM, 48_000, 1, 48_000)

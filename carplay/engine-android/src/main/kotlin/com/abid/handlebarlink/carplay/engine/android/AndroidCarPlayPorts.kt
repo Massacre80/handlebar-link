@@ -33,7 +33,8 @@ import java.security.SecureRandom
  * no system service (safe on the main thread, docs/LESSONS.md 60); all real work happens lazily inside the
  * suspending port calls, on the ports' own threads. Create one
  * per process (Hilt `@Singleton`). The app binds it as `CarPlayPortsSource { createAndroidCarPlayPorts(context, time,
- * logger, screen) }` and asks for [CarPlayPermissions.runtime] in its permission flow. The iPhone's picture goes to
+ * logger, screen) }`; the app's own permission flow asks for what each port checks (the manifest lists them, every port
+ * checks its own before use and fails with PermissionMissing). The iPhone's picture goes to
  * [screen] ([createCarPlayScreen]), which the app also shows. Calls and Siri use the rider's Bluetooth headset from
  * [headsets] when it is connected (docs/PLAN.md "C5 audio", "Routes").
  */
@@ -82,39 +83,6 @@ private const val PAIRINGS_FILE = "airplay-pairings"
 
 /** iPhones remembered after pair-setup; one more evicts the oldest (a rider has one or two). */
 private const val MAX_PAIRINGS = 16
-
-/** The runtime permissions CarPlay needs, for the app's permission flow (docs/PLAN.md "CarPlay receiver"). */
-public object CarPlayPermissions {
-    /**
-     * What to request on [sdkInt], all in the Nearby devices group except location on Android 12:
-     * - `BLUETOOTH_CONNECT`: the RFCOMM dial and the bond list;
-     * - `NEARBY_WIFI_DEVICES` (Android 13+) or `ACCESS_FINE_LOCATION` (Android 12/12L): the Wi-Fi Direct group
-     *   (wifi-permissions guide);
-     * - `ACCESS_LOCAL_NETWORK` (Android 17+): inbound AirPlay connections and mDNS (local-network-permission);
-     * - `RECORD_AUDIO`: Siri's and calls' microphone (docs/PLAN.md C5; without it `/info` offers no microphone).
-     */
-    @SuppressLint("InlinedApi") // Plain strings, chosen by sdkInt only where the permission exists.
-    public fun runtime(sdkInt: Int = Build.VERSION.SDK_INT): List<String> {
-        val wifiDirect =
-            if (sdkInt >=
-                ANDROID_13
-            ) {
-                Manifest.permission.NEARBY_WIFI_DEVICES
-            } else {
-                Manifest.permission.ACCESS_FINE_LOCATION
-            }
-        val localNetwork = if (sdkInt >= ANDROID_17) listOf(Manifest.permission.ACCESS_LOCAL_NETWORK) else emptyList()
-        return listOf(Manifest.permission.BLUETOOTH_CONNECT, wifiDirect) + localNetwork +
-            Manifest.permission.RECORD_AUDIO
-    }
-
-    /** Those of [runtime] not granted now. */
-    public fun missing(context: Context): List<String> =
-        runtime().filter { context.checkSelfPermission(it) != PackageManager.PERMISSION_GRANTED }
-
-    private const val ANDROID_13 = 33
-    private const val ANDROID_17 = 37
-}
 
 /** The iPhone CarPlay dials, when the rider picks one; otherwise the only paired (or connected) iPhone is used. */
 public object CarPlayIphone {

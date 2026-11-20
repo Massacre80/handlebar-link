@@ -46,6 +46,9 @@ internal class SessionPlatform(
     /** What `/info` offered the microphone this attempt; the audio streams record only with it. */
     val microphone: MicrophoneOffer = MicrophoneOffer.NONE,
 ) {
+    /** Which verified session is the live one (DiPlay's `activeSession`). */
+    val sessions: ActiveSession get() = handoff.sessions
+
     val network: NetworkPort get() = ports.network
     val cipherName: String get() = ports.cipherName
     val media: MediaFactory get() = plugins.media

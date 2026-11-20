@@ -6,6 +6,7 @@ package com.abid.handlebarlink.carplay.engine.runtime
 import assertk.assertFailure
 import assertk.assertThat
 import assertk.assertions.containsExactly
+import assertk.assertions.hasSize
 import assertk.assertions.isBetween
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
@@ -39,6 +40,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.security.SecureRandom
+import kotlin.math.roundToLong
 import kotlin.random.Random
 import kotlin.time.Duration.Companion.seconds
 
@@ -109,8 +111,9 @@ class CarPlayRuntimeTest {
             val startSession = bootstrap(phone)
             val wireless = startSession.parameter(1)!!.group()
             assertThat(wireless.first { it.id == 0 }.string()).isEqualTo(fake.group.network.ssid)
-            // IPv4 first, then the link-local address without its scope (E-connection.md #7).
-            assertThat(wireless.filter { it.id == 3 }.map { it.string() }).containsExactly("192.168.49.1", "fe80::1")
+            // One address, the group's IPv4, as DiPlay's Wi-Fi Direct path (WifiP2pGroupManager.kt:676-688); the
+            // listener still serves every address.
+            assertThat(wireless.filter { it.id == 3 }.map { it.string() }).containsExactly("192.168.49.1")
             assertThat(fake.listenedOn).containsExactly("192.168.49.1", "fe80::1%p2p-wlan0-0")
             assertThat(fake.published.single().address).isEqualTo("192.168.49.1")
             assertThat(startSession.parameter(2)!!.payload.toList()).isEqualTo(listOf<Byte>(0, 0, 0x1B, 0x58))

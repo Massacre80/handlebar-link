@@ -34,6 +34,7 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.min
 import kotlin.math.roundToLong
+import kotlin.random.Random
 
 /**
  * The [CarPlayLink] implementation: an actor on [dispatcher] (single-threaded) that runs one
@@ -45,7 +46,8 @@ import kotlin.math.roundToLong
  *
  * Retries (docs/research/carplay-spec/E-connection.md): a dial the iPhone did not answer is retried after 1.5 s
  * up to [QUICK_DIALS] failures in a row (#6); a retry that waits only because Bluetooth was off runs as soon as it
- * turns on (#5); everything else backs off 2 s doubling to 30 s.
+ * turns on (#5); with Wi-Fi off nothing is retried (no Bluetooth page every 30 s for a ride without Wi-Fi) until the
+ * platform reports Wi-Fi on, then at once; everything else backs off 2 s doubling to 30 s.
  */
 internal class CarPlayRuntime(
     private val ports: CarPlayPorts,
@@ -106,12 +108,22 @@ internal class CarPlayRuntime(
     ) {
         var started = false
         var job: Job? = null
+
+        /** Completes once the latest attempt and every one before it have finished closing (its Ended is sent). */
+        var settled: Job? = null
         var current = 0
         var failures = 0
 
         /** Why the last attempt failed, and when its retry starts (elapsed time); null once connected. */
         var lastError: CarPlayError? = null
         var retryAt = 0L
+
+        /** Wi-Fi-on reports so far, and how many there were when the latest attempt was launched. */
+        var wifiOns = 0
+        var wifiOnsAtLaunch = 0
+
+        /** Wi-Fi was off: no attempt runs until Wi-Fi turns on. */
+        var waitingForWifi = false
     }
 
     private suspend fun loop(loop: Loop) {
@@ -119,13 +131,16 @@ internal class CarPlayRuntime(
         env.log.info("carplay.run.start")
         // A platform signal: only trySend, the loop decides (AGENTS.md, engine architecture).
         val radio = loop.scope.launch { ports.bluetooth.radioOn.collect { inbox.trySend(Event.BluetoothOn) } }
+        val wifi = loop.scope.launch { ports.wifiDirect.wifiOn.collect { inbox.trySend(Event.WifiOn) } }
         try {
             for (event in inbox) handle(event, loop)
         } finally {
             withContext(NonCancellable) {
                 radio.cancel()
+                wifi.cancel()
                 loop.job?.cancel()
-                loop.job?.join()
+                // Every attempt still closing, not only the latest: keepAlive drops after the last teardown.
+                loop.settled?.join()
                 keepAliveFlow.value = false
                 stateFlow.value = CarPlayState.Stopped
                 env.log.info("carplay.run.end")
@@ -139,11 +154,11 @@ internal class CarPlayRuntime(
     ) {
         when (event) {
             Event.Start -> {
-                if (!loop.started) begin(loop)
+                begin(loop)
             }
 
             Event.Stop -> {
-                if (loop.started) end(loop)
+                end(loop)
             }
 
             is Event.Step -> {
@@ -161,33 +176,57 @@ internal class CarPlayRuntime(
                 if (event.generation == loop.current) ended(loop, event.error)
             }
 
-            Event.BluetoothOn -> {
-                bluetoothOn(loop)
+            Event.BluetoothOn, Event.WifiOn -> {
+                radioOn(event, loop)
             }
         }
     }
 
-    /** Bluetooth turned on: a retry that only waits because Bluetooth was off starts now (DiPlay PR #914). */
-    private fun bluetoothOn(loop: Loop) {
-        val waiting = env.time.elapsedMillis() < loop.retryAt
-        if (!loop.started || loop.lastError !is CarPlayError.BluetoothUnavailable || !waiting) return
-        env.log.info("carplay.bluetooth.on_retry", "attempt" to loop.failures + 1)
-        loop.job?.cancel()
-        loop.retryAt = 0L
-        launchAttempt(loop, pause = 0)
+    /**
+     * Bluetooth or Wi-Fi turned on: a retry that only waits because it was off starts now (Bluetooth: DiPlay PR #914;
+     * Wi-Fi: an attempt that failed with WifiOff waits for nothing else).
+     */
+    private fun radioOn(
+        radio: Event,
+        loop: Loop,
+    ) {
+        val wifi = radio == Event.WifiOn
+        if (wifi) loop.wifiOns++
+        val waitsForIt =
+            if (wifi) {
+                loop.waitingForWifi
+            } else {
+                loop.lastError is CarPlayError.BluetoothUnavailable && env.time.elapsedMillis() < loop.retryAt
+            }
+        if (loop.started && waitsForIt) {
+            env.log.info(
+                if (wifi) "carplay.wifi.on_retry" else "carplay.bluetooth.on_retry",
+                "attempt" to loop.failures + 1,
+            )
+            loop.job?.cancel()
+            loop.waitingForWifi = false
+            loop.retryAt = 0L
+            launchAttempt(loop, pause = 0)
+        }
     }
 
     private fun begin(loop: Loop) {
+        if (loop.started) return
         loop.started = true
         loop.failures = 0
         loop.lastError = null
+        loop.waitingForWifi = false
         keepAliveFlow.value = true
         launchAttempt(loop, pause = 0)
     }
 
     private fun end(loop: Loop) {
+        if (!loop.started) return
         loop.started = false
+        loop.waitingForWifi = false
         loop.job?.cancel()
+        // Waiting for Wi-Fi, nothing runs and no Ended will come: everything is closed already.
+        if (loop.job == null) keepAliveFlow.value = false
         stateFlow.value = CarPlayState.Idle
         env.log.info("carplay.stopped")
     }
@@ -214,7 +253,11 @@ internal class CarPlayRuntime(
         }
         loop.failures++
         loop.lastError = error
-        val pause = pauseAfter(error, loop.failures)
+        if (error == CarPlayError.WifiOff) {
+            wifiOff(loop, error)
+            return
+        }
+        val pause = pauseAfter(error, loop.failures, env.random)
         loop.retryAt = env.time.elapsedMillis() + pause
         stateFlow.value =
             CarPlayState.Recovering(
@@ -228,24 +271,51 @@ internal class CarPlayRuntime(
         launchAttempt(loop, pause)
     }
 
+    /**
+     * The attempt failed because Wi-Fi is off: no timed retry, [wifiOn] starts the next attempt. Wi-Fi that turned on
+     * while this attempt ran (its report came before this end) retries at once instead.
+     */
+    private fun wifiOff(
+        loop: Loop,
+        error: CarPlayError,
+    ) {
+        if (loop.wifiOns == loop.wifiOnsAtLaunch) {
+            loop.waitingForWifi = true
+            loop.retryAt = Long.MAX_VALUE
+            stateFlow.value = CarPlayState.Recovering(error, loop.failures, env.time.clock.instant())
+            env.log.warn("carplay.recovering", "error" to error, "attempt" to loop.failures, "waiting_for" to "wifi")
+        } else {
+            env.log.info("carplay.wifi.on_during_attempt")
+            launchAttempt(loop, pause = 0)
+        }
+    }
+
     private fun launchAttempt(
         loop: Loop,
         pause: Long,
     ) {
         val generation = ++generation
-        val previous = loop.job
+        val before = loop.settled
         loop.current = generation
-        loop.job =
+        loop.wifiOnsAtLaunch = loop.wifiOns
+        var error: CarPlayError? = null
+        val settled = Job()
+        val job =
             loop.scope.launch {
-                var error: CarPlayError? = null
-                try {
-                    previous?.join()
-                    error = attempt(generation, pause)
-                } finally {
-                    // Also after cancellation: the loop must learn the attempt has finished closing.
-                    inbox.trySend(Event.Ended(generation, error))
-                }
+                before?.join()
+                error = attempt(generation, pause)
             }
+        // From the job's completion, which also runs for a job cancelled before it started (docs/LESSONS.md 110), and
+        // only once every earlier attempt has closed too: a cancelled wait must not report the end early.
+        job.invokeOnCompletion {
+            val report: (Throwable?) -> Unit = {
+                inbox.trySend(Event.Ended(generation, error))
+                settled.complete()
+            }
+            if (before == null) report(null) else before.invokeOnCompletion(report)
+        }
+        loop.job = job
+        loop.settled = settled
     }
 
     /** Runs one attempt; returns why it ended (cancellation propagates). */
@@ -288,24 +358,6 @@ internal class CarPlayRuntime(
             CarPlayError.Unexpected(e)
         }
 
-    /**
-     * 2 s doubling to 30 s (DiPlay HOST:6298); an unanswered dial 1.5 s for the first [QUICK_DIALS] failures in a
-     * row (CarLink HOST:6288-6296, 7247-7251: "~5 s per try and often succeeds on the next one; the doubling
-     * backoff turned four misses into ~55 s"). ±20 % jitter so a flapping link does not retry in lockstep.
-     */
-    private fun pauseAfter(
-        error: CarPlayError,
-        failures: Int,
-    ): Long {
-        val base =
-            if (error is CarPlayError.DialFailed && failures <= QUICK_DIALS) {
-                QUICK_DIAL_PAUSE
-            } else {
-                min(BASE_PAUSE * (1L shl min(failures - 1, MAX_SHIFT)), MAX_PAUSE)
-            }
-        return (base * (1 + JITTER * (2 * env.random.nextDouble() - 1))).roundToLong()
-    }
-
     private sealed interface Event {
         data object Start : Event
 
@@ -328,9 +380,30 @@ internal class CarPlayRuntime(
         ) : Event
 
         data object BluetoothOn : Event
+
+        data object WifiOn : Event
     }
 
     private companion object {
+        /**
+         * 2 s doubling to 30 s (DiPlay HOST:6298); an unanswered dial 1.5 s for the first [QUICK_DIALS] failures in a
+         * row (CarLink HOST:6288-6296, 7247-7251: "~5 s per try and often succeeds on the next one; the doubling
+         * backoff turned four misses into ~55 s"). ±20 % jitter so a flapping link does not retry in lockstep.
+         */
+        fun pauseAfter(
+            error: CarPlayError,
+            failures: Int,
+            random: Random,
+        ): Long {
+            val base =
+                if (error is CarPlayError.DialFailed && failures <= QUICK_DIALS) {
+                    QUICK_DIAL_PAUSE
+                } else {
+                    min(BASE_PAUSE * (1L shl min(failures - 1, MAX_SHIFT)), MAX_PAUSE)
+                }
+            return (base * (1 + JITTER * (2 * random.nextDouble() - 1))).roundToLong()
+        }
+
         const val BASE_PAUSE = 2_000L
         const val MAX_PAUSE = 30_000L
         const val MAX_SHIFT = 4

@@ -49,7 +49,9 @@ internal object Avc {
 
     /**
      * Whether the picture starts an independent reference chain (its first slice is IDR, nal_unit_type 5; DiPlay
-     * `MediaCodecSupport.isRandomAccess`). False for anything malformed.
+     * `MediaCodecSupport.isRandomAccess`). False for anything malformed. In Annex B only the NAL units before the first
+     * slice are searched for their end (AUD, SEI, SPS, PPS: a few bytes), never the slice itself, which is most of
+     * the picture.
      */
     fun isIdr(
         bytes: ByteArray,
@@ -57,13 +59,23 @@ internal object Avc {
         length: Int,
         nalLengthSize: Int,
     ): Boolean {
-        var result = false
-        forEachNal(bytes, offset, length, nalLengthSize) { start, _ ->
-            val type = bytes[start].toInt() and NAL_TYPE_MASK
-            result = type == NAL_IDR
-            type !in NAL_SLICE..NAL_IDR // keep looking until the first slice
+        var type = 0
+        if (nalLengthSize == AvcConfig.ANNEX_B || !lengthsAddUp(bytes, offset, length, nalLengthSize)) {
+            // Annex B: read the type behind each start code and step on byte by byte, up to the first slice only.
+            val end = offset + length
+            var at = if (inBounds(bytes, offset, length) && startCodeAt(bytes, offset, end) > 0) offset else end
+            while (at < end && type !in NAL_SLICE..NAL_IDR) {
+                val code = startCodeAt(bytes, at, end)
+                if (code > 0 && at + code < end) type = bytes[at + code].toInt() and NAL_TYPE_MASK
+                at += maxOf(code, 1)
+            }
+        } else {
+            forEachNal(bytes, offset, length, nalLengthSize) { start, _ ->
+                type = bytes[start].toInt() and NAL_TYPE_MASK
+                type !in NAL_SLICE..NAL_IDR // keep looking until the first slice
+            }
         }
-        return result
+        return type == NAL_IDR
     }
 
     /**

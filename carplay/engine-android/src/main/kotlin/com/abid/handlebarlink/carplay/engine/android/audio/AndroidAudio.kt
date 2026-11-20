@@ -12,6 +12,7 @@ import android.media.MediaFormat
 import android.os.Process
 import com.abid.handlebarlink.carplay.engine.android.AndroidPlatform
 import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
+import com.abid.handlebarlink.carplay.engine.android.threadPriority
 import com.abid.handlebarlink.carplay.engine.spi.AudioPlayer
 import com.abid.handlebarlink.carplay.engine.spi.AudioPort
 import com.abid.handlebarlink.carplay.engine.spi.AudioStreamInfo
@@ -35,7 +36,7 @@ internal class AndroidAudioSystem(
 
     val focus: AudioFocus by lazy { AudioFocus(AndroidFocusSystem(this), platform.log) }
 
-    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), headsets, platform.log) }
+    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), headsets, platform.log, platform.time) }
 
     val renderers: RendererPlatform by lazy { AndroidRendererPlatform(this) }
 
@@ -82,15 +83,7 @@ internal class AndroidAudioPort(
 }
 
 /** `THREAD_PRIORITY_AUDIO` for the calling thread; a refusal keeps the default priority. */
-internal fun audioPriority() {
-    try {
-        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-    } catch (_: SecurityException) {
-        // Keeps the default priority.
-    } catch (_: IllegalArgumentException) {
-        // Keeps the default priority.
-    }
-}
+internal fun audioPriority() = threadPriority(Process.THREAD_PRIORITY_AUDIO)
 
 private class AndroidFocusSystem(
     private val audio: AndroidAudioSystem,
@@ -145,6 +138,16 @@ private class AndroidAudioModeSystem(
     override fun clearCommunicationDevice() {
         audio.manager.clearCommunicationDevice()
     }
+
+    override fun activeCommunicationDevice(): CommunicationDevice? = audio.manager.communicationDevice?.let(::device)
+
+    override fun watchCommunicationDevice(changed: (CommunicationDevice?) -> Unit) {
+        // On the platform thread; CallAudio is synchronised. Kept for the process, like CallAudio itself.
+        audio.manager.addOnCommunicationDeviceChangedListener(audio.platform.executor) { changed(it?.let(::device)) }
+    }
+
+    private fun device(info: AudioDeviceInfo) =
+        CommunicationDevice(info.id, info.type, info.address, info.productName?.toString().orEmpty())
 }
 
 /** AudioTrack and MediaCodec for [AudioRenderer]. */

@@ -7,23 +7,36 @@ import java.security.GeneralSecurityException
 
 /**
  * One decrypted CarPlay audio packet. [rtp] is what DiPlay hands its renderer: the clear 12-byte RTP header
- * followed by the decrypted payload (AudioStream.kt:154; BufferedAudioStream.kt:369).
+ * followed by the decrypted payload (AudioStream.kt:154; BufferedAudioStream.kt:369). The header and the payload are
+ * kept apart, so the payload reaches the player without being copied again ([takePayload]).
  */
-public class AudioPacket(
-    /** The RTP header and the decrypted payload. */
-    public val rtp: ByteArray,
+public class AudioPacket internal constructor(
+    private val header: ByteArray,
+    private val decrypted: ByteArray,
 ) {
+    /** A packet from its [rtp] bytes: the RTP header and the decrypted payload. */
+    public constructor(rtp: ByteArray) : this(
+        rtp.copyOf(AudioWire.RTP_HEADER_BYTES),
+        rtp.copyOfRange(AudioWire.RTP_HEADER_BYTES, rtp.size),
+    )
+
+    /** The RTP header and the decrypted payload, as one new array. */
+    public val rtp: ByteArray get() = header + decrypted
+
     /** RTP sequence number, u16 big-endian at byte 2. */
-    public val sequence: Int get() = ((rtp[2].toInt() and 0xFF) shl 8) or (rtp[3].toInt() and 0xFF)
+    public val sequence: Int get() = ((header[2].toInt() and 0xFF) shl 8) or (header[3].toInt() and 0xFF)
 
     /** RTP timestamp (the sample time DiPlay tracks), u32 big-endian at byte 4, as 0..2^32 − 1. */
-    public val timestamp: Long get() = readU32Be(rtp, 4)
+    public val timestamp: Long get() = readU32Be(header, 4)
 
     /** RTP payload type, the low 7 bits of byte 1. */
-    public val payloadType: Int get() = rtp[1].toInt() and 0x7F
+    public val payloadType: Int get() = header[1].toInt() and 0x7F
 
     /** A copy of the decrypted payload (everything after the RTP header). */
-    public fun payload(): ByteArray = rtp.copyOfRange(AudioWire.RTP_HEADER_BYTES, rtp.size)
+    public fun payload(): ByteArray = decrypted.copyOf()
+
+    /** The decrypted payload itself, not a copy: for handing it on once (the receiver gives it to its player). */
+    public fun takePayload(): ByteArray = decrypted
 }
 
 /**
@@ -75,12 +88,7 @@ public object AudioWire {
             } catch (_: GeneralSecurityException) {
                 null
             }
-        return payload?.let {
-            val rtp = ByteArray(RTP_HEADER_BYTES + it.size)
-            packet.copyInto(rtp, 0, offset, offset + RTP_HEADER_BYTES)
-            it.copyInto(rtp, RTP_HEADER_BYTES)
-            AudioPacket(rtp)
-        }
+        return payload?.let { AudioPacket(packet.copyOfRange(offset, offset + RTP_HEADER_BYTES), it) }
     }
 
     private const val NONCE_BYTES = ChaCha20Poly1305.NONCE_BYTES
@@ -217,21 +225,27 @@ public class MicrophonePacketSealer(
     private var sequence = 0
     private var timestamp = 0
     private var nonce = 0L
+    private val header = ByteArray(AudioWire.RTP_HEADER_BYTES)
+    private val aad = ByteArray(AudioWire.RTP_HEADER_BYTES - AAD_START)
 
     /** Seals [body] (encoded audio, or big-endian PCM: [toWirePcm]) and advances the RTP clock by [samples]. */
     public fun seal(
         body: ByteArray,
         samples: Int,
     ): ByteArray {
-        val header = ByteArray(AudioWire.RTP_HEADER_BYTES)
         header[0] = 0x80.toByte()
         header[1] = (payloadType and 0x7F).toByte()
         header[2] = (sequence ushr 8).toByte()
         header[3] = sequence.toByte()
         for (i in 0 until 4) header[4 + i] = (timestamp ushr (24 - 8 * i)).toByte()
+        header.copyInto(aad, 0, AAD_START, AudioWire.RTP_HEADER_BYTES)
         val nonceBytes = counterNonce(nonce)
-        val sealed = cipher.seal(nonceBytes, header.copyOfRange(4, AudioWire.RTP_HEADER_BYTES), body)
-        val packet = header + sealed + nonceBytes.copyOfRange(4, nonceBytes.size)
+        val sealed = cipher.seal(nonceBytes, aad, body)
+        // Header, sealed body and nonce tail written once into the packet.
+        val packet = ByteArray(AudioWire.RTP_HEADER_BYTES + sealed.size + AudioWire.NONCE_TAIL_BYTES)
+        header.copyInto(packet)
+        sealed.copyInto(packet, AudioWire.RTP_HEADER_BYTES)
+        nonceBytes.copyInto(packet, AudioWire.RTP_HEADER_BYTES + sealed.size, AAD_START, nonceBytes.size)
         sequence = (sequence + 1) and 0xFFFF
         timestamp += samples
         nonce++
@@ -240,6 +254,8 @@ public class MicrophonePacketSealer(
 
     /** Byte order of microphone PCM. */
     public companion object {
+        private const val AAD_START = 4
+
         /**
          * Android's little-endian 16-bit PCM as the big-endian samples CarPlay's microphone payload carries
          * (MicrophonePacketizer.kt:128-139). A trailing odd byte is kept as is.

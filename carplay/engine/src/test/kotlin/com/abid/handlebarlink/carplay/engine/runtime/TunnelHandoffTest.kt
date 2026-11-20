@@ -19,6 +19,8 @@ import com.abid.handlebarlink.carplay.engine.CarPlayCallStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
+import com.abid.handlebarlink.carplay.engine.session.IapTunnel
+import com.abid.handlebarlink.carplay.engine.session.WirelessAttempt
 import com.abid.handlebarlink.carplay.engine.spi.ByteStream
 import com.abid.handlebarlink.carplay.protocol.crypto.ChaCha20Poly1305
 import com.abid.handlebarlink.carplay.protocol.crypto.Ed25519KeyPair
@@ -68,8 +70,10 @@ class TunnelHandoffTest {
         val bluetooth: PhoneIap2,
         val identification: Iap2Message,
         val airPlay: PhoneAirPlay,
-        val events: PhoneEvents,
-    )
+        val eventChannel: PhoneEvents?,
+    ) {
+        val events: PhoneEvents get() = checkNotNull(eventChannel)
+    }
 
     private fun TestScope.started(): CarPlayRuntime {
         val time = TestTimeProvider(testScheduler)
@@ -83,7 +87,10 @@ class TunnelHandoffTest {
     }
 
     /** Bluetooth bootstrap, pair-verify, auth-setup, the session SETUP and the event channel. */
-    private suspend fun TestScope.connected(): Phone {
+    private suspend fun TestScope.connected(
+        record: Boolean = true,
+        connectEvents: Boolean = true,
+    ): Phone {
         val bluetooth = PhoneIap2(fake.dialed.receive())
         bluetooth.handshake()
         bluetooth.send(iap2Message(0x1D00))
@@ -106,7 +113,10 @@ class TunnelHandoffTest {
         check(auth.status == 200)
         val session = airPlay.request("SETUP", SETUP_PATH, hex(SESSION_SETUP), contentType = PLIST)
         val eventPort = checkNotNull((BinaryPlistReader.read(session.body) as Plist.Dict).long("eventPort")).toInt()
-        val events = PhoneEvents(listener(eventPort).connect(), checkNotNull(airPlay.sharedSecret))
+        val events =
+            if (connectEvents) PhoneEvents(listener(eventPort).connect(), checkNotNull(airPlay.sharedSecret)) else null
+        // The session is the live one from its RECORD (DiPlay onSessionActive); only then does disableBluetooth count.
+        if (record) check(airPlay.request("RECORD", SETUP_PATH).status == 200)
         runCurrent()
         return Phone(bluetooth, identification, airPlay, events)
     }
@@ -469,6 +479,156 @@ class TunnelHandoffTest {
             assertThat(listener(50_003).closed).isTrue()
             assertThat(link.state.value).isInstanceOf<CarPlayState.Connected>()
             assertThat(events("carplay.handoff.tunnel_lost")).isEmpty()
+        }
+
+    @Test
+    fun `a tunnel that stalls in identification ends after DiPlay's 5 minutes`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            val phone = connected()
+            val iap2 = PhoneIap2(tunnel(phone))
+            within { iap2.handshake() }
+
+            advanceTimeBy(IapTunnel.STEP_TIMEOUT - 1)
+            runCurrent()
+            val before = events("carplay.iap2.tunnel.ended").size
+            advanceTimeBy(2)
+            runCurrent()
+
+            assertThat(before).isEqualTo(0)
+            assertThat(
+                events("carplay.iap2.tunnel.ended")
+                    .single()
+                    .fields
+                    .first()
+                    .second
+                    .toString(),
+            ).contains("identification took over")
+        }
+
+    @Test
+    fun `a tunnel whose event channel never connects gives its first write up after 10 s, not sooner`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            val phone = connected(connectEvents = false)
+            val port = phone.airPlay.setup(TUNNEL_SETUP).dataPort()
+            listener(port).connect()
+            runCurrent()
+
+            advanceTimeBy(9_990)
+            runCurrent()
+            val before = events("carplay.iap2.tunnel.ended").size
+            advanceTimeBy(40)
+            runCurrent()
+
+            assertThat(before).isEqualTo(0)
+            assertThat(
+                events("carplay.iap2.tunnel.ended")
+                    .single()
+                    .fields
+                    .first()
+                    .second
+                    .toString(),
+            ).contains("did not take an iAP2 message")
+        }
+
+    @Test
+    fun `a tunnel that fails during the fallback keeps the calls Bluetooth still carries`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = started()
+            val phone = connected()
+            phone.bluetooth.sendRaw(hex(RINGING_A))
+            runCurrent()
+            check(link.calls.value == listOf(CarPlayCall(CarPlayCallStatus.RINGING)))
+            val tunnel = tunnel(phone)
+            phone.airPlay.command(DISABLE_BLUETOOTH)
+            runCurrent()
+
+            tunnel.sendForged()
+            runCurrent()
+
+            check(events("carplay.handoff.fallback").size == 1)
+            assertThat(link.calls.value).containsExactly(CarPlayCall(CarPlayCallStatus.RINGING))
+            assertThat(events("carplay.calls.cleared")).isEmpty()
+        }
+
+    @Test
+    fun `a tunnel the iPhone never connects to keeps the calls Bluetooth still carries`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = started()
+            val phone = connected()
+            phone.bluetooth.sendRaw(hex(RINGING_A))
+            runCurrent()
+            phone.airPlay.setup(TUNNEL_SETUP)
+
+            advanceTimeBy(15_001)
+            runCurrent()
+
+            check(events("carplay.iap2.tunnel.ended").size == 1)
+            assertThat(link.calls.value).containsExactly(CarPlayCall(CarPlayCallStatus.RINGING))
+            assertThat(events("carplay.calls.cleared")).isEmpty()
+        }
+
+    @Test
+    fun `a tunnel that fails after the Bluetooth bootstrap ended by itself ends the attempt, no fallback to it`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = started()
+            val phone = connected()
+            val tunnel = tunnel(phone)
+            phone.airPlay.command(DISABLE_BLUETOOTH)
+            fake.rfcomm
+                .single()
+                .phone
+                .close()
+            runCurrent()
+            check(link.state.value is CarPlayState.Connected)
+
+            tunnel.sendForged()
+            runCurrent()
+
+            val error = (link.state.value as? CarPlayState.Recovering)?.error
+            assertThat(error).isNotNull().isInstanceOf<CarPlayError.PhoneDisconnected>()
+            assertThat(error.toString()).contains("the Bluetooth link is gone")
+            assertThat(events("carplay.handoff.fallback")).isEmpty()
+            assertThat(events("carplay.handoff.tunnel_lost")).hasSize(1)
+        }
+
+    @Test
+    fun `disableBluetooth from a session that has not started recording is ignored, as DiPlay`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            started()
+            val phone = connected(record = false)
+            readyTunnel(phone)
+
+            phone.airPlay.command(DISABLE_BLUETOOTH)
+            advanceTimeBy(50_000)
+
+            assertThat(bluetoothClosed()).isFalse()
+            assertThat(events("carplay.handoff.requested")).isEmpty()
+            assertThat(events("carplay.handoff.fallback")).isEmpty()
+            assertThat(events("carplay.handoff.not_active")).hasSize(1)
+        }
+
+    @Test
+    fun `a superseded verified connection ending leaves the newer live session running`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = started()
+            val phone = connected()
+            val newer = PhoneAirPlay(listener(WirelessAttempt.AIRPLAY_PORT).connect(), random)
+            check(newer.pairVerify(PHONE_ID, phoneKeys))
+            check(newer.request("RECORD", SETUP_PATH).status == 200)
+            runCurrent()
+
+            phone.airPlay.close()
+            runCurrent()
+
+            assertThat(link.state.value).isInstanceOf<CarPlayState.Connected>()
+            assertThat(events("carplay.airplay.superseded_ended")).hasSize(1)
+            assertThat(events("carplay.airplay.session_replaced")).hasSize(1)
+
+            newer.close()
+            runCurrent()
+            assertThat(link.state.value).isInstanceOf<CarPlayState.Recovering>()
         }
 
     private companion object {

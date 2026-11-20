@@ -21,6 +21,7 @@ import com.abid.handlebarlink.carplay.engine.session.MediaContext
 import com.abid.handlebarlink.carplay.engine.session.MediaFactory
 import com.abid.handlebarlink.carplay.engine.session.MediaSeams
 import com.abid.handlebarlink.carplay.engine.session.ScreenStreamSetup
+import com.abid.handlebarlink.carplay.engine.spi.SocketUse
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
 import com.abid.handlebarlink.carplay.engine.spi.UdpSocket
 import com.abid.handlebarlink.carplay.protocol.crypto.ChaCha20Poly1305
@@ -298,6 +299,14 @@ class AirPlaySessionTest {
             ).isEqualTo(Plist.Integer(BigInteger.valueOf(-1234567890123456789)))
             assertThat(streams[2].long("streamConnectionID")).isEqualTo(77L)
             assertThat(listener(streams[0].port("dataPort")).closed).isFalse()
+            // The screen reader at display priority, the audio data sockets at audio priority with a big buffer (DiPlay
+            // ScreenStream.kt:75-76, AudioStream.kt:62-68, 92-93); RTCP and the tunnel are plain.
+            assertThat(fake.uses[streams[0].port("dataPort")]).isEqualTo(SocketUse.SCREEN)
+            listOf(1, 2).forEach {
+                assertThat(fake.uses[streams[it].port("dataPort")]).isEqualTo(SocketUse.AUDIO)
+                assertThat(fake.uses[streams[it].port("controlPort")]).isEqualTo(SocketUse.CONTROL)
+            }
+            assertThat(fake.uses[streams[3].port("dataPort")]).isEqualTo(SocketUse.CONTROL)
             // The session reads and drops RTCP itself (DiPlay AudioStream.kt:180-190).
             udp(streams[1].port("controlPort")).deliver(ByteArray(8))
             runCurrent()

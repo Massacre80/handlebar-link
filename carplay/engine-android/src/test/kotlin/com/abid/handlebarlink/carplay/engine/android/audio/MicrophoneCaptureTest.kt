@@ -27,7 +27,7 @@ class MicrophoneCaptureTest {
     private val log = testLogger(RecordingLogSink(), ManualTime())
     private val modes = FakeAudioModes()
     private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
-    private val calls = CallAudio(modes, headsets, log)
+    private val calls = CallAudio(modes, headsets, log, ManualTime())
     private val bodies = mutableListOf<String>()
 
     private val call = MicrophoneFormat("telephony", AudioCodec.LPCM, 16_000, 1, 20, 0)
@@ -147,6 +147,25 @@ class MicrophoneCaptureTest {
         assertThat(modes.cleared).isEqualTo(2)
         // Siri keeps the normal mode; only the call entered communication mode.
         assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+    }
+
+    @Test
+    fun `an Opus encoder that breaks and then throws on release still gives back the mode and the intercom route`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val opusCall = MicrophoneFormat("telephony", AudioCodec.OPUS, 48_000, 1, 20, 24_000)
+
+        assertFailure {
+            capture(opusCall, ByteArray(1_920), configure = {
+                encode = { throw IllegalStateException("codec error") }
+                encoderReleaseFails = true
+            })
+        }.isInstanceOf<IllegalStateException>()
+
+        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+        assertThat(modes.cleared).isEqualTo(1)
+        // A later call can enter the mode again: nothing still holds it.
+        calls.enter(Any())
+        assertThat(modes.modes.last()).isEqualTo(AudioManager.MODE_IN_COMMUNICATION)
     }
 
     @Test
