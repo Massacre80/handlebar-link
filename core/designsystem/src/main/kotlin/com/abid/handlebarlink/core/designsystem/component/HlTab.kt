@@ -1,8 +1,6 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.BoundsTransform
-import androidx.compose.animation.animateBounds
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.LocalIndication
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -33,9 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.dropShadow
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.shadow.Shadow
-import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -57,10 +52,10 @@ public data class HlTab(
 )
 
 /**
- * The floating tab bar ("Component · Tab bar"): the active tab sits on a raised chip, the others share the
- * remaining width. On a change the chip springs to the new tab while the tabs resize and recolour
- * (Motion-style "layoutId" sliding, done with a spring offset and `animateBounds`). With a [backdrop] (the
- * page it floats over), the bar is frosted glass like the design.
+ * The floating tab bar ("Component · Tab bar"): every tab has the same fixed slot and the active one sits on a
+ * raised chip that fills its slot. On a change only the chip springs to the new tab and the tabs recolour; no tab
+ * moves (owner, 2026-11-20: the old resizing slots made the whole bar jump on every change). With a [backdrop]
+ * (the page it floats over), the bar is frosted glass like the design.
  */
 @Composable
 public fun HlTabBar(
@@ -88,19 +83,17 @@ public fun HlTabBar(
             .border(HlTheme.strokes.hairline, colors.glassEdge, CircleShape),
         contentAlignment = Alignment.CenterStart,
     ) {
-        // Where the chip ends up: the tabs before the selected one share what the chip leaves.
-        val others = (maxWidth - inset * 2 - sizes.tabWidth) / (tabs.size - 1).coerceAtLeast(1)
-        val target = with(LocalDensity.current) { (inset + others * selected).toPx() }
+        // Equal slots, and the chip fills the selected one: the same 6 dp inset at its ends as above and below it.
+        val slot = (maxWidth - inset * 2) / tabs.size.coerceAtLeast(1)
+        val target = with(LocalDensity.current) { (inset + slot * selected).toPx() }
         val chipX by animateFloatAsState(target, HlTheme.motion.layout(), label = "tab chip")
-        Chip(DpSize(sizes.tabWidth, sizes.tab), Modifier.offset { IntOffset(chipX.roundToInt(), 0) })
-        LookaheadScope {
-            Row(
-                Modifier.fillMaxSize().padding(horizontal = inset).selectableGroup(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                tabs.forEachIndexed { index, tab ->
-                    BarItem(tab, index == selected, this@LookaheadScope) { onSelect(index) }
-                }
+        Chip(DpSize(slot, sizes.tab), Modifier.offset { IntOffset(chipX.roundToInt(), 0) })
+        Row(
+            Modifier.fillMaxSize().padding(horizontal = inset).selectableGroup(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            tabs.forEachIndexed { index, tab ->
+                TabItem(tab, index == selected, Modifier.weight(1f).height(sizes.tab)) { onSelect(index) }
             }
         }
     }
@@ -213,26 +206,6 @@ private fun Chip(
             ).clip(CircleShape)
             .background(colors.raisedHi),
     )
-}
-
-/** A tab of the bar: the active one takes the chip's width, the others share the rest (both animated). */
-@Composable
-private fun RowScope.BarItem(
-    tab: HlTab,
-    active: Boolean,
-    lookahead: LookaheadScope,
-    onClick: () -> Unit,
-) {
-    val sizes = HlTheme.sizes
-    val motion = HlTheme.motion
-    val bounds = BoundsTransform { _: Rect, _: Rect -> motion.layout() }
-    val size =
-        if (active) {
-            Modifier.animateBounds(lookahead, Modifier.size(sizes.tabWidth, sizes.tab), bounds)
-        } else {
-            Modifier.weight(1f).animateBounds(lookahead, Modifier.height(sizes.tab), bounds)
-        }
-    TabItem(tab, active, size, onClick = onClick)
 }
 
 /**

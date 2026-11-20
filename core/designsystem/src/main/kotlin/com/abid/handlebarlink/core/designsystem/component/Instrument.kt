@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -81,10 +80,10 @@ public data class InstrumentAction(
 
 /**
  * The BikePlay instrument card (Paper "BikePlay card B — Instrument"): [title] and its mark top left, a chevron top
- * right (a tap anywhere but the button calls [onClick]); the meter ([value], [tone]) with the [state] word and the
- * [detail] line inside it, the [start] and [end] readings on its base (Connected); at most one [action] at the bottom.
- * 208 dp tall in every state (a minimum, for large text), full width; Night's glass or Bento's ink card, the edge in
- * danger when the tone is.
+ * right, on their own row (a tap anywhere but the button calls [onClick]); under them the meter ([value], [tone]) with
+ * the [state] word on its base and the [detail] under it, the [start] and [end] readings beside it (Connected); at most
+ * one [action] at the bottom. The same height in every state (a minimum, for large text), full width; Night's glass or
+ * Bento's ink card, the edge in danger when the tone is.
  */
 @Composable
 public fun HlInstrumentCard(
@@ -126,7 +125,7 @@ public fun HlInstrumentCard(
                     Modifier
                 },
             ).padding(spacing.s16),
-        verticalArrangement = Arrangement.spacedBy(spacing.s12),
+        verticalArrangement = Arrangement.spacedBy(spacing.s14),
     ) {
         val size =
             when {
@@ -134,23 +133,13 @@ public fun HlInstrumentCard(
                 action != null -> MeterSize.COMPACT
                 else -> MeterSize.WIDE
             }
-        // The meter's band: 112 dp beside a button, the whole inside (208 - 2 x 16) without one.
-        val band = if (action != null) MeterBandHeight else HlTheme.sizes.instrument - spacing.s16 * 2
-        Box(Modifier.fillMaxWidth().heightIn(min = band)) {
-            Corner(title, Modifier.align(Alignment.TopStart))
-            HlIcon(
-                HlIcons.ChevronRight,
-                colors.inkInverse.copy(alpha = CHEVRON),
-                Modifier.align(Alignment.TopEnd).offset(y = -HlTheme.strokes.hairline),
-                size = HlTheme.sizes.iconSmall,
-            )
-            MeterRow(
-                Readout(state, detail, value, tone, size),
-                start,
-                end,
-                Modifier.align(Alignment.BottomCenter),
-            )
+        // The corner gets its own row and the meter its own band under it: nothing overlaps (owner, 2026-11-20: the
+        // 208 dp card pushed the arc into the corner and the two-line intro across the arc).
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Corner(title, Modifier.weight(1f))
+            HlIcon(HlIcons.ChevronRight, colors.inkInverse.copy(alpha = CHEVRON), size = HlTheme.sizes.iconSmall)
         }
+        MeterRow(Readout(state, detail, value, tone, size), start, end, Modifier)
         action?.let { InstrumentButton(it) }
     }
 }
@@ -222,31 +211,25 @@ private fun Gauge(
             MeterSize.HERO -> InstrumentType.heroState
             MeterSize.HERO_PANE -> InstrumentType.stateWide
         }
-    Box(
-        modifier.heightIn(min = if (wide) WideGaugeHeight else MeterBandHeight),
-        contentAlignment = Alignment.BottomCenter,
+    Column(
+        modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(if (wide) HlTheme.spacing.s6 else HlTheme.spacing.s4),
     ) {
-        HlMeter(value, tone, size, Modifier.align(Alignment.TopCenter))
-        Column(
-            // Kept below the arc's top and the corner: larger text grows the card downwards, never into the corner.
-            Modifier.padding(
-                top = if (wide) WideReadoutTop else ReadoutTop,
-                bottom = if (wide) HlTheme.spacing.s6 else 0.dp,
-            ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(if (wide) HlTheme.spacing.s4 else HlTheme.spacing.s2),
-        ) {
+        // The state word sits inside the arc on its base; the detail goes under the base, never across the arc.
+        Box(contentAlignment = Alignment.BottomCenter) {
+            HlMeter(value, tone, size)
             HlText(state, stateStyle, colors.inkInverse, maxLines = 1, textAlign = TextAlign.Center)
-            HlText(
-                detail,
-                (if (wide) InstrumentType.detailWide else InstrumentType.detail).centred(),
-                colors.inkInverse.copy(alpha = DETAIL),
-                // At most two balanced lines, 300 dp wide (Paper "B · 4": the intro wider than the arc).
-                Modifier.widthIn(max = HlTheme.sizes.instrumentText),
-                maxLines = 2,
-                textAlign = TextAlign.Center,
-            )
         }
+        HlText(
+            detail,
+            (if (wide) InstrumentType.detailWide else InstrumentType.detail).centred(),
+            colors.inkInverse.copy(alpha = DETAIL),
+            // At most two balanced lines, 300 dp wide (Paper "B · 4": the intro wider than the arc).
+            Modifier.widthIn(max = HlTheme.sizes.instrumentText),
+            maxLines = 2,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
@@ -305,18 +288,6 @@ private fun InstrumentButton(action: InstrumentAction) {
 
 /** The corner mark (Paper: a 16 px icon). */
 private val MarkSize = 16.dp
-
-/** The meter's band beside a button and the gauge without one (Paper: 112 and 168 px). */
-private val MeterBandHeight = 112.dp
-private val WideGaugeHeight = 168.dp
-
-/**
- * The least room above the state word: at Paper's sizes the readout (48–66 dp beside a button, the two-line "Not set
- * up" the tallest at 112 - 46; 64 dp without) still sits on the gauge's base, as drawn; larger text pushes the base
- * down instead of the words up over the corner.
- */
-private val ReadoutTop = 46.dp
-private val WideReadoutTop = 104.dp
 
 /** Tabular figures (Paper: `font-feature-settings: "tnum"` on "5 GHz"). */
 private const val TABULAR = "tnum"
