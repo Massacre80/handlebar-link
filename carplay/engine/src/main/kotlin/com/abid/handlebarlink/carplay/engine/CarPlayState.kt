@@ -40,6 +40,11 @@ public sealed interface CarPlayState {
          * soon as Wi-Fi turns on.
          */
         val retryAt: Instant,
+        /**
+         * When the attempt failed and the pause began, so a countdown can show how much of the pause is left
+         * (`retryAt - failedAt` is the whole pause); equal to [retryAt] when there is no timed retry (Wi-Fi off).
+         */
+        val failedAt: Instant = retryAt,
     ) : CarPlayState
 }
 

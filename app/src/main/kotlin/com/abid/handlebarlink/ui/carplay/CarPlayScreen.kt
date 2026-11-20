@@ -155,8 +155,9 @@ internal fun StatusList(
     }
 }
 
+/** What a hero or card button says for [action]. */
 @StringRes
-private fun actionLabel(action: TabAction): Int =
+internal fun actionLabel(action: TabAction): Int =
     when (action) {
         TabAction.ADD_IPHONE -> R.string.carplay_action_add
         TabAction.CHOOSE_IPHONE -> R.string.carplay_action_choose
@@ -168,6 +169,7 @@ private fun actionLabel(action: TabAction): Int =
         TabAction.OPEN_SETTINGS -> R.string.carplay_action_settings
         TabAction.TURN_ON_WIFI -> R.string.carplay_action_wifi
         TabAction.TURN_ON_BLUETOOTH -> R.string.carplay_action_bluetooth
+        TabAction.RETRY_NOW -> R.string.carplay_action_try_now
     }
 
 /** Sample states for previews and screenshot tests (Paper "Tab 1–4"). */
@@ -202,9 +204,17 @@ internal val PreviewCarPlayWifiOff =
         PreviewLine,
     )
 
-/** Home's CarPlay line while our receiver connects. */
-internal val PreviewCarPlayConnectingLine =
-    carPlayLine(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.DIALING_PHONE)), Instant.EPOCH)
+/** Home's BikePlay card connected to the preview iPhone on channel 36 with a strong link (Paper "B · 1"). */
+internal val PreviewBikePlayConnected =
+    bikePlayCard(
+        CarPlayStatus.Engine(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 36)),
+        listOf(PreviewIphone),
+        PreviewIphone.address,
+        PreviewLine,
+        CarPlayVideoStats(received = 300, shown = 300, framesPerSecond = 60.0, 0, decodeP90Millis = 12.0, 0),
+        bluetoothOn = true,
+        now = Instant.EPOCH,
+    )
 
 /** No ride running: Ready, with Start CarPlay. */
 internal val PreviewCarPlayReady =

@@ -162,9 +162,9 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   show, and a plain `PaddingValues` captured there missed the insets that arrive after the first frame. Tab pages'
   second pane is clipped below the status bar and a status-bar protection is drawn over tab pages, so nothing runs
   under the clock.
-- **Two panes** (equal width, Home's cards pane 1.2 x the bike's, 16 dp gutter, each scrolling on its own when it runs out of height): Home Night (the
-  wordmark, pill and settings in their own band over the whole bike on its ground, `FittedBike`; the cards: device tile
-  and Add device side by side, Handlebar, CarPlay), Home Bento (pill and settings over the bike card filling the pane,
+- **Two panes** (equal width, Home's cards pane 1.6 x the bike's since the BikePlay card, 16 dp gutter, each scrolling on its own when it runs out of height): Home Night (the
+  wordmark, pill and settings in their own band over the whole bike on its ground, `FittedBike`; the cards: the BikePlay card,
+  device tile and Add device side by side, Handlebar), Home Bento (pill and settings over the bike card filling the pane,
   its bike sized to the room under the name; the cards in portrait order), setup and in-app iPhone pairing (bike, ring
   or heading in the first pane, the step's words and actions in the second; Find my bike and Make visible stay under
   the heading so they are on screen), the CarPlay tab (dial, tag, title, detail | actions and the status rows), the
@@ -419,6 +419,46 @@ The owner's MFi identity comes from their old CarPlay display (`~/.carlink-priva
 - **Text only:** code identifiers, packages, modules, routes, string resource names, log keys and the engine keep
   CarPlay; these docs keep CarPlay for the receiver and the protocol.
 
+### Home's BikePlay card, design B "Instrument" (owner's choice, 2026-11-20; branch `polish`)
+
+Paper page "BikePlay card": the owner chose design B "Instrument" with **a button only where the rider must or can
+act**, and **the status shown once** (the meter, its state word and one line are the whole status: no tag, pill or
+second line repeating it).
+- **Design system:** `HlMeter` (`component/Instrument.kt`), the reusable meter the BikePlay tab's hero will use next: a
+  value arc over a tick arc in three geometries from the artboards (`MeterGeometry` in `theme/HlInstrument.kt`: COMPACT
+  196 dp beside a button, WIDE 316 dp without one, RETRY 236 dp while a retry counts down), values `Empty` (dim),
+  `Full`, `Segments` (link quality) and `Progress` (a step, or a draining countdown moving linearly between the
+  once-a-second updates) with the knob cut out of the card, tones GOOD (lime) and DANGER. `HlInstrumentCard`: the
+  corner mark and "BikePlay", the chevron, the meter with the state word (24 sp, 30 sp without a button) and the detail
+  (14 sp, 15 sp), the readings on its base (Connected), at most one 52 dp full-width button, lime for everything the rider
+  must or can do (owner, 2026-11-20: the fixes and Try now too; only dismissing is a secondary button); 208 dp tall in every state (a minimum: larger text grows it downwards), full width; Night's glass
+  (`instrument` rgb(18 20 14 / 78%)), Bento's ink card; the edge danger at 32 % in danger states. New tokens:
+  `color-instrument`, `color-instrument-solid` (the knob's ring), `color-instrument-shadow`, `shadow-instrument`,
+  `size-instrument`, `size-meter`, `size-meter-wide`, `size-meter-retry`, `size-meter-foot` (TokenDriftTest); icons
+  `BikePlayMark`, `Play`, `PlusBold` (path data from the artboards). Previews and screenshot tests for the nine states
+  in both looks (`InstrumentSamples`). Night's backdrop blur is not drawn: the card sits on the plain ground, never over
+  the bike.
+- **States** (`ui/carplay/BikePlayCard.kt`, built from the tab's `carPlayHero`, so the two never disagree): 1 Connected
+  (all segments lit by `linkQuality`: Strong 3, Fair 2, Weak 1, all three before a verdict; the iPhone's name; "Strong"
+  over "Link" and "5 GHz" over "Ch 36"; Open BikePlay) · 2 Starting (step 1 of 4: the arc at a quarter, "Calling your
+  iPhone") · 3 Connecting (steps 2–4, the step's words; the card says "Waiting for the iPhone to join" for step 3 as
+  Paper does) · 4 Not set up (empty arc, "BikePlay shows your iPhone's CarPlay on the bike. Pair it once to start." in two
+  balanced lines up to 300 dp, Add iPhone) · 5–7 Needs you (danger arc, the hero's reason, the hero's fix: Turn on
+  Wi-Fi, Turn on Bluetooth, Allow or Open settings, Choose iPhone) · 8 Couldn't connect (a retry the engine runs by itself: the danger arc draining with the pause,
+  `pauseLeft` from `CarPlayState.Recovering.failedAt`, the status line's "<what failed> · Retrying in N s", e.g.
+  "iPhone didn't answer · Retrying in 8 s", Try now) ·
+  9 BikePlay off (no ride: "Starts again when you ride"; stopped by the rider: "Stopped until you start it", since a
+  hold outlives rides; Start BikePlay). A tap outside the button opens the BikePlay tab.
+- **Buttons are the tab's** (`rememberTabActions`, `ui/carplay/TabActions.kt`, now shared by the tab and Home through
+  `BikePlayCommands`): pairing and the iPhone sheet open over Home; Open BikePlay opens the display on the BikePlay tab.
+- **Try now** is a new engine command, `CarPlayLink.retryNow()` (non-suspending, queued to the runtime's dispatcher):
+  while started and pausing before a timed retry it cancels the pause and starts the next attempt at once; it does
+  nothing before a start, after a stop, while an attempt runs or while waiting for Wi-Fi (CarPlayRetryTest, every
+  planted bug caught). `Recovering` gained `failedAt` for the countdown's whole length.
+- **Placement:** Home Night upright: the tiles, the card 10 dp under them, the Handlebar card 10 dp under it (Paper
+  "Home (Night)"); Bento: where the CarPlay card was ("Home (Bento)"); on its side first in the cards pane, the pane 1.6
+  x the bike's ("Landscape Home (Night)"). `SignalCard` is no longer on Home.
+
 ### Our CarPlay replaces CarLink (owner decision, 2026-11-20; worktree `carplay-only-app`)
 
 The owner: "Remove the text beta instead of carlink, we are replacing carlink, that's the goal, so no need of toggle
@@ -551,7 +591,7 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
 - **UI:** the CarPlay tab (was an empty page; Paper "CarPlay — flow v2" without the switch row since 2026-11-20): the
   hero (its state tag is the design system's `HlTag` with a tone and its 6 dp dot; the title is a polite TalkBack live
   region, so the hero's changes are announced, not the ticking detail), then the status rows with `HlRowIcon` tiles
-  (iPhone, Link, CarPlay screen). Home's CarPlay card shows the status line. Status line: Starts with the next ride (no
+  (iPhone, Link, CarPlay screen). Home shows the BikePlay card (design B, see "Home's BikePlay card"). Status line: Starts with the next ride (no
   ride); Starting; "Connecting · <step>"; Connected; "<error> · Retrying in N s" (ticking each second); the error alone
   when only the rider can fix it. While CarPlay starts or runs, the hero follows it even when the app's own choice of
   iPhone names none (two paired, none chosen: the engine dials the one with the live link), so Open CarPlay stays.

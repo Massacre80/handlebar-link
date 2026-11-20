@@ -6,13 +6,18 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
+import com.abid.handlebarlink.carplay.CarPlayStatus
+import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.devices.DeviceKind
+import com.abid.handlebarlink.ui.carplay.BikePlayCardState
 import com.abid.handlebarlink.ui.carplay.CarPlayLine
+import com.abid.handlebarlink.ui.carplay.bikePlayCard
 import com.abid.handlebarlink.ui.devices.kindName
+import java.time.Instant
 
 /** What the status pill says about the bike link. */
 enum class LinkStatus {
@@ -60,9 +65,21 @@ data class HomeUiState(
     val rideData: Boolean = false,
     /** What each handlebar press does (the Handlebar card). */
     val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS.getValue(CallSituation.RIDING),
-    /** The CarPlay card's line ("Starts with the next ride" until the status arrives). */
-    val carPlay: CarPlayLine = CarPlayLine(R.string.carplay_status_waiting, tone = SignalTone.IDLE),
+    /** The BikePlay card (design B "Instrument"); "BikePlay off" until the status arrives. */
+    val bikePlay: BikePlayCardState = BikePlayNotLoaded,
 )
+
+/** Before BikePlay's status arrives: no ride, nothing known (shown for a few milliseconds). */
+private val BikePlayNotLoaded: BikePlayCardState =
+    bikePlayCard(
+        CarPlayStatus.Engine(CarPlayState.Stopped),
+        iphones = null,
+        chosen = null,
+        line = CarPlayLine(R.string.carplay_status_waiting, tone = SignalTone.IDLE),
+        video = null,
+        bluetoothOn = true,
+        now = Instant.EPOCH,
+    )
 
 /** An added device on Home. [battery] in percent, null until it reports one. */
 data class HomeDevice(

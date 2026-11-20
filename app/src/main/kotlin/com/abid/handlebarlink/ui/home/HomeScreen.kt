@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -51,8 +52,10 @@ import com.abid.handlebarlink.core.designsystem.component.TickBar
 import com.abid.handlebarlink.core.designsystem.component.TickRing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
-import com.abid.handlebarlink.ui.carplay.CarPlayLine
-import com.abid.handlebarlink.ui.carplay.words
+import com.abid.handlebarlink.ui.carplay.BikePlayCard
+import com.abid.handlebarlink.ui.carplay.BikePlayCardState
+import com.abid.handlebarlink.ui.carplay.PreviewBikePlayConnected
+import com.abid.handlebarlink.ui.carplay.TabAction
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 
@@ -68,8 +71,10 @@ fun HomeScreen(
     onAddDevice: () -> Unit = {},
     onDevice: () -> Unit = {},
     onHandlebar: () -> Unit = {},
+    onBikePlay: (TabAction) -> Unit = {},
+    onBikePlayTab: () -> Unit = {},
 ) {
-    val actions = HomeActions(onSettings, onAddDevice, onDevice, onHandlebar)
+    val actions = HomeActions(onSettings, onAddDevice, onDevice, onHandlebar, onBikePlay, onBikePlayTab)
     val panes = LocalWindowLayout.current == WindowLayout.PANES
     when {
         panes && HlTheme.variant == HlThemeVariant.NIGHT -> HomeNightPanes(state, actions, contentPadding)
@@ -91,13 +96,14 @@ internal fun Pill(status: LinkStatus) {
     StatusPill(stringResource(pillText(status)), on = status == LinkStatus.CONNECTED)
 }
 
-/** CarPlay's card: our receiver's status line; no button. */
+/** The BikePlay card (design B "Instrument"): its button acts as the tab's; a tap elsewhere opens the BikePlay tab. */
 @Composable
-internal fun CarPlayCard(
-    line: CarPlayLine,
+internal fun HomeBikePlayCard(
+    state: BikePlayCardState,
+    actions: HomeActions,
     modifier: Modifier = Modifier,
 ) {
-    SignalCard(stringResource(R.string.carplay_title), line.words(), line.tone, modifier)
+    BikePlayCard(state, actions.onBikePlay, actions.onBikePlayTab, modifier)
 }
 
 /** The pill's text for [status]. */
@@ -124,7 +130,27 @@ private fun previewBarSpace() = PaddingValues(bottom = HlTheme.sizes.tabBar + Hl
 private fun HomeNightPreview() {
     HlTheme(HlThemeVariant.NIGHT) {
         HlBackground(Modifier.fillMaxSize()) {
-            HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = previewBarSpace())
+            HomeScreen(
+                HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
+                onSettings = {},
+                contentPadding = previewBarSpace(),
+            )
+        }
+    }
+}
+
+@Preview(name = "Home · Night · landscape", widthDp = 817, heightDp = 393)
+@Composable
+private fun HomeNightLandscapePreview() {
+    HlTheme(HlThemeVariant.NIGHT) {
+        CompositionLocalProvider(LocalWindowLayout provides WindowLayout.PANES) {
+            HlBackground(Modifier.fillMaxSize()) {
+                HomeScreen(
+                    HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
+                    onSettings = {},
+                    contentPadding = PaddingValues(end = HlTheme.sizes.tabRail + HlTheme.spacing.s16 * 2),
+                )
+            }
         }
     }
 }
@@ -145,4 +171,8 @@ internal data class HomeActions(
     val onAddDevice: () -> Unit,
     val onDevice: () -> Unit,
     val onHandlebar: () -> Unit,
+    /** A BikePlay card button. */
+    val onBikePlay: (TabAction) -> Unit = {},
+    /** The BikePlay card outside its button: the BikePlay tab. */
+    val onBikePlayTab: () -> Unit = {},
 )

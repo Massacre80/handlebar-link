@@ -27,7 +27,8 @@ import com.abid.handlebarlink.ui.setup.FittedBike
 /**
  * Home on its side, Night (docs/PLAN.md "Landscape layout"): the bike pane (wordmark, link pill and settings in
  * their own band, then the whole bike on its ground, fitted to the height left) and the cards pane (the device
- * tile and the Add device slot side by side as upright, the handlebar card, CarPlay), which scrolls on its own
+ * BikePlay card, then the device tile and the Add device slot side by side as upright, the handlebar card), which
+ * scrolls on its own
  * below the status bar. The tiles are not over the bike here, so they are plain glass like the other cards.
  */
 @Composable
@@ -44,10 +45,12 @@ internal fun HomeNightPanes(
             FittedBike(Modifier.weight(1f).fillMaxWidth().padding(top = spacing.s8))
         },
         cards = {
+            // Paper "BikePlay card B — Landscape Home (Night)": the BikePlay card first, then the devices, the
+            // Handlebar card.
+            HomeBikePlayCard(state.bikePlay, actions)
             if (state.rideData) NightGauges(Modifier.fillMaxWidth())
             NightDevices(state.device, backdrop = null, actions.onAddDevice, actions.onDevice, Modifier)
             HandlebarCard(state.handlebar, actions.onHandlebar)
-            CarPlayCard(state.carPlay)
         },
         gap = spacing.s10,
     )
@@ -55,8 +58,8 @@ internal fun HomeNightPanes(
 
 /**
  * Home on its side, Bento: the link pill and settings above the bike card, which fills the pane's height (the bike
- * inside sized to the room under its name), and the cards pane in the upright order (stats, CarPlay, devices,
- * handlebar).
+ * inside sized to the room under its name), and the cards pane: BikePlay first as on Night, then stats, devices,
+ * handlebar.
  */
 @Composable
 internal fun HomeBentoPanes(
@@ -72,8 +75,8 @@ internal fun HomeBentoPanes(
             BentoBikeCard(state.rideData, Modifier.weight(1f).fillMaxWidth(), fitted = true)
         },
         cards = {
+            HomeBikePlayCard(state.bikePlay, actions)
             if (state.rideData) BentoStats()
-            CarPlayCard(state.carPlay)
             BentoDevices(state.device, actions)
             HandlebarCard(state.handlebar, actions.onHandlebar)
         },
@@ -132,7 +135,7 @@ private fun RowScope.Pane(
 }
 
 /**
- * The cards pane is a fifth wider than the bike's: the bike is fitted to whatever its pane leaves, while the cards'
- * names need the width (Bento's "No intercom yet" was cut off in two equal panes beside the rail, 2026-11-20).
+ * The cards pane is 1.6 times the bike's (Paper "BikePlay card B — Landscape Home (Night)": `flex-grow: 1.6`): the bike
+ * is fitted to whatever its pane leaves, while the BikePlay card's meter and the cards' names need the width.
  */
-private const val CARDS_WEIGHT = 1.2f
+private const val CARDS_WEIGHT = 1.6f

@@ -61,7 +61,10 @@ import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
 import com.abid.handlebarlink.startsRideOnResume
+import com.abid.handlebarlink.ui.carplay.CarPlayNavigation
 import com.abid.handlebarlink.ui.carplay.carPlayEntries
+import com.abid.handlebarlink.ui.carplay.rememberTabActions
+import com.abid.handlebarlink.ui.carplay.withAccess
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
 import com.abid.handlebarlink.ui.frame.LivePadding
@@ -76,14 +79,18 @@ import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.intercom.intercomEntries
 import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
+import com.abid.handlebarlink.ui.navigation.CarPlayAccessRoute
+import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HandlebarRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
+import com.abid.handlebarlink.ui.navigation.IphoneSheetRoute
 import com.abid.handlebarlink.ui.navigation.LocalSharedTransitionScope
 import com.abid.handlebarlink.ui.navigation.ModeRoute
 import com.abid.handlebarlink.ui.navigation.NavigationState
 import com.abid.handlebarlink.ui.navigation.Navigator
+import com.abid.handlebarlink.ui.navigation.PairIphoneRoute
 import com.abid.handlebarlink.ui.navigation.PermissionsRoute
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import com.abid.handlebarlink.ui.navigation.SheetSceneStrategy
@@ -185,18 +192,7 @@ private fun BoxScope.Tabs(main: MainViewModel) {
     val motion = HlTheme.motion
     val entries =
         entryProvider {
-            entry<HomeRoute> {
-                val viewModel: HomeViewModel = hiltViewModel()
-                val home by viewModel.uiState.collectAsStateWithLifecycle()
-                HomeScreen(
-                    home,
-                    onSettings = { navigator.navigate(SettingsRoute) },
-                    contentPadding = barSpace,
-                    onAddDevice = { navigator.navigate(AddDeviceRoute(ADD_DEVICE)) },
-                    onDevice = { navigator.navigate(IntercomRoute) },
-                    onHandlebar = { navigator.navigate(HandlebarRoute) },
-                )
-            }
+            entry<HomeRoute> { HomeEntry(navigator, barSpace) }
             carPlayEntries(navigator, barSpace)
             entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
             intercomEntries(navigator, barSpace)
@@ -396,4 +392,38 @@ private fun RideAutoStart(
         if (start) RideService.start(context)
         onPauseOrDispose {}
     }
+}
+
+/**
+ * Home with its view model. The BikePlay card's buttons are the BikePlay tab's ([rememberTabActions]): pairing and the
+ * iPhone sheet open over Home, Open BikePlay opens the display on the BikePlay tab; a tap elsewhere on the card opens
+ * the tab.
+ */
+@Composable
+private fun HomeEntry(
+    navigator: Navigator,
+    barSpace: PaddingValues,
+) {
+    val viewModel: HomeViewModel = hiltViewModel()
+    val home by viewModel.uiState.collectAsStateWithLifecycle()
+    val bikePlay =
+        rememberTabActions(
+            viewModel,
+            CarPlayNavigation(
+                onOpen = navigator::openCarPlayDisplay,
+                onAddIphone = { navigator.navigate(PairIphoneRoute) },
+                onIphone = { navigator.navigate(IphoneSheetRoute) },
+                onExplainAccess = { navigator.navigate(CarPlayAccessRoute) },
+            ),
+        )
+    HomeScreen(
+        home.copy(bikePlay = home.bikePlay.withAccess(bikePlay.access)),
+        onSettings = { navigator.navigate(SettingsRoute) },
+        contentPadding = barSpace,
+        onAddDevice = { navigator.navigate(AddDeviceRoute(ADD_DEVICE)) },
+        onDevice = { navigator.navigate(IntercomRoute) },
+        onHandlebar = { navigator.navigate(HandlebarRoute) },
+        onBikePlay = bikePlay.onAction,
+        onBikePlayTab = { navigator.navigate(CarPlayRoute) },
+    )
 }

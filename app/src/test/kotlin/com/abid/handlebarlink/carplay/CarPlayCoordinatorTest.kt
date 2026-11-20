@@ -110,6 +110,17 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
+    fun `Try now goes to the engine as its retry-now command, nothing else`() =
+        runTest {
+            ride()
+
+            carPlay.retryNow()
+
+            assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.RetryNow)
+            assertThat(carPlayLink.isRunning).isTrue()
+        }
+
+    @Test
     fun `the CarPlay screen setting reaches the canvas before the start, landscape by default`() =
         runTest {
             ride()

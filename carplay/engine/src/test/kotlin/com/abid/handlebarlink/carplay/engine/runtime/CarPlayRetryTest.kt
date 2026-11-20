@@ -201,6 +201,89 @@ class CarPlayRetryTest {
             assertThat(fake.createGroupCalls).isEqualTo(1)
         }
 
+    @Test
+    fun `Try now during the pause starts the next attempt at once, and the cut pause never fires`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.createGroupError = CarPlayError.WifiDirectFailed("busy")
+            val (link, _) = started()
+            runCurrent()
+            val recovering = link.state.value as CarPlayState.Recovering
+            val firstPause = pauses().single()
+            val pressedAt = currentTime
+
+            link.retryNow()
+            runCurrent()
+            val callsAtOnce = fake.createGroupCalls
+            val timeOfRetry = currentTime
+            // Past the first pause: only the second attempt's own pause (4 s +-20 %) may schedule the next one.
+            advanceTimeBy(firstPause + 1)
+
+            // The countdown's whole pause: failedAt to retryAt is the pause the runtime chose.
+            assertThat(recovering.retryAt.toEpochMilli() - recovering.failedAt.toEpochMilli()).isEqualTo(firstPause)
+            assertThat(callsAtOnce).isEqualTo(2)
+            assertThat(timeOfRetry).isEqualTo(pressedAt)
+            assertThat(fake.createGroupCalls).isEqualTo(2)
+            assertThat(sink.events("carplay.retry_now")).hasSize(1)
+            assertThat(link.keepAlive.value).isTrue()
+        }
+
+    @Test
+    fun `Try now does nothing before a start or while an attempt runs`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = runtime()
+            backgroundScope.launch { link.run() }
+            link.retryNow()
+            runCurrent()
+            val beforeStart = fake.createGroupCalls
+
+            // A failure, then the second attempt reaches the dial and waits for the iPhone: no pause to cut short.
+            fake.createGroupError = CarPlayError.WifiDirectFailed("busy")
+            link.start()
+            runCurrent()
+            fake.createGroupError = null
+            advanceTimeBy(pauses().single() + 1)
+            fake.dialed.receive()
+            link.retryNow()
+            runCurrent()
+            val whileRunning = fake.createGroupCalls
+
+            assertThat(beforeStart).isEqualTo(0)
+            assertThat(whileRunning).isEqualTo(2)
+            assertThat(sink.events("carplay.retry_now")).hasSize(0)
+            assertThat(sink.events("carplay.retry_now.ignored")).hasSize(2)
+        }
+
+    @Test
+    fun `Try now while waiting for Wi-Fi starts nothing`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.createGroupError = CarPlayError.WifiOff
+            val (link, _) = started()
+            runCurrent()
+            check(failure(link) == CarPlayError.WifiOff)
+
+            link.retryNow()
+            advanceTimeBy(60_000)
+
+            assertThat(fake.createGroupCalls).isEqualTo(1)
+            assertThat(sink.events("carplay.retry_now")).hasSize(0)
+        }
+
+    @Test
+    fun `Try now after a stop starts nothing`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            fake.createGroupError = CarPlayError.WifiDirectFailed("busy")
+            val (link, _) = started()
+            runCurrent()
+            link.stop()
+            runCurrent()
+
+            link.retryNow()
+            advanceTimeBy(60_000)
+
+            assertThat(fake.createGroupCalls).isEqualTo(1)
+            assertThat(link.keepAlive.value).isFalse()
+        }
+
     private companion object {
         const val SEED = 7
         val TEST_TIMEOUT = 20.seconds

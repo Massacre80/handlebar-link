@@ -260,7 +260,7 @@
     <string name="carplay_tag_stopped">Stopped</string>
     <string name="carplay_tag_needs_you">Needs you</string>
     <string name="carplay_tab_add_title">Add your iPhone</string>
-    <string name="carplay_tab_add_detail">BikePlay shows your iPhone\'s CarPlay on the bike.\nPair it once here; it then connects by itself on every ride.</string>
+    <string name="carplay_tab_add_detail">BikePlay shows your iPhone’s CarPlay on the bike. Pair it once to start.</string>
     <string name="carplay_tab_ready_title">Ready for your ride</string>
     <string name="carplay_tab_ready_detail">Connects to %1$s when the ride starts</string>
     <string name="carplay_tab_any_iphone">Connects to your iPhone when the ride starts</string>
@@ -310,6 +310,18 @@
     <string name="carplay_action_settings">Open settings</string>
     <string name="carplay_action_wifi">Turn on Wi-Fi</string>
     <string name="carplay_action_bluetooth">Turn on Bluetooth</string>
+    <string name="carplay_action_try_now">Try now</string>
+    <!-- Home's BikePlay card, design B "Instrument" (Paper "BikePlay card"): the state word and its one line. -->
+    <string name="bikeplay_card_couldnt_connect">Couldn’t connect</string>
+    <string name="bikeplay_card_off">BikePlay off</string>
+    <string name="bikeplay_card_not_set_up">BikePlay shows your iPhone’s CarPlay on the bike. Pair it once to start.</string>
+    <string name="bikeplay_card_starts_when_riding">Starts again when you ride</string>
+    <string name="bikeplay_card_held">Stopped until you start it</string>
+    <string name="bikeplay_card_your_iphone">Your iPhone</string>
+    <string name="bikeplay_card_band_5">5 GHz</string>
+    <string name="bikeplay_card_band_2_4">2.4 GHz</string>
+    <string name="bikeplay_card_channel">Ch %1$d</string>
+    <string name="bikeplay_card_wifi">Wi-Fi</string>
     <!-- The CarPlay tab's status list. -->
     <string name="carplay_screen_row">BikePlay screen</string>
     <string name="carplay_screen_row_detail">Which way the picture stands</string>
@@ -419,7 +431,7 @@
     <string name="carplay_error_link">The Bluetooth link to the iPhone broke</string>
     <string name="carplay_error_identification">The iPhone refused this receiver</string>
     <string name="carplay_error_authentication">CarPlay authentication failed</string>
-    <string name="carplay_error_timed_out">The iPhone took too long to answer</string>
+    <string name="carplay_error_timed_out">iPhone didn’t answer</string>
     <string name="carplay_error_disconnected">The iPhone disconnected</string>
     <string name="carplay_error_unexpected">Unexpected error</string>
     <!-- For the engine errors that arrive with CarPlay C2's engine part (PermissionMissing, WifiOff, Stalled): the

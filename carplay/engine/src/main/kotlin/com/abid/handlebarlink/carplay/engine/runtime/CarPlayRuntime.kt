@@ -82,6 +82,10 @@ internal class CarPlayRuntime(
         inbox.trySend(Event.Stop)
     }
 
+    override fun retryNow() {
+        inbox.trySend(Event.RetryNow)
+    }
+
     override fun touch(contacts: List<TouchContact>) {
         touches.offer(contacts)
     }
@@ -176,38 +180,46 @@ internal class CarPlayRuntime(
                 if (event.generation == loop.current) ended(loop, event.error)
             }
 
-            Event.BluetoothOn, Event.WifiOn -> {
-                radioOn(event, loop)
+            Event.BluetoothOn, Event.WifiOn, Event.RetryNow -> {
+                cutPause(event, loop)
             }
         }
     }
 
     /**
-     * Bluetooth or Wi-Fi turned on: a retry that only waits because it was off starts now (Bluetooth: DiPlay PR #914;
-     * Wi-Fi: an attempt that failed with WifiOff waits for nothing else).
+     * Something that may cut a retry's pause short. Bluetooth or Wi-Fi turned on: a retry that only waits because it
+     * was off starts now (Bluetooth: DiPlay PR #914; Wi-Fi: an attempt that failed with WifiOff waits for nothing
+     * else). The rider's "Try now" ([Event.RetryNow]): a timed retry still in its pause (started, failed, not waiting
+     * for Wi-Fi, before [Loop.retryAt]) starts now. The pausing attempt is cancelled before it ran anything (it was in
+     * its `delay`), and the new one waits for it to settle as every attempt does ([launchAttempt]).
      */
-    private fun radioOn(
-        radio: Event,
+    private fun cutPause(
+        event: Event,
         loop: Loop,
     ) {
-        val wifi = radio == Event.WifiOn
-        if (wifi) loop.wifiOns++
+        if (event == Event.WifiOn) loop.wifiOns++
+        val pausing = env.time.elapsedMillis() < loop.retryAt
         val waitsForIt =
-            if (wifi) {
-                loop.waitingForWifi
-            } else {
-                loop.lastError is CarPlayError.BluetoothUnavailable && env.time.elapsedMillis() < loop.retryAt
+            when (event) {
+                Event.WifiOn -> loop.waitingForWifi
+                Event.BluetoothOn -> loop.lastError is CarPlayError.BluetoothUnavailable && pausing
+                else -> loop.lastError != null && !loop.waitingForWifi && pausing
             }
-        if (loop.started && waitsForIt) {
-            env.log.info(
-                if (wifi) "carplay.wifi.on_retry" else "carplay.bluetooth.on_retry",
-                "attempt" to loop.failures + 1,
-            )
-            loop.job?.cancel()
-            loop.waitingForWifi = false
-            loop.retryAt = 0L
-            launchAttempt(loop, pause = 0)
+        val key =
+            when (event) {
+                Event.WifiOn -> "carplay.wifi.on_retry"
+                Event.BluetoothOn -> "carplay.bluetooth.on_retry"
+                else -> "carplay.retry_now"
+            }
+        if (!loop.started || !waitsForIt) {
+            if (event == Event.RetryNow) env.log.info("carplay.retry_now.ignored")
+            return
         }
+        env.log.info(key, "attempt" to loop.failures + 1)
+        loop.job?.cancel()
+        loop.waitingForWifi = false
+        loop.retryAt = 0L
+        launchAttempt(loop, pause = 0)
     }
 
     private fun begin(loop: Loop) {
@@ -259,14 +271,8 @@ internal class CarPlayRuntime(
         }
         val pause = pauseAfter(error, loop.failures, env.random)
         loop.retryAt = env.time.elapsedMillis() + pause
-        stateFlow.value =
-            CarPlayState.Recovering(
-                error,
-                loop.failures,
-                env.time.clock
-                    .instant()
-                    .plusMillis(pause),
-            )
+        val now = env.time.clock.instant()
+        stateFlow.value = CarPlayState.Recovering(error, loop.failures, now.plusMillis(pause), failedAt = now)
         env.log.warn("carplay.recovering", "error" to error, "attempt" to loop.failures, "pause_ms" to pause)
         launchAttempt(loop, pause)
     }
@@ -362,6 +368,8 @@ internal class CarPlayRuntime(
         data object Start : Event
 
         data object Stop : Event
+
+        data object RetryNow : Event
 
         data class Step(
             val generation: Int,

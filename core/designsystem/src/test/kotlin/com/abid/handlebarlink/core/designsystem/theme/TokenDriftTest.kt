@@ -109,6 +109,9 @@ class TokenDriftTest {
             "track" -> track
             "gauge" -> gauge
             "shadow" -> shadow
+            "instrument" -> instrument
+            "instrumentSolid" -> instrumentSolid
+            "instrumentShadow" -> instrumentShadow
             "scrim" -> scrim
             else -> error("no field $name")
         }
@@ -191,6 +194,7 @@ class TokenDriftTest {
             assertThat(shadows.bar, "$file bar").isEqualTo(shadow("shadow-bar"))
             assertThat(shadows.chip, "$file chip").isEqualTo(shadow("shadow-chip"))
             assertThat(shadows.floating, "$file floating").isEqualTo(shadow("shadow-floating"))
+            assertThat(shadows.instrument, "$file instrument").isEqualTo(shadow("shadow-instrument"))
         }
     }
 
@@ -266,6 +270,12 @@ class TokenDriftTest {
             "size-tab-rail" to z.tabRail,
             "size-content-max" to z.contentMax,
             "size-hero-text" to z.heroText,
+            "size-instrument" to z.instrument,
+            "size-meter" to z.meter,
+            "size-meter-wide" to z.meterWide,
+            "size-meter-retry" to z.meterRetry,
+            "size-meter-foot" to z.meterFoot,
+            "size-instrument-text" to z.instrumentText,
             "size-handle-width" to z.handleWidth,
             "size-handle-height" to z.handleHeight,
         )

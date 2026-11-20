@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.core.designsystem.component
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.PreviewParameter
 import com.abid.handlebarlink.core.designsystem.preview.FontScales
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
@@ -47,6 +48,20 @@ fun CarPlayCardNight() = Gallery(HlThemeVariant.NIGHT) { CarPlayStates() }
 @FontScales
 @Composable
 fun CarPlayCardBento() = Gallery(HlThemeVariant.BENTO) { CarPlayStates() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun InstrumentCardNight(
+    @PreviewParameter(InstrumentSamples::class) sample: InstrumentSample,
+) = Gallery(HlThemeVariant.NIGHT) { InstrumentState(sample) }
+
+@PreviewTest
+@FontScales
+@Composable
+fun InstrumentCardBento(
+    @PreviewParameter(InstrumentSamples::class) sample: InstrumentSample,
+) = Gallery(HlThemeVariant.BENTO) { InstrumentState(sample) }
 
 @PreviewTest
 @FontScales

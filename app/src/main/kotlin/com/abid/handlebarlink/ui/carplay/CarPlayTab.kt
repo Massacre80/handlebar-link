@@ -51,6 +51,9 @@ enum class TabAction {
     OPEN_SETTINGS,
     TURN_ON_WIFI,
     TURN_ON_BLUETOOTH,
+
+    /** Try now: a retry waiting out its pause starts at once (Home's BikePlay card, Paper "B · 8"). */
+    RETRY_NOW,
 }
 
 /** The hero's detail line. */
@@ -82,6 +85,11 @@ sealed interface HeroDetail {
     data class Missing(
         val grants: List<CarPlayGrant>,
     ) : HeroDetail
+
+    /** A name as it is (the connected iPhone's, Home's BikePlay card). */
+    data class Name(
+        val name: String,
+    ) : HeroDetail
 }
 
 /** The detail's words. */
@@ -93,6 +101,7 @@ fun HeroDetail.words(): String =
         is HeroDetail.Line -> line.words()
         is HeroDetail.Iphone -> stringResource(text, name)
         is HeroDetail.Missing -> stringResource(R.string.carplay_tab_access_detail, listWords(grants.map { it.label }))
+        is HeroDetail.Name -> name
     }
 
 /** The hero: a dial ([tone], [progress]), a [tag], a big [title], a [detail], one [primary] and one [ghost] action. */

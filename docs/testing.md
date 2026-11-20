@@ -121,7 +121,9 @@ further from it and balanced its lines, so most page images change too; then +10
 `IntercomNone` now over the tab bar, `IntercomNoneBento` at the artboard and font 1.5, and Devices none Night and Bento
 at `@Landscape`; the same day the feature became BikePlay on screen, so every image with the tab bar or rail, the
 CarPlay tab, pairing, the iPhone sheet, Home's card, Settings › Permissions, the handlebar pages and setup's welcome
-change and are recorded again). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+change and are recorded again; then the design system +36 for the BikePlay instrument card, its nine states in both looks at font 1 and 1.5
+(`InstrumentCardNight`, `InstrumentCardBento` with `InstrumentSamples`), and every Home image changes (the card replaces
+the CarPlay card; `HomeCarPlay*` shows it connected)). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

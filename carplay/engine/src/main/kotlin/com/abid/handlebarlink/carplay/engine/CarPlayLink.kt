@@ -27,6 +27,14 @@ public interface CarPlayLink {
     public fun stop()
 
     /**
+     * The rider asked to try again now ("Try now"): while started and waiting out the pause before a timed retry
+     * ([CarPlayState.Recovering]), that pause is cut short and the next attempt starts at once. Does nothing while
+     * stopped, connecting, connected, or waiting for Wi-Fi to turn on (there is no timed retry to cut short; the
+     * attempt would fail the same way).
+     */
+    public fun retryNow()
+
+    /**
      * The fingers on the CarPlay picture now, one entry per finger of one touch event (DiPlay CarPlayTouchMapper);
      * an empty list lifts every finger. The engine keeps each finger in one of the touchscreen's two report slots
      * from press to release and sends the report to the iPhone as `hidSendReport` on the event channel (DiPlay

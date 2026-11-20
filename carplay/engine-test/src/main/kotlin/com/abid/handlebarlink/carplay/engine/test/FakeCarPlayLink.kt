@@ -15,8 +15,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /**
  * Test double of [CarPlayLink] for other modules' tests. Tests drive it from two sides:
  * - **Control:** [setState], [setKeepAlive], [setCalls] set what the fake reports.
- * - **Verification:** [commands] records every [start]/[stop] the code under test made, [touches] every [touch],
- *   [controls] every [press] and [requestSiri].
+ * - **Verification:** [commands] records every [start]/[stop]/[retryNow] the code under test made, [touches] every
+ * [touch],   [controls] every [press] and [requestSiri].
  */
 public class FakeCarPlayLink(
     initial: CarPlayState = CarPlayState.Stopped,
@@ -28,6 +28,9 @@ public class FakeCarPlayLink(
 
         /** [CarPlayLink.stop] was called. */
         public data object Stop : Command
+
+        /** [CarPlayLink.retryNow] was called. */
+        public data object RetryNow : Command
     }
 
     /** A key press or Siri request the code under test sent. */
@@ -88,6 +91,10 @@ public class FakeCarPlayLink(
 
     override fun stop() {
         recorded += Command.Stop
+    }
+
+    override fun retryNow() {
+        recorded += Command.RetryNow
     }
 
     override fun touch(contacts: List<TouchContact>) {

@@ -123,6 +123,18 @@ public data class HlSizes(
      * it once here. CarPlay then" over "connects by itself on every ride.").
      */
     val heroText: Dp = 260.dp,
+    /** The BikePlay instrument card's height, the same in every state (Paper "BikePlay card B — Instrument"). */
+    val instrument: Dp = 208.dp,
+    /** The instrument meter's arc beside a button (Paper "B · 1 Connected"). */
+    val meter: Dp = 196.dp,
+    /** The instrument meter's arc when the card has no button (Paper "B · 2 Starting", "B · 3 Connecting"). */
+    val meterWide: Dp = 316.dp,
+    /** The instrument meter's arc while a retry counts down (Paper "B · 8 Couldn't connect"). */
+    val meterRetry: Dp = 236.dp,
+    /** A reading beside the meter ("Strong" over "Link", "5 GHz" over "Ch 36"). */
+    val meterFoot: Dp = 72.dp,
+    /** The instrument's detail line at its widest: two balanced lines (Paper "B · 4 Not set up"). */
+    val instrumentText: Dp = 300.dp,
     /** Sheet handle width. */
     val handleWidth: Dp = 40.dp,
     /** Sheet handle height. */
@@ -174,15 +186,27 @@ public data class HlShadows(
     val chip: HlShadow,
     /** Floating cards. */
     val floating: HlShadow,
+    /** The BikePlay instrument card; its colour is [HlColors.instrumentShadow]. */
+    val instrument: HlShadow,
 )
 
 /** Bento shadows (`design/bento.css`). */
 public val BentoShadows: HlShadows =
-    HlShadows(bar = HlShadow(10.dp, 28.dp), chip = HlShadow(4.dp, 12.dp), floating = HlShadow(10.dp, 28.dp))
+    HlShadows(
+        bar = HlShadow(10.dp, 28.dp),
+        chip = HlShadow(4.dp, 12.dp),
+        floating = HlShadow(10.dp, 28.dp),
+        instrument = HlShadow(10.dp, 24.dp),
+    )
 
 /** Night shadows (`design/night.css`). */
 public val NightShadows: HlShadows =
-    HlShadows(bar = HlShadow(12.dp, 32.dp), chip = HlShadow(0.dp, 0.dp), floating = HlShadow(18.dp, 40.dp))
+    HlShadows(
+        bar = HlShadow(12.dp, 32.dp),
+        chip = HlShadow(0.dp, 0.dp),
+        floating = HlShadow(18.dp, 40.dp),
+        instrument = HlShadow(18.dp, 40.dp),
+    )
 
 /** Corner radius tokens (`--radius-*`). */
 @Immutable

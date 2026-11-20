@@ -95,7 +95,7 @@ internal fun HomeBento(
             BentoTopRow(state.link, actions.onSettings)
             BentoBikeCard(state.rideData, Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard))
             if (state.rideData) BentoStats()
-            CarPlayCard(state.carPlay)
+            HomeBikePlayCard(state.bikePlay, actions)
             BentoDevices(state.device, actions)
             HandlebarCard(state.handlebar, actions.onHandlebar)
             Spacer(Modifier.height(spacing.s8))

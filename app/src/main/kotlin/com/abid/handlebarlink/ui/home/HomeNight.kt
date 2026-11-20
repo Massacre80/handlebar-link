@@ -120,10 +120,20 @@ internal fun HomeNight(
                     Modifier.align(Alignment.BottomCenter).padding(horizontal = spacing.s16),
                 )
             }
-            HandlebarCard(state.handlebar, actions.onHandlebar, column.padding(spacing.s16))
-            // Spare height on tall screens goes here, keeping the CarPlay card above the tab bar.
+            // Paper "BikePlay card B — Instrument, Home (Night)": the BikePlay card 10 dp under the tiles, the
+            // Handlebar card 10 dp under it.
+            HomeBikePlayCard(
+                state.bikePlay,
+                actions,
+                column.padding(horizontal = spacing.s16).padding(top = spacing.s10),
+            )
+            HandlebarCard(
+                state.handlebar,
+                actions.onHandlebar,
+                column.padding(horizontal = spacing.s16).padding(top = spacing.s10, bottom = spacing.s16),
+            )
+            // Spare height on tall screens goes here, under the cards.
             Spacer(Modifier.weight(1f))
-            CarPlayCard(state.carPlay, column.padding(horizontal = spacing.s16).padding(bottom = spacing.s16))
         }
     }
 }

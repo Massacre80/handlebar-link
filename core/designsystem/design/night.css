@@ -45,8 +45,12 @@
   --color-shadow: rgb(0 0 0 / 35%);              /* tab bar #00000059 */
   --color-scrim: rgb(0 0 0 / 40%);               /* derived: dim behind a sheet or a growing card */
   --color-surface-inverse-edge: rgb(200 240 60 / 28%); /* CarPlay card edge #C8F03C47 */
+  --color-instrument: rgb(18 20 14 / 78%);       /* BikePlay card B "Instrument": glass #12140EC7 */
+  --color-instrument-solid: #12140E;             /* the meter knob's cut-out ring (the card without its glass) */
+  --color-instrument-shadow: rgb(0 0 0 / 45%);   /* BikePlay card shadow #00000073 */
 
   --shadow-bar: 0 12px 32px;      /* tab bar */
   --shadow-chip: 0 0 0;           /* selected tab: no shadow */
   --shadow-floating: 0 18px 40px; /* CarPlay card */
+  --shadow-instrument: 0 18px 40px; /* BikePlay card B "Instrument" */
 }

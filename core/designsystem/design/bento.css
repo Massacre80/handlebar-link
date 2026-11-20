@@ -96,6 +96,9 @@
   --color-shadow: rgb(13 15 11 / 8%);        /* tab bar #0D0F0B14 */
   --color-scrim: rgb(0 0 0 / 40%);           /* derived: dim behind a sheet or a growing card (owner, 2026-11-18) */
   --color-surface-inverse-edge: rgb(13 15 11 / 0%);
+  --color-instrument: var(--color-surface-inverse); /* BikePlay card B "Instrument", Bento: the ink card */
+  --color-instrument-solid: #12140E;         /* the meter knob's cut-out ring (Paper "B · 3 (Bento)") */
+  --color-instrument-shadow: rgb(13 15 11 / 12%); /* BikePlay card shadow #0D0F0B1F */
 
   /* Component dimensions both looks share (raw px in the artboards). */
   --spacing-2: 2px;            /* title to subtitle */
@@ -131,6 +134,12 @@
   --size-tab-rail: 64px;       /* landscape tab rail: the bar on its side, the tab (52) and the 6 px inset each side */
   --size-content-max: 600px;   /* widest content column: the compact width class (< 600 dp) */
   --size-hero-text: 260px;     /* a landscape hero's centred subtext, widest line (Paper "Tab 1L") */
+  --size-instrument: 208px;    /* BikePlay card B "Instrument": the card's height in every state */
+  --size-meter: 196px;         /* its meter arc beside a button (Paper "B · 1") */
+  --size-meter-wide: 316px;    /* its meter arc without a button (Paper "B · 2", "B · 3") */
+  --size-meter-retry: 236px;   /* its meter arc while a retry counts down (Paper "B · 8") */
+  --size-meter-foot: 72px;     /* the readings beside the meter ("Strong" / "Link", "5 GHz" / "Ch 36") */
+  --size-instrument-text: 300px; /* the meter's detail line, widest (Paper "B · 4": two balanced lines) */
   --size-handle-width: 40px;
   --size-handle-height: 5px;
   --stroke-hairline: 1px;
@@ -144,6 +153,7 @@
   --shadow-bar: 0 10px 28px;   /* tab bar */
   --shadow-chip: 0 4px 12px;   /* selected tab */
   --shadow-floating: 0 10px 28px;
+  --shadow-instrument: 0 10px 24px; /* BikePlay card B "Instrument" (Paper "B · 1 (Bento)") */
 
   --text-headline: 34px;          /* setup screens' titles (Paper "Setup") */
   --leading-headline: 38px;

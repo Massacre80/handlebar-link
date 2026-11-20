@@ -9,7 +9,8 @@ import com.abid.handlebarlink.devices.BluetoothDevices
 import com.abid.handlebarlink.devices.DeviceSettings
 import com.abid.handlebarlink.devices.primary
 import com.abid.handlebarlink.ride.RideCoordinator
-import com.abid.handlebarlink.ui.carplay.CarPlayStatusLines
+import com.abid.handlebarlink.ui.carplay.BikePlayCards
+import com.abid.handlebarlink.ui.carplay.BikePlayCommands
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,7 +21,10 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
-/** Home: the link's state for the pill (architecture review M2.4–M3-9: one uiState, WhileSubscribed). */
+/**
+ * Home: the link's state for the pill, the devices, the handlebar and the BikePlay card (architecture review
+ * M2.4–M3-9: one uiState, WhileSubscribed); the card's buttons act on BikePlay as the tab's do ([BikePlayCommands]).
+ */
 @HiltViewModel
 class HomeViewModel
     @Inject
@@ -30,8 +34,10 @@ class HomeViewModel
         devices: DeviceSettings,
         bluetooth: BluetoothDevices,
         handlebar: HandlebarMapping,
-        carPlay: CarPlayStatusLines,
-    ) : ViewModel() {
+        bikePlay: BikePlayCards,
+    ) : ViewModel(),
+        // The BikePlay card's buttons do what the BikePlay tab's do (rememberTabActions).
+        BikePlayCommands by bikePlay {
         /** Home's state; "no bike" until loaded. */
         @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
         val uiState: StateFlow<HomeUiState> =
@@ -40,8 +46,8 @@ class HomeViewModel
                 coordinator.link.flatMapLatest { it?.state ?: flowOf(null) },
                 combine(devices.devices, devices.primary, ::Pair),
                 bluetooth.statuses(),
-                combine(handlebar.current, carPlay.lines, ::Pair),
-            ) { bike, state, (saved, chosen), statuses, (mapping, carPlayLine) ->
+                combine(handlebar.current, bikePlay.cards, ::Pair),
+            ) { bike, state, (saved, chosen), statuses, (mapping, card) ->
                 val device =
                     saved.primary(chosen)?.let {
                         val status = statuses[it.address]
@@ -51,7 +57,7 @@ class HomeViewModel
                     linkStatus(bike != null, state),
                     device,
                     handlebar = mapping.getValue(CallSituation.RIDING),
-                    carPlay = carPlayLine,
+                    bikePlay = card,
                 )
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), HomeUiState(LinkStatus.NO_BIKE))
 

@@ -56,6 +56,15 @@ public object HlIcons {
     /** Forward. */
     @DrawableRes public val ChevronRight: Int = R.drawable.hl_ic_chevron_right
 
+    /** BikePlay's mark on its instrument card (the monitor without its inner line, stroke 1.8). */
+    @DrawableRes public val BikePlayMark: Int = R.drawable.hl_ic_bikeplay_mark
+
+    /** Play: Open and Start BikePlay. */
+    @DrawableRes public val Play: Int = R.drawable.hl_ic_play
+
+    /** Add, the bolder plus of the instrument card's Add iPhone. */
+    @DrawableRes public val PlusBold: Int = R.drawable.hl_ic_plus_bold
+
     /** Selected. */
     @DrawableRes public val Check: Int = R.drawable.hl_ic_check
 

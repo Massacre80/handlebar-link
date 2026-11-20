@@ -87,6 +87,12 @@ public data class HlColors(
     val gauge: Color,
     /** Drop shadows. */
     val shadow: Color,
+    /** The BikePlay instrument card (Paper "BikePlay card B — Instrument"): Night's glass, Bento's ink card. */
+    val instrument: Color,
+    /** The instrument meter's knob ring, cut out of the card (the card's colour without its glass). */
+    val instrumentSolid: Color,
+    /** The instrument card's drop shadow. */
+    val instrumentShadow: Color,
     /** The dim behind a sheet or a card growing into a page (both looks: black, like iOS's dimming). */
     val scrim: Color = Color(0x66000000),
 )
@@ -133,6 +139,9 @@ public val BentoColors: HlColors =
         track = Color(0x1F0D0F0B),
         gauge = Color(0xFF7FA80F),
         shadow = Color(0x140D0F0B),
+        instrument = Color(0xFF0D0F0B),
+        instrumentSolid = Color(0xFF12140E),
+        instrumentShadow = Color(0x1F0D0F0B),
     )
 
 /** Night: dark, glass cards over a green glow (`design/night.css`). */
@@ -177,4 +186,7 @@ public val NightColors: HlColors =
         track = Color(0x1FFFFFFF),
         gauge = Color(0xFFE9EDE0),
         shadow = Color(0x59000000),
+        instrument = Color(0xC712140E),
+        instrumentSolid = Color(0xFF12140E),
+        instrumentShadow = Color(0x73000000),
     )

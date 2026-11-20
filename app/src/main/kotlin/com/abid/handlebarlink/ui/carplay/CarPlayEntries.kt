@@ -101,12 +101,7 @@ data class PairIphoneActions(
 )
 
 /**
- * The CarPlay tab with its view model. Start CarPlay (after the rider stopped it, after an error, or with no ride
- * running) asks for CarPlay's missing permissions, the microphone included, through the same runtime flow as the
- * Permissions page, after a dialog that says why ([CarPlayAccessEntry]); it starts the ride service once they are
- * allowed, so a ride that had ended picks CarPlay up while the app is on screen (a foreground service may only start
- * then). Refused, the hero shows Needs you with Allow while Android still asks, Open settings once it no longer does
- * ([withAccess]).
+ * The CarPlay tab with its view model; its buttons go through [rememberTabActions], which Home's BikePlay card shares.
  */
 @Composable
 fun CarPlayEntry(
@@ -115,80 +110,14 @@ fun CarPlayEntry(
 ) {
     val viewModel: CarPlayViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val context = LocalContext.current
-    val access = rememberCarPlayAccess { viewModel.recheckPermission() }
-    val enableBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
-    val startRide = { startRide(context, access, navigation.onExplainAccess) }
+    val actions = rememberTabActions(viewModel, navigation)
     CarPlayScreen(
-        state.copy(hero = state.hero.withAccess(access.status)),
-        onAction = { action ->
-            when (action) {
-                TabAction.ADD_IPHONE -> navigation.onAddIphone()
-                TabAction.CHOOSE_IPHONE -> navigation.onIphone()
-                TabAction.OPEN_CARPLAY -> navigation.onOpen()
-                TabAction.START_CARPLAY -> viewModel.start().also { startRide() }
-                TabAction.CANCEL, TabAction.DISCONNECT -> viewModel.stop()
-                else -> fix(action, context, access) { enableBluetooth.launch(it) }
-            }
-        },
+        state.copy(hero = state.hero.withAccess(actions.access)),
+        onAction = actions.onAction,
         onIphone = { if (state.iphone.hasIphones) navigation.onIphone() else navigation.onAddIphone() },
         contentPadding = contentPadding,
         onScreen = navigation.onScreen,
     )
-}
-
-/** Starts the ride service when CarPlay's permissions allow, or explains and asks for them ([explain]). */
-private fun startRide(
-    context: Context,
-    access: AccessState,
-    explain: () -> Unit,
-) {
-    when (access.status) {
-        Access.GRANTED -> {
-            RideService.start(context)
-        }
-
-        Access.ASK -> {
-            explain()
-        }
-
-        // Refused for good: the hero shows Needs you with Open settings (withAccess).
-        Access.BLOCKED -> {}
-    }
-}
-
-/** A Needs you fix: the permission, the Wi-Fi panel, or Bluetooth's enable request ([launch]). */
-private fun fix(
-    action: TabAction,
-    context: Context,
-    access: AccessState,
-    launch: (Intent) -> Unit,
-) {
-    when (action) {
-        // Allow asks again while Android still shows its dialog; Open settings opens the app's settings page
-        // (Settings.ACTION_APPLICATION_DETAILS_SETTINGS, rememberRuntimeAccess) once it no longer does.
-        TabAction.ALLOW, TabAction.OPEN_SETTINGS -> {
-            access.act()
-        }
-
-        TabAction.TURN_ON_WIFI -> {
-            // The Wi-Fi panel over the app (Settings.Panel, Android 10+).
-            context.startActivity(Intent(Settings.Panel.ACTION_WIFI))
-        }
-
-        TabAction.TURN_ON_BLUETOOTH -> {
-            // ACTION_REQUEST_ENABLE needs BLUETOOTH_CONNECT, which CarPlay's permissions include.
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
-                PackageManager.PERMISSION_GRANTED
-            ) {
-                launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
-            } else {
-                access.act()
-            }
-        }
-
-        else -> {}
-    }
 }
 
 /**

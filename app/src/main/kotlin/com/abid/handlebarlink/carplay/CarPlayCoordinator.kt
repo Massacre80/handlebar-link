@@ -99,6 +99,15 @@ class CarPlayCoordinator
         }
 
         /**
+         * Try now (Home's BikePlay card while a retry counts down): the engine cuts the pause short and tries again
+         * at once ([CarPlayLink.retryNow]); nothing happens when no retry is waiting.
+         */
+        fun retryNow() {
+            log.info("carplay.retry_now")
+            link?.retryNow()
+        }
+
+        /**
          * Start CarPlay (the tab's and the pairing's): lifts a [hold], and after a failure starts the engine again in
          * the running ride. Without a ride the caller starts the ride service, whose [run] starts afresh.
          */

@@ -46,7 +46,8 @@ class CarPlayViewModel
         lines: CarPlayStatusLines,
         video: CarPlayVideoStatsSource,
         private val conditions: SetupConditions,
-    ) : ViewModel() {
+    ) : ViewModel(),
+        BikePlayCommands {
         /** The page's state; Ready until loaded. */
         val uiState: StateFlow<CarPlayUiState> =
             combine(
@@ -73,19 +74,20 @@ class CarPlayViewModel
             settings.setOrientation(orientation)
         }
 
-        /** Start CarPlay: a stop lifted, or a failed engine started again; the caller starts the ride service. */
-        fun start() {
+        override fun start() {
             coordinator.start()
         }
 
-        /** Cancel (while connecting) or Disconnect (while connected): CarPlay stops until started again. */
-        fun stop() {
+        override fun stop() {
             coordinator.hold()
         }
 
-        /** A permission answer came back: CarPlay reads the permissions again. */
-        fun recheckPermission() {
+        override fun recheckPermission() {
             coordinator.recheckPermission()
+        }
+
+        override fun retryNow() {
+            coordinator.retryNow()
         }
 
         private companion object {

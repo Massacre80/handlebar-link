@@ -26,9 +26,9 @@ import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.NearbyDevice
 import com.abid.handlebarlink.ui.carplay.CarPlayScreen
 import com.abid.handlebarlink.ui.carplay.CarPlayUiState
+import com.abid.handlebarlink.ui.carplay.PreviewBikePlayConnected
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnected
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnecting
-import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnectingLine
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayFailed
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayMicrophone
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayNotSetUp
@@ -239,12 +239,12 @@ fun CarPlayMicrophoneNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayMicro
 @Composable
 fun CarPlayMicrophoneBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayMicrophone)
 
-// Home's CarPlay card with our own receiver connecting (HomeNight and HomeBento show its line before a ride).
+// Home's BikePlay card connected (Paper "BikePlay card B — Instrument, Home"; HomeNight and HomeBento show it off).
 @Composable
 private fun HomeCarPlay(variant: HlThemeVariant) =
     TabFrame(variant, selected = tabIndex(HomeRoute)) {
         HomeScreen(
-            HomeUiState(LinkStatus.CONNECTED, carPlay = PreviewCarPlayConnectingLine),
+            HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
             onSettings = {},
             contentPadding = it,
         )
