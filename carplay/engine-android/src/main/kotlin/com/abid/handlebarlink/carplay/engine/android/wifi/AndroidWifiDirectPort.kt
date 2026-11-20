@@ -30,8 +30,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.ConcurrentHashMap
@@ -54,6 +52,17 @@ internal class AndroidWifiDirectPort(
 
     /** Names of groups this process created, including system-named ones, so they are recognised as ours. */
     private val owned = ConcurrentHashMap.newKeySet<String>()
+
+    /** A create was accepted (or not answered) and its group has not been described yet: it may still be forming. */
+    @Volatile private var forming = false
+
+    private val removal =
+        GroupRemoval(
+            info = { p2p.groupInfo()?.let { LiveGroup(it.networkName, it.isGroupOwner) } },
+            remove = { p2p.remove() },
+            isOurs = ::isOurs,
+            log = platform.log,
+        )
 
     private class Current(
         val iphone: String,
@@ -134,7 +143,9 @@ internal class AndroidWifiDirectPort(
                     .enablePersistentMode(true)
                     .build()
             }
+        forming = true
         val outcome = p2p.create(config)
+        if (outcome is CreateOutcome.Rejected) forming = false
         platform.log.info(
             "carplay.android.wifi.create",
             "request" to request,
@@ -188,6 +199,7 @@ internal class AndroidWifiDirectPort(
         val stable = created != GroupRequest.SystemDefault
         current = Current(iphone, group.networkName, group.frequency)
         owned.add(group.networkName)
+        forming = false
         platform.log.info(
             "carplay.android.wifi.group_ready",
             "ssid" to group.networkName,
@@ -239,12 +251,8 @@ internal class AndroidWifiDirectPort(
 
     override fun clients(): Flow<GroupClients> =
         callbackFlow {
-            if (!p2p.hasChannel) throw lost()
+            closeWhenLost(p2p.channelLost, isLive = { p2p.hasChannel }, error = ::lost)
             val ssid = current?.ssid
-            launch {
-                p2p.channelLost.first()
-                close(lost())
-            }
             val receiver =
                 object : BroadcastReceiver() {
                     override fun onReceive(
@@ -289,10 +297,13 @@ internal class AndroidWifiDirectPort(
 
     override suspend fun removeGroup() {
         current = null
+        val wasForming = forming
+        forming = false
         if (!p2p.hasChannel) return
         try {
             // The attempt's teardown waits for this (NonCancellable): bounded however slow the framework answers.
-            val finished = withTimeoutOrNull(REMOVE_TOTAL_MILLIS) { withContext(platform.io) { removeAndWait() } }
+            val finished =
+                withTimeoutOrNull(REMOVE_TOTAL_MILLIS) { withContext(platform.io) { removal.run(wasForming) } }
             if (finished ==
                 null
             ) {
@@ -303,21 +314,38 @@ internal class AndroidWifiDirectPort(
         }
     }
 
-    /** Removes our group (never another app's) and waits up to 2 s until it is gone (GM:250-267, 1016-1063). */
-    private suspend fun removeAndWait() {
-        val live = p2p.groupInfo()
-        val ours = live != null && live.isGroupOwner && isOurs(live.networkName)
-        if (live != null && !ours) platform.log.info("carplay.android.wifi.remove_skipped", "ssid" to live.networkName)
-        if (!ours || !p2p.remove()) return
-        var gone = p2p.groupInfo() == null
-        var polls = 1
-        while (!gone && polls < REMOVE_POLLS) {
-            delay(POLL_MILLIS)
-            gone = p2p.groupInfo() == null
-            polls++
+    /**
+     * Wi-Fi turning on, from the framework's broadcast (system server): not exported, as the group broadcast below.
+     * The broadcast is sticky, so a Wi-Fi that is on already reports once when collection starts.
+     */
+    override val wifiOn: Flow<Unit> =
+        callbackFlow {
+            val receiver =
+                object : BroadcastReceiver() {
+                    override fun onReceive(
+                        context: Context,
+                        intent: Intent,
+                    ) {
+                        val state = intent.getIntExtra(WifiManager.EXTRA_WIFI_STATE, WifiManager.WIFI_STATE_UNKNOWN)
+                        if (state == WifiManager.WIFI_STATE_ENABLED) {
+                            platform.log.info("carplay.android.wifi.on")
+                            trySend(Unit)
+                        }
+                    }
+                }
+            ContextCompat.registerReceiver(
+                platform.context,
+                receiver,
+                IntentFilter(WifiManager.WIFI_STATE_CHANGED_ACTION),
+                null,
+                platform.handler,
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+            awaitClose { platform.context.unregisterReceiver(receiver) }
         }
-        platform.log.info("carplay.android.wifi.group_removed", "ssid" to live.networkName, "gone" to gone)
-    }
+
+    /** Removes our group, never another app's ([GroupRemoval]). */
+    private suspend fun removeAndWait() = removal.run(forming = false)
 
     private fun isOurs(ssid: String?): Boolean = StableNetworks.isOurs(ssid) || (ssid != null && ssid in owned)
 
@@ -327,7 +355,6 @@ internal class AndroidWifiDirectPort(
         const val POLL_MILLIS = 100L
         const val GROUP_POLLS = 30
         const val ADDRESS_POLLS = 20
-        const val REMOVE_POLLS = 20
         const val REMOVE_TOTAL_MILLIS = 3_000L
     }
 }

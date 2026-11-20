@@ -35,7 +35,10 @@ public sealed interface CarPlayState {
         val error: CarPlayError,
         /** Failed attempts in a row. */
         val attempt: Int,
-        /** When the next attempt starts. */
+        /**
+         * When the next attempt starts; for [CarPlayError.WifiOff], when it began waiting: the next attempt starts as
+         * soon as Wi-Fi turns on.
+         */
         val retryAt: Instant,
     ) : CarPlayState
 }

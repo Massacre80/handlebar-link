@@ -54,7 +54,12 @@ internal class CallAudio(
     private val headsets: CarPlayHeadsetSource,
     private val log: Logger,
 ) {
-    private var owner: Any? = null
+    /**
+     * The call microphones that asked for the mode and have not left yet. Usually one; two while a replaced telephony
+     * stream's capture is still releasing as the new one starts: the old one leaving must not end the new call's
+     * mode.
+     */
+    private val callers = HashSet<Any>()
     private var loudspeaker = false
     private var loudspeakerTried = false
 
@@ -90,22 +95,20 @@ internal class CallAudio(
         headset = null
     }
 
-    /** [call]'s microphone is about to record. */
+    /** [call]'s microphone is about to record; the first one puts the phone in communication mode. */
     @Synchronized
     fun enter(call: Any) {
-        if (owner != null) return
+        if (!callers.add(call) || callers.size > 1) return
         val before = system.mode
         system.mode = AudioManager.MODE_IN_COMMUNICATION
-        owner = call
         loudspeakerTried = false
         log.info("carplay.audio.mode", "from" to before, "to" to system.mode, "reason" to "call")
     }
 
-    /** [call]'s microphone stopped; only its owner leaves the mode. */
+    /** [call]'s microphone stopped; the last one to leave gives the mode back. */
     @Synchronized
     fun leave(call: Any) {
-        if (owner !== call) return
-        owner = null
+        if (!callers.remove(call) || callers.isNotEmpty()) return
         if (loudspeaker) system.clearCommunicationDevice()
         loudspeaker = false
         system.mode = AudioManager.MODE_NORMAL
@@ -118,7 +121,7 @@ internal class CallAudio(
      */
     @Synchronized
     fun routedToEarpiece() {
-        if (owner == null || loudspeaker || headsetStillThere()) return
+        if (callers.isEmpty() || loudspeaker || headsetStillThere()) return
         if (loudspeakerTried) return
         loudspeakerTried = true
         loudspeaker = system.loudspeaker()

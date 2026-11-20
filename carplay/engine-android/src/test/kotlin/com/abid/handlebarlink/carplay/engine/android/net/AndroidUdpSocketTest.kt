@@ -71,6 +71,41 @@ class AndroidUdpSocketTest {
             }
         }
 
+    @Test
+    fun `a cancelled send leaves the socket open for its receiver`(): Unit =
+        runBlocking {
+            withTimeout(LIMIT) {
+                val udp = bound()
+                DatagramSocket(InetSocketAddress(loopback, 0)).use { peer ->
+                    val sending =
+                        launch(start = CoroutineStart.UNDISPATCHED) {
+                            udp.send(byteArrayOf(5), "127.0.0.1", peer.localPort)
+                        }
+                    sending.cancelAndJoin()
+                    peer.send(DatagramPacket(byteArrayOf(7), 1, InetSocketAddress(loopback, udp.port)))
+
+                    assertThat(checkNotNull(udp.receive()).bytes.toList()).isEqualTo(listOf<Byte>(7))
+                    // The cancelled datagram still went out.
+                    val sent = DatagramPacket(ByteArray(8), 8)
+                    peer.soTimeout = LIMIT.toInt()
+                    peer.receive(sent)
+                    assertThat(sent.data[0]).isEqualTo(5.toByte())
+                }
+                udp.close()
+            }
+        }
+
+    @Test
+    fun `an unchecked exception from the socket fails the call instead of killing its thread`(): Unit =
+        runBlocking {
+            withTimeout(LIMIT) {
+                val udp = bound()
+                // An out-of-range port makes InetSocketAddress throw IllegalArgumentException on the sending thread.
+                assertFailure { udp.send(byteArrayOf(1), "127.0.0.1", 70_000) }.isInstanceOf<CarPlayException>()
+                udp.close()
+            }
+        }
+
     private companion object {
         const val LIMIT = 5_000L
     }

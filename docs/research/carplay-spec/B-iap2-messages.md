@@ -356,7 +356,7 @@ Decoded for diagnostics only (`wctl:164-166`, decoder `msg:102-131`, schema `cat
 | 1.0 | SSID | string | hotspot SSID |
 | 1.1 | passphrase | string | hotspot passphrase (`""` gives `00`) |
 | 1.2 | channel | u8 | hotspot channel |
-| 1.3 | wirelessIP | string, **repeated once per address** | the address list. The published host address comes first, then the other interface addresses, deduplicated (`ctl:1753-1755`). The text is `InetAddress.hostAddress` with any `%scope` suffix removed (`ctl:3404-3410`). IPv4 dotted quad or IPv6 text. |
+| 1.3 | wirelessIP | string, **repeated once per address** | the address list. The published host address comes first, then the other interface addresses, deduplicated (`ctl:1753-1755`). The text is `InetAddress.hostAddress` with any `%scope` suffix removed (`ctl:3404-3410`). IPv4 dotted quad or IPv6 text. On Wi-Fi Direct the list holds one address (the P2P backend passes no other `hostAddresses`, WifiP2pGroupManager.kt:676-688). |
 | 1.4 | securityType | u8 | same enum as 0x5703 |
 | 2 | airPlayPort | **u32** | the bound AirPlay listener port (`ctl:1626`, `ctl:1762`) |
 | 3 | deviceIdentifier | string | `hotspotInfo.bssid`, unless it is null or `02:00:00:00:00:00`, in which case `airPlayConfig.deviceId` is used (`ctl:1539-1541`). For Wi-Fi P2P this is the P2P interface MAC as **lowercase** `aa:bb:..` (`network/WifiP2pGroupManager.kt:893-897`). The fallback deviceId is **uppercase** `XX:XX:..` (`DiPlayBootstrap.kt:45-49`). |

@@ -23,13 +23,28 @@ class CallAudioTest {
         CallAudio(modes, CarPlayHeadsetSource { preferred }, testLogger(RecordingLogSink(), ManualTime()))
 
     @Test
-    fun `a call enters communication mode once and only its owner leaves it with MODE_NORMAL`() {
+    fun `a call enters communication mode once and only a microphone that entered leaves it with MODE_NORMAL`() {
         val call = Any()
         calls.enter(call)
-        calls.enter(Any())
+        calls.enter(call)
         calls.leave(Any())
         calls.leave(call)
 
+        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+    }
+
+    @Test
+    fun `a replaced call microphone that leaves after the new one entered keeps the new call in communication mode`() {
+        val old = Any()
+        val new = Any()
+        calls.enter(old)
+        calls.enter(new)
+
+        calls.leave(old)
+        val afterOld = modes.modes.toList()
+        calls.leave(new)
+
+        assertThat(afterOld).containsExactly(AudioManager.MODE_IN_COMMUNICATION)
         assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
     }
 

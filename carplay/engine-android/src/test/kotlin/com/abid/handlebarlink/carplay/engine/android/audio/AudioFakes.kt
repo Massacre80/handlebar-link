@@ -267,6 +267,9 @@ internal class FakeMicrophonePlatform(
     var preferred: CommunicationDevice? = null
     var encoderReleased = false
 
+    /** The encoder's release throws, as MediaCodec.stop() does for a codec in its error state. */
+    var encoderReleaseFails = false
+
     /** What the encoder makes of each frame. */
     var encode: (ByteArray) -> List<ByteArray> = { listOf(byteArrayOf(0xF8.toByte(), it.size.toByte())) }
 
@@ -297,6 +300,7 @@ internal class FakeMicrophonePlatform(
 
             override fun release() {
                 encoderReleased = true
+                check(!encoderReleaseFails) { "stop() in the error state" }
             }
         }
     }

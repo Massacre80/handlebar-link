@@ -84,18 +84,34 @@ internal class IapTunnel(
             launch { channel.run() }
             val control =
                 BootstrapControl(channel, setup, context.platform.time, context.log, NO_MILESTONES, handoff.calls)
-            channel.connected.await()
-            control.identify()
-            control.authenticate()
+            // DiPlay runs the tunnel client without an overall limit, but each step within 5 min
+            // (Iap2WirelessControlClient.kt:50-54, WirelessControlDeadline MAX_POLL_MILLIS :411-413), so a stalled
+            // tunnel ends instead of becoming ready at some arbitrary moment much later.
+            step("identification") {
+                channel.connected.await()
+                control.identify()
+            }
+            step("authentication") { control.authenticate() }
             handoff.tunnelReady(token)
             control.serve()
         }
+
+    private suspend fun step(
+        name: String,
+        block: suspend () -> Unit,
+    ) {
+        withTimeoutOrNull(STEP_TIMEOUT) { block() }
+            ?: throw CarPlayException(CarPlayError.LinkFailed("iAP2 tunnel $name took over ${STEP_TIMEOUT}ms"))
+    }
 
     companion object {
         private const val CHANNEL = "iap2 tunnel"
 
         /** DiPlay's PEER_CONNECT_TIMEOUT_MILLIS (AirPlayIapTunnelStream.kt:169). */
         const val PEER_CONNECT_TIMEOUT = 15_000L
+
+        /** DiPlay's per-step limit of the tunnel's bring-up, MAX_POLL_MILLIS (Iap2WirelessControlClient.kt:411). */
+        const val STEP_TIMEOUT = 5 * 60 * 1_000L
 
         /** The tunnel's streamID in the SETUP reply (CarPlayMediaEngine.kt:437). */
         private const val STREAM_ID = 1L
@@ -210,12 +226,20 @@ internal class IapTunnelStream(
             throw CarPlayException(CarPlayError.LinkFailed(e.message ?: "bad iAP2 tunnel record"), e)
         }
 
+    /**
+     * Waits up to [EVENT_READY_TIMEOUT] for the event channel to take the message, as DiPlay waits for it to be ready;
+     * the limit covers only that wait, never a write already under way (cancelling one would only stop waiting).
+     */
     override suspend fun write(bytes: ByteArray) {
         val command = Plist.dict("type" to SEND_MESSAGE, "params" to Plist.dict("data" to bytes))
-        withTimeoutOrNull(EVENT_READY_TIMEOUT) {
-            while (!commands.send(command)) delay(EVENT_READY_POLL)
-            true
-        } ?: throw CarPlayException(CarPlayError.LinkFailed("AirPlay event channel did not take an iAP2 message"))
+        val time = context.platform.time
+        val deadline = time.elapsedMillis() + EVENT_READY_TIMEOUT
+        while (!commands.send(command)) {
+            if (time.elapsedMillis() >= deadline) {
+                throw CarPlayException(CarPlayError.LinkFailed("AirPlay event channel did not take an iAP2 message"))
+            }
+            delay(EVENT_READY_POLL)
+        }
     }
 
     override fun close() {

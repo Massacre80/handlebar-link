@@ -57,6 +57,7 @@ internal class WirelessAttempt(
 ) {
     private val cleanup = Cleanup(env.log)
     private val verified = CompletableDeferred<String>()
+    private val sessions = ActiveSession(env.log)
 
     /** AirPlay control connections being served. */
     private var open = 0
@@ -90,14 +91,14 @@ internal class WirelessAttempt(
         val offer = microphone.await()
         val receiver = receiver(credentials, group, offer)
         val ended = CompletableDeferred<CarPlayException>()
-        val handoff = WirelessHandoff(this, plugins.calls, env.time, env.log) { ended.complete(it) }
+        val handoff = WirelessHandoff(this, plugins.calls, sessions, env.time, env.log) { ended.complete(it) }
         val platform = SessionPlatform(ports, addresses, env.time, config, plugins, handoff, offer)
         val control = { connection: TcpConnection ->
             AirPlayControlConnection(connection, credentials, receiver, env.secureRandom, platform, env.log)
         }
         // Registered before publishing starts: a publish that is still running when the attempt ends is undone.
         cleanup.add("bonjour") { ports.bonjour.unpublish() }
-        launch { publish(receiver.bonjour(addresses.first().substringBefore('%'), listener.port)) }
+        launch { publish(receiver.bonjour(published(addresses), listener.port)) }
         launch { watch.followClients() }
         launch { watch.run() }
 
@@ -209,7 +210,15 @@ internal class WirelessAttempt(
         ended: CompletableDeferred<CarPlayException>,
     ) {
         while (true) {
-            val connection = listener.accept()
+            val connection =
+                try {
+                    listener.accept()
+                } catch (e: CarPlayException) {
+                    // Once verified, the live connection decides when the attempt ends, not the listener.
+                    if (!verified.isCompleted) throw e
+                    env.log.warn("carplay.airplay.listener_failed", "error" to e.error)
+                    return
+                }
             if (open >= MAX_CONNECTIONS) {
                 env.log.warn("carplay.airplay.refused", "peer" to connection.remoteAddress)
                 connection.close()
@@ -220,7 +229,7 @@ internal class WirelessAttempt(
         }
     }
 
-    /** Serves one control connection; a verified one ending ends the attempt. */
+    /** Serves one control connection; a verified one ending ends the attempt, unless a newer session is live. */
     private suspend fun serve(
         connection: TcpConnection,
         connect: (TcpConnection) -> AirPlayControlConnection,
@@ -241,12 +250,10 @@ internal class WirelessAttempt(
                 verified.complete(phone)
             }
         } catch (e: CarPlayException) {
-            if (control.verifiedPhone !=
-                null
-            ) {
-                ended.complete(e)
-            } else {
-                env.log.info("carplay.airplay.dropped", "reason" to e.error)
+            when {
+                control.verifiedPhone == null -> env.log.info("carplay.airplay.dropped", "reason" to e.error)
+                sessions.ended(control.sessionContext) -> ended.complete(e)
+                else -> env.log.info("carplay.airplay.superseded_ended", "reason" to e.error)
             }
         } finally {
             open--
@@ -294,8 +301,11 @@ internal class WirelessAttempt(
         startSession =
             StartSession(
                 network = group.network,
-                // Every bound address, IPv4 first, without the IPv6 scope (CarPlayController.kt:1753-1755, 3404-3410).
-                ipAddresses = addresses.map { it.substringBefore('%') }.distinct(),
+                // One address, as DiPlay's Wi-Fi Direct path: CarPlayController.kt:1753 lists `hostAddress` plus
+                // the backend's other `hostAddresses`, and the P2P backend passes none (WifiP2pGroupManager.kt:
+                // 676-688, so WirelessHotspotManager.kt:27 defaults them to `hostAddress` alone). No scoped
+                // link-local IPv6 that the iPhone may pick (DiPlay #242, #1344).
+                ipAddresses = listOf(published(addresses)),
                 airPlayPort = listener.port,
                 deviceId = group.interfaceMac,
                 publicKeyHex = credentials.airPlay.publicKeyHex,
@@ -318,6 +328,16 @@ internal class WirelessAttempt(
          * IPv4; CarLink WirelessAddressFamilyPlan.kt:29-36 measured IPv6 first as slower; DiPlay #242, #1344).
          */
         fun ipv4First(addresses: List<String>): List<String> = addresses.sortedBy { if (IPV4.matches(it)) 0 else 1 }
+
+        /**
+         * The one address DiPlay publishes, without its scope (CarPlayController.kt:1515, 3404-3410): the first IPv4,
+         * else the first link-local IPv6 (HotspotAddressPolicy.select, :19-30), else the first address.
+         */
+        fun published(addresses: List<String>): String =
+            (
+                addresses.firstOrNull { IPV4.matches(it) } ?: addresses.firstOrNull { it.startsWith("fe80:", true) }
+                    ?: addresses.first()
+            ).substringBefore('%')
 
         private val IPV4 = Regex("""\d{1,3}(\.\d{1,3}){3}""")
 

@@ -26,7 +26,12 @@ public interface ByteStream {
      */
     public suspend fun read(buffer: ByteArray): Int
 
-    /** Writes all of [bytes]. */
+    /**
+     * Writes all of [bytes]. Cancelling a write only stops waiting for it: bytes handed to the platform are still
+     * written whole and in the order of the calls, and the stream stays open for its other writers (several parts
+     * share one event channel; a frame cut in half or an encrypted frame left out would break it for all of them).
+     * The caller must not change [bytes] afterwards.
+     */
     public suspend fun write(bytes: ByteArray)
 
     /** Closes the stream; idempotent, never throws. Unblocks a pending [read]. */
@@ -95,6 +100,13 @@ public interface WifiDirectPort {
 
     /** Removes the group; idempotent, never throws. */
     public suspend fun removeGroup()
+
+    /**
+     * Emits each time Wi-Fi turns on (`WIFI_STATE_CHANGED_ACTION` to `WIFI_STATE_ENABLED`), and may emit once when
+     * collection starts while it is on. A [createGroup] that failed with WifiOff is retried only on this signal, at
+     * once.
+     */
+    public val wifiOn: Flow<Unit>
 }
 
 /** A bound TCP server. */
@@ -136,7 +148,10 @@ public interface UdpSocket {
      */
     public suspend fun receive(): Datagram?
 
-    /** Sends [bytes] as one datagram to [address] (a numeric literal, IPv6 with its scope) and [port]. */
+    /**
+     * Sends [bytes] as one datagram to [address] (a numeric literal, IPv6 with its scope) and [port]. Cancelling a send
+     * only stops waiting for it; the socket stays open for its receiver. The caller must not change [bytes] afterwards.
+     */
     public suspend fun send(
         bytes: ByteArray,
         address: String,
@@ -147,25 +162,43 @@ public interface UdpSocket {
     public fun close()
 }
 
+/**
+ * What a socket carries, so the platform can serve it like DiPlay: the screen stream's reader at display priority
+ * (ScreenStream.kt:75-76) and an audio data socket's receiver at audio priority with a 512 KiB receive buffer
+ * (AudioStream.kt:62-68, 92-93, #737).
+ */
+public enum class SocketUse {
+    /** Control, events, timing and anything else. */
+    CONTROL,
+
+    /** The main screen stream (type 110). */
+    SCREEN,
+
+    /** An audio stream's data (RTP) socket. */
+    AUDIO,
+}
+
 /** Sockets. */
 public interface NetworkPort {
     /**
      * Listens on every one of [addresses] with one port, preferring [preferredPort] and then the next ten ports
      * (DiPlay AirPlayPortSelector.kt:17-64, `bindAll`). [preferredPort] 0 asks for any free port, the same on
      * every address: the AirPlay session's event, screen and data listeners (DiPlay binds them to port 0,
-     * AirPlaySession.kt:885, ScreenStream.kt:49-51). Connections get TCP_NODELAY and keep-alive.
+     * AirPlaySession.kt:885, ScreenStream.kt:49-51). Connections get TCP_NODELAY and keep-alive, and are served as
+     * [use] says. A listener bound while the caller was cancelled is closed, never lost.
      */
     public suspend fun listen(
         addresses: List<String>,
         preferredPort: Int,
+        use: SocketUse = SocketUse.CONTROL,
     ): TcpListener
 
     /**
      * Binds a UDP socket to a free port on every interface (`[::]:0`, dual stack), as DiPlay binds the timing,
      * keep-alive and audio sockets (NtpClock.kt:41-43, AirPlaySession.kt:861-864, AudioStream.kt:192-196). The
-     * engine checks senders itself.
+     * engine checks senders itself. Served as [use] says; a socket bound while the caller was cancelled is closed.
      */
-    public suspend fun bindUdp(): UdpSocket
+    public suspend fun bindUdp(use: SocketUse = SocketUse.CONTROL): UdpSocket
 }
 
 /** A Bonjour service to publish. */

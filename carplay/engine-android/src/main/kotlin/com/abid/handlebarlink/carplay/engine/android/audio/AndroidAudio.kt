@@ -12,6 +12,7 @@ import android.media.MediaFormat
 import android.os.Process
 import com.abid.handlebarlink.carplay.engine.android.AndroidPlatform
 import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
+import com.abid.handlebarlink.carplay.engine.android.threadPriority
 import com.abid.handlebarlink.carplay.engine.spi.AudioPlayer
 import com.abid.handlebarlink.carplay.engine.spi.AudioPort
 import com.abid.handlebarlink.carplay.engine.spi.AudioStreamInfo
@@ -82,15 +83,7 @@ internal class AndroidAudioPort(
 }
 
 /** `THREAD_PRIORITY_AUDIO` for the calling thread; a refusal keeps the default priority. */
-internal fun audioPriority() {
-    try {
-        Process.setThreadPriority(Process.THREAD_PRIORITY_AUDIO)
-    } catch (_: SecurityException) {
-        // Keeps the default priority.
-    } catch (_: IllegalArgumentException) {
-        // Keeps the default priority.
-    }
-}
+internal fun audioPriority() = threadPriority(Process.THREAD_PRIORITY_AUDIO)
 
 private class AndroidFocusSystem(
     private val audio: AndroidAudioSystem,

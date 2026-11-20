@@ -96,9 +96,9 @@ internal class MicrophoneCapture(
         val minBuffer = minBuffer()
         var encoder: OpusEncoder? = null
         var effects: AutoCloseable? = null
-        if (call) calls.enter(this)
-        val headset = calls.voiceStarted(this, channel)
         try {
+            if (call) calls.enter(this)
+            val headset = calls.voiceStarted(this, channel)
             if (format.codec == AudioCodec.OPUS) encoder = platform.encoder(format.bitrate)
             val (source, built) = build(maxOf(minBuffer * 2, frameBytes * BUFFER_FRAMES), headset)
             recorder = built
@@ -115,12 +115,27 @@ internal class MicrophoneCapture(
             )
             capture(built, encoder)
         } finally {
-            recorder?.let(::release)
+            val active = recorder
             recorder = null
-            effects?.close()
-            encoder?.release()
+            // Each part on its own: a codec in its error state throws from stop(), and that must not keep the phone
+            // in communication mode or on the headset route for good.
+            releasePart("recorder") { active?.let(::release) }
+            releasePart("effects") { effects?.close() }
+            releasePart("encoder") { encoder?.release() }
             calls.voiceEnded(this)
             if (call) calls.leave(this)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught") // Releasing a broken recorder, effect or codec is best effort.
+    private fun releasePart(
+        part: String,
+        release: () -> Unit,
+    ) {
+        try {
+            release()
+        } catch (e: Exception) {
+            log.warn("carplay.audio.release_failed", "part" to part, "error" to e.toString())
         }
     }
 
@@ -235,7 +250,8 @@ internal class MicrophoneCapture(
                 frame.fill(0)
                 silenced++
             }
-            val out = encoder?.encode(frame.copyOf()) ?: listOf(frame.copyOf())
+            // The encoder copies the frame into its own input buffer before it returns.
+            val out = encoder?.encode(frame) ?: listOf(frame.copyOf())
             out.filter { it.isNotEmpty() }.forEach {
                 bodies++
                 emit(it)

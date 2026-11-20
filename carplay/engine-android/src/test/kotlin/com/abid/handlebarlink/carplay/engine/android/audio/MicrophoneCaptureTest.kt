@@ -150,6 +150,25 @@ class MicrophoneCaptureTest {
     }
 
     @Test
+    fun `an Opus encoder that breaks and then throws on release still gives back the mode and the intercom route`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val opusCall = MicrophoneFormat("telephony", AudioCodec.OPUS, 48_000, 1, 20, 24_000)
+
+        assertFailure {
+            capture(opusCall, ByteArray(1_920), configure = {
+                encode = { throw IllegalStateException("codec error") }
+                encoderReleaseFails = true
+            })
+        }.isInstanceOf<IllegalStateException>()
+
+        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+        assertThat(modes.cleared).isEqualTo(1)
+        // A later call can enter the mode again: nothing still holds it.
+        calls.enter(Any())
+        assertThat(modes.modes.last()).isEqualTo(AudioManager.MODE_IN_COMMUNICATION)
+    }
+
+    @Test
     fun `app audio never takes the intercom route`() {
         modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
         val (platform, _) = capture(MicrophoneFormat("default", AudioCodec.LPCM, 48_000, 1, 10, 0), ByteArray(960))
