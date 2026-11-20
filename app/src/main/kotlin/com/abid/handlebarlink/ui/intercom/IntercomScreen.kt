@@ -43,6 +43,8 @@ import com.abid.handlebarlink.ui.controls.actionName
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE_FROM_DEVICES
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
@@ -60,15 +62,25 @@ fun IntercomScreen(
     contentPadding: PaddingValues,
 ) {
     val spacing = HlTheme.spacing
+    // Upright the 600 dp column, centred; on its side the whole frame between the start margin and the rail, the
+    // rail's room (in contentPadding) holding its gap, so the page shares Home's and the CarPlay tab's margins.
+    val panes = LocalWindowLayout.current == WindowLayout.PANES
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
-            .wrapContentWidth()
-            .widthIn(max = HlTheme.sizes.contentMax)
-            .padding(horizontal = spacing.s16, vertical = spacing.s8),
+            .then(
+                if (panes) {
+                    Modifier.padding(start = spacing.s16, top = spacing.s8, bottom = spacing.s8)
+                } else {
+                    Modifier
+                        .wrapContentWidth()
+                        .widthIn(max = HlTheme.sizes.contentMax)
+                        .padding(horizontal = spacing.s16, vertical = spacing.s8)
+                },
+            ),
         verticalArrangement = Arrangement.spacedBy(spacing.s24),
     ) {
         HlText(

@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
@@ -32,6 +33,8 @@ import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
 
 /**
@@ -47,12 +50,18 @@ fun LaterScreen(
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
+    val panes = LocalWindowLayout.current == WindowLayout.PANES
     Box(
         Modifier
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
-            .padding(horizontal = spacing.s24),
+            // On its side the rail's room (in contentPadding) holds the gap at the end, as on Home: centred in the
+            // frame between the start margin and the rail.
+            .padding(
+                start = if (panes) spacing.s16 else spacing.s24,
+                end = if (panes) 0.dp else spacing.s24,
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Column(
