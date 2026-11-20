@@ -90,8 +90,9 @@ public fun HlButton(
 
 /**
  * A secondary, ghost button ("Reset to default"; Paper "Handlebar 7"): [HlButton]'s height and press, a full pill
- * with no fill, a hairline edge in line (Night: white at 10 %, as drawn) and the label in ink. Disabled: a fainter
- * edge and a muted label.
+ * filled with the well (a tad above the page: Night white at 7 %, Bento a light grey; owner 2026-11-20, the edge
+ * alone had too little contrast), a hairline edge in line (Night: white at 10 %, as drawn) and the label in ink.
+ * Disabled: a fainter edge and a muted label.
  */
 @Composable
 public fun HlSecondaryButton(
@@ -108,6 +109,7 @@ public fun HlSecondaryButton(
             .fillMaxWidth()
             .height(HlTheme.sizes.controlLarge)
             .clip(CircleShape)
+            .background(colors.well)
             .border(HlTheme.strokes.hairline, if (enabled) colors.line else colors.lineSoft, CircleShape)
             .clickable(press, LocalIndication.current, enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,

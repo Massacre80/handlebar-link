@@ -184,7 +184,10 @@ private fun HeroDial(
     )
     val lit by animateFloatAsState(progress ?: 1f, motion.fade())
     Box(contentAlignment = Alignment.Center) {
-        SignalRing(color, colors.track, colors.raisedLo, progress = lit, size = HlTheme.sizes.gauge)
+        // Needs you: the disc takes the ring's red at the design's 8 %, so the whole hero reads as one error state
+        // (owner, 2026-11-20: the neutral or green disc inside the red ring looked half green); else the raised disc.
+        val disc = if (tone == SignalTone.ERROR) color.copy(alpha = ERROR_DISC) else colors.raisedLo
+        SignalRing(color, colors.track, disc, progress = lit, size = HlTheme.sizes.gauge)
         HlIcon(HlIcons.CarPlay, if (tone == SignalTone.IDLE) colors.ink else color, size = HlTheme.sizes.icon * 2)
     }
 }
@@ -324,3 +327,6 @@ private fun CarPlayBentoPreview() {
         HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayWifiOff, {}, {}, PaddingValues()) }
     }
 }
+
+/** The error disc's tint over the ring's red (Paper "Tab 4 — Needs you": danger at 8 %). */
+private const val ERROR_DISC = 0.08f
