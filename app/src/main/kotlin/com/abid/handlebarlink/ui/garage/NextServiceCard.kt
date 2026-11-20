@@ -1,11 +1,9 @@
 package com.abid.handlebarlink.ui.garage
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
@@ -56,34 +54,30 @@ internal fun NextServiceCard(
                 HlButton(stringResource(R.string.garage_log_last), actions.onLogService, brand = true)
                 return@Column
             }
-            Box(Modifier.fillMaxWidth().heightIn(min = (if (landscape) LANDSCAPE_METER_DP else METER_DP).dp)) {
-                CardTitle(Modifier.align(Alignment.TopStart))
-                HlIcon(
-                    HlIcons.ChevronRight,
-                    colors.inkMuted,
-                    Modifier.align(Alignment.TopEnd),
-                    size = HlTheme.sizes.iconSmall,
-                )
-                Row(
-                    Modifier.align(Alignment.BottomCenter).fillMaxWidth(),
-                    horizontalArrangement = if (landscape) Arrangement.Center else Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    if (!landscape) {
-                        Foot(
-                            service.dueDay?.let(::dayMonth) ?: "",
-                            stringResource(R.string.garage_due_by),
-                            Alignment.Start,
-                        )
-                    }
-                    Gauge(service, state, landscape)
-                    if (!landscape) {
-                        Foot(
-                            stringResource(R.string.garage_months_short, state.data.service.months),
-                            stringResource(R.string.garage_every),
-                            Alignment.End,
-                        )
-                    }
+            // The corner on its own row and the gauge under it, as on the BikePlay card: nothing overlaps.
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                CardTitle(Modifier.weight(1f))
+                HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconSmall)
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = if (landscape) Arrangement.Center else Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                if (!landscape) {
+                    Foot(
+                        service.dueDay?.let(::dayMonth) ?: "",
+                        stringResource(R.string.garage_due_by),
+                        Alignment.Start,
+                    )
+                }
+                Gauge(service, state, landscape)
+                if (!landscape) {
+                    Foot(
+                        stringResource(R.string.garage_months_short, state.data.service.months),
+                        stringResource(R.string.garage_every),
+                        Alignment.End,
+                    )
                 }
             }
             if (service.state == DueState.SOON || service.state == DueState.OVERDUE) {
@@ -167,7 +161,5 @@ private fun Foot(
     }
 }
 
-/** Paper "Garage 2": the meter row is 112 dp, "Garage 2L" 142 dp; each foot 72 dp. */
-private const val METER_DP = 112
-private const val LANDSCAPE_METER_DP = 142
+/** Paper "Garage 2": each foot is 72 dp. */
 private const val FOOT_DP = 72

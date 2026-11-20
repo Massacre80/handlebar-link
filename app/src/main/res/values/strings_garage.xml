@@ -9,7 +9,7 @@
     <string name="garage_tag_all_good">All good</string>
     <string name="garage_tag_overdue">%1$s overdue</string>
     <string name="garage_tag_soon">%1$s due soon</string>
-    <string name="garage_empty_detail">Add your last service and your papers. Garage reminds you before they\'re due.</string>
+    <string name="garage_empty_detail">Add your last service and your papers. Garage reminds you before they’re due.</string>
     <string name="garage_detail">%1$s · %2$s</string>
     <string name="garage_meter_linked">Meter linked</string>
     <string name="garage_meter_none">No meter linked</string>
@@ -18,17 +18,17 @@
     <string name="garage_overdue_rc">The RC ran out on %1$s. Renew it, then set the new date.</string>
     <string name="garage_overdue_chain">The chain is past its %1$s. Clean and lube it, then mark it done.</string>
     <string name="garage_overdue_custom">%1$s is overdue. Do it, then set the next one.</string>
-    <string name="garage_renewed">I\'ve renewed it</string>
-    <string name="garage_chain_done">I\'ve done it</string>
+    <string name="garage_renewed">I’ve renewed it</string>
+    <string name="garage_chain_done">I’ve done it</string>
     <string name="garage_custom_next">Set the next one</string>
     <string name="garage_log_last">Log the last service</string>
     <string name="garage_add_papers">Add papers</string>
     <string name="garage_intro_service">Service</string>
-    <string name="garage_intro_service_detail">When it\'s due, by date or by km</string>
+    <string name="garage_intro_service_detail">When it’s due, by date or by km</string>
     <string name="garage_intro_papers">Papers</string>
     <string name="garage_intro_papers_detail">Insurance, PUC and RC, before they run out</string>
     <string name="garage_intro_own">Your own reminders</string>
-    <string name="garage_intro_own_detail">Tyres, chain, anything you\'d rather not forget</string>
+    <string name="garage_intro_own_detail">Tyres, chain, anything you’d rather not forget</string>
 
     <!-- Short names for the hero's tag -->
     <string name="garage_short_insurance">Insurance</string>
@@ -133,7 +133,7 @@
     <string name="garage_kind_other">Other</string>
     <string name="garage_kind_general_detail">The periodic service, oil included</string>
     <string name="garage_kind_oil_detail">Engine oil, and the filter if changed</string>
-    <string name="garage_kind_chain_detail">Replaced; restarts the chain\'s count</string>
+    <string name="garage_kind_chain_detail">Replaced; restarts the chain’s count</string>
     <string name="garage_kind_tyres_detail">Replaced or repaired</string>
     <string name="garage_kind_brakes_detail">Pads, shoes or fluid</string>
     <string name="garage_kind_other_detail">Anything else</string>
@@ -147,12 +147,12 @@
     <string name="garage_interval_months">Every (months)</string>
     <string name="garage_interval_km">Every (km)</string>
     <string name="garage_months_unit">months</string>
-    <string name="garage_interval_help">Honda\'s schedule: every %1$s or %2$s km</string>
+    <string name="garage_interval_help">Honda’s schedule: every %1$s or %2$s km</string>
     <plurals name="garage_months">
         <item quantity="one">%d month</item>
         <item quantity="other">%d months</item>
     </plurals>
-    <string name="garage_chain_detail">Garage reminds you when it\'s due</string>
+    <string name="garage_chain_detail">Garage reminds you when it’s due</string>
     <string name="garage_chain_every">Every</string>
     <string name="garage_chain_now">Done it now</string>
     <string name="garage_chain_now_detail">At %1$s km</string>
@@ -185,6 +185,10 @@
     <string name="garage_due_on">Due on</string>
     <string name="garage_due_at">Due at</string>
     <string name="garage_delete_reminder">Delete reminder</string>
+    <string name="garage_edit_service">Edit service</string>
+    <string name="garage_delete_entry">Delete entry</string>
+    <string name="garage_delete_entry_title">Delete this entry?</string>
+    <string name="garage_delete_entry_text">It leaves the log. If it started the service count, the one before it takes over.</string>
     <string name="garage_delete_title">Delete %1$s?</string>
     <string name="garage_delete_text">Garage stops reminding you about it.</string>
     <string name="garage_delete">Delete</string>

@@ -11,7 +11,10 @@ sealed interface GarageHero {
     /** Nothing needs the rider. */
     data object AllGood : GarageHero
 
-    /** Only the service needs the rider: no tag (the gauge and "Log this service" say it). */
+    /**
+     * Only the service needs the rider, or no service is logged yet: no tag (the gauge and "Log this service", or the
+     * card's "Log the last service", say it; "All good" while the card asks for the last service would contradict it).
+     */
     data object ServiceOnly : GarageHero
 
     /** The most urgent other reminder ([due], due soon or overdue): its tag, and when overdue what to do. */
@@ -28,8 +31,16 @@ fun garageHero(
     if (!hasRecords) return GarageHero.Empty
     val other = status.upcoming.firstOrNull { it.state == DueState.OVERDUE || it.state == DueState.SOON }
     return when {
-        other != null -> GarageHero.Attention(other)
-        status.service?.state.let { it == DueState.SOON || it == DueState.OVERDUE } -> GarageHero.ServiceOnly
-        else -> GarageHero.AllGood
+        other != null -> {
+            GarageHero.Attention(other)
+        }
+
+        status.service?.state.let { it == null || it == DueState.SOON || it == DueState.OVERDUE } -> {
+            GarageHero.ServiceOnly
+        }
+
+        else -> {
+            GarageHero.AllGood
+        }
     }
 }

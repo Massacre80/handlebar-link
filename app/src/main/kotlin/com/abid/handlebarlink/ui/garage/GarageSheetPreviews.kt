@@ -102,4 +102,4 @@ private fun IntervalPreview() = SheetFrame { ServiceIntervalSheet(PreviewGarageA
 
 @Preview(name = "Garage · all entries", widthDp = 411, heightDp = 1200)
 @Composable
-private fun ServiceLogPreview() = GarageFrame(HlThemeVariant.NIGHT) { ServiceLogScreen(PreviewGarageAllGood, {}) }
+private fun ServiceLogPreview() = GarageFrame(HlThemeVariant.NIGHT) { ServiceLogScreen(PreviewGarageAllGood, {}, {}) }

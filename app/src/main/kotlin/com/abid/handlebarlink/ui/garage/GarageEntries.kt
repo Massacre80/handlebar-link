@@ -18,6 +18,8 @@ import com.abid.handlebarlink.garage.GarageData
 import com.abid.handlebarlink.garage.addCustom
 import com.abid.handlebarlink.garage.chainDone
 import com.abid.handlebarlink.garage.chooseColourway
+import com.abid.handlebarlink.garage.deleteEntry
+import com.abid.handlebarlink.garage.editEntry
 import com.abid.handlebarlink.garage.enterOdometer
 import com.abid.handlebarlink.garage.logService
 import com.abid.handlebarlink.garage.removeCustom
@@ -43,10 +45,11 @@ fun EntryProviderScope<NavKey>.garageEntries(
     garageSheets(navigator)
     entry<DeleteReminderRoute>(metadata = DialogSceneStrategy.dialog()) { route -> DeleteEntry(route, navigator) }
     entry<ForgetBikeRoute>(metadata = DialogSceneStrategy.dialog()) { ForgetEntry(navigator) }
+    entry<DeleteLogEntryRoute>(metadata = DialogSceneStrategy.dialog()) { route -> DeleteLogEntry(route, navigator) }
     entry<ServiceLogRoute> {
         val viewModel: GarageViewModel = hiltViewModel()
         val state by viewModel.uiState.collectAsStateWithLifecycle()
-        ServiceLogScreen(state, onBack = navigator::goBack)
+        ServiceLogScreen(state, onBack = navigator::goBack, onEntry = { navigator.navigate(EditEntryRoute(it)) })
     }
 }
 
@@ -59,6 +62,7 @@ private fun EntryProviderScope<NavKey>.garageSheets(navigator: Navigator) {
             }, onCancel = navigator::goBack)
         }
     }
+    entry<EditEntryRoute>(metadata = sheet()) { route -> EditLogEntry(route, navigator) }
     entry<OdometerRoute>(metadata = sheet()) {
         Edit(navigator) { state, save ->
             OdometerSheet(
@@ -117,6 +121,7 @@ private fun GarageEntry(
             onReminder = { navigator.navigate(ReminderRoute(it)) },
             onColourway = { navigator.navigate(ColourwayRoute) },
             onAllEntries = { navigator.navigate(ServiceLogRoute) },
+            onEntry = { navigator.navigate(EditEntryRoute(it)) },
             onForget = { navigator.navigate(ForgetBikeRoute) },
         ),
         contentPadding,
@@ -138,6 +143,26 @@ private fun Edit(
     if (!state.loaded) return
     viewModel.content(state) { change ->
         scope.launch { if (viewModel.save(change)) navigator.goBack() }
+    }
+}
+
+/** A log entry to change, or to delete (it asks first): the "Log a service" sheet filled in. */
+@Composable
+private fun EditLogEntry(
+    route: EditEntryRoute,
+    navigator: Navigator,
+) {
+    Edit(navigator) { state, save ->
+        val entry = state.data.log.firstOrNull { it.id == route.id } ?: return@Edit
+        LogServiceSheet(
+            state.today,
+            state.data.service,
+            state.status.latest?.km,
+            onSave = { input -> save { it.editEntry(entry.id, input, nowMillis(), zone()) } },
+            onCancel = navigator::goBack,
+            entry = entry,
+            onDelete = { navigator.navigate(DeleteLogEntryRoute(entry.id)) },
+        )
     }
 }
 
@@ -184,6 +209,30 @@ private fun DeleteEntry(
             scope.launch {
                 // Back past the dialog and the reminder's sheet.
                 if (viewModel.save { it.removeCustom(route.id) }) navigator.goBackPast { it is ReminderRoute }
+            }
+        },
+        dismiss = stringResource(R.string.cancel),
+        onDismiss = navigator::goBack,
+        destructive = true,
+    )
+}
+
+@Composable
+private fun DeleteLogEntry(
+    route: DeleteLogEntryRoute,
+    navigator: Navigator,
+) {
+    val viewModel: GarageViewModel = hiltViewModel()
+    val scope = rememberCoroutineScope()
+    HlDialog(
+        HlIcons.Trash,
+        stringResource(R.string.garage_delete_entry_title),
+        stringResource(R.string.garage_delete_entry_text),
+        confirm = stringResource(R.string.garage_delete),
+        onConfirm = {
+            scope.launch {
+                // Back past the dialog and the entry's sheet.
+                if (viewModel.save { it.deleteEntry(route.id) }) navigator.goBackPast { it is EditEntryRoute }
             }
         },
         dismiss = stringResource(R.string.cancel),

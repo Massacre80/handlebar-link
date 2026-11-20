@@ -46,6 +46,13 @@ class GarageHeroTest {
     }
 
     @Test
+    fun `papers on track but no service logged is not all good`() {
+        val noService = onTrack.copy(service = ServicePlan())
+
+        assertThat(hero(noService)).isEqualTo(GarageHero.ServiceOnly)
+    }
+
+    @Test
     fun `an overdue paper comes before a service due soon`() {
         val data =
             onTrack.copy(

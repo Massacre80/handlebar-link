@@ -11,6 +11,18 @@ import kotlinx.serialization.Serializable
 @Serializable
 data object LogServiceRoute : OverlayRoute
 
+/** A service log entry [id], to change or delete: the "Log a service" sheet filled in. */
+@Serializable
+data class EditEntryRoute(
+    val id: Long,
+) : OverlayRoute
+
+/** "Delete this entry?": confirms deleting service log entry [id]. */
+@Serializable
+data class DeleteLogEntryRoute(
+    val id: Long,
+) : OverlayRoute
+
 /** The odometer reading: a sheet over the Garage tab. */
 @Serializable
 data object OdometerRoute : OverlayRoute

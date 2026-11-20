@@ -25,9 +25,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.OutputTransformation
 import androidx.compose.foundation.text.input.TextFieldBuffer
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.insert
 import androidx.compose.foundation.text.input.maxLength
 import androidx.compose.foundation.text.input.then
 import androidx.compose.foundation.verticalScroll
@@ -54,6 +56,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.garage.grouped
 import java.time.LocalDate
 
 // The parts Garage's sheets share (Paper "Garage 5", "Garage 6"): the frame, a labelled field with its help line, the
@@ -139,6 +142,8 @@ internal fun NumberField(
         state = state,
         modifier = modifier.fillMaxWidth().semantics { contentDescription = label },
         inputTransformation = DigitsOnly.then(InputTransformation.maxLength(maxDigits)),
+        // Shown grouped like the rows ("15,860"); the state keeps the bare digits.
+        outputTransformation = GroupedDigits,
         textStyle = HlTheme.typography.figure.copy(color = colors.ink),
         lineLimits = TextFieldLineLimits.SingleLine,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
@@ -236,6 +241,15 @@ internal fun TextFieldState.number(): Int? = text.toString().toIntOrNull()
 private object DigitsOnly : InputTransformation {
     override fun TextFieldBuffer.transformInput() {
         if (!asCharSequence().all(Char::isDigit)) revertAllChanges()
+    }
+}
+
+/** Shows the digits with the phone language's grouping, as [grouped] writes them in the rows ("15,860", "1,00,000"). */
+private object GroupedDigits : OutputTransformation {
+    override fun TextFieldBuffer.transformOutput() {
+        val number = asCharSequence().toString().toIntOrNull() ?: return
+        // Walk the formatted figure and insert each separator where it falls; the digits already match.
+        grouped(number).forEachIndexed { index, char -> if (!char.isDigit()) insert(index, char.toString()) }
     }
 }
 

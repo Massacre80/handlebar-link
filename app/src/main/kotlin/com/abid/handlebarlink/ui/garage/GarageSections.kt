@@ -154,7 +154,7 @@ internal fun ServiceLog(
         }
         entries.take(LATEST_ENTRIES).forEachIndexed { index, entry ->
             if (index > 0 || !asks) HlGroupDivider()
-            EntryRow(entry, state.today)
+            EntryRow(entry, state.today) { actions.onEntry(entry.id) }
         }
         if (entries.size > LATEST_ENTRIES) {
             HlGroupDivider()

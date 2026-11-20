@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.core.designsystem.component.HlDangerButton
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -22,6 +23,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
 import com.abid.handlebarlink.core.designsystem.component.HlSwitchRow
 import com.abid.handlebarlink.core.designsystem.component.HlTextField
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
+import com.abid.handlebarlink.garage.ServiceEntry
 import com.abid.handlebarlink.garage.ServiceInput
 import com.abid.handlebarlink.garage.ServiceKind
 import com.abid.handlebarlink.garage.ServicePlan
@@ -32,8 +34,10 @@ import java.time.LocalDate
 /**
  * "Log a service" (Paper "Garage 5"): the odometer at the workshop, what was done (a list that opens in place), the
  * date (today by default, never later), the optional workshop and cost (they open in place), and for a general service
- * the switch that restarts the count (on), with when the next one then falls due.
+ * the switch that restarts the count (on), with when the next one then falls due. With an [entry] it edits that entry
+ * ("Edit service", its values filled in) and has the red-tinted Delete, which asks first ([onDelete]).
  */
+@Suppress("LongParameterList") // The sheet's data and its three actions.
 @Composable
 fun LogServiceSheet(
     today: LocalDate,
@@ -41,17 +45,19 @@ fun LogServiceSheet(
     lastKm: Int?,
     onSave: (ServiceInput) -> Unit,
     onCancel: () -> Unit,
+    entry: ServiceEntry? = null,
+    onDelete: (() -> Unit)? = null,
 ) {
-    val km = rememberTextFieldState(lastKm?.toString() ?: "")
-    val workshop = rememberTextFieldState()
-    val cost = rememberTextFieldState()
-    var kind by rememberSaveable { mutableStateOf(ServiceKind.GENERAL) }
-    var day by rememberSaveable { mutableLongStateOf(today.toEpochDay()) }
-    var restart by rememberSaveable { mutableStateOf(true) }
+    val km = rememberTextFieldState((entry?.km ?: lastKm)?.toString() ?: "")
+    val workshop = rememberTextFieldState(entry?.workshop ?: "")
+    val cost = rememberTextFieldState(entry?.cost?.toString() ?: "")
+    var kind by rememberSaveable { mutableStateOf(entry?.kind ?: ServiceKind.GENERAL) }
+    var day by rememberSaveable { mutableLongStateOf(entry?.day ?: today.toEpochDay()) }
+    var restart by rememberSaveable { mutableStateOf(entry?.restarted ?: true) }
     val date = LocalDate.ofEpochDay(day)
     GarageSheet(
         HlIcons.Garage,
-        stringResource(R.string.garage_log_service),
+        stringResource(if (entry == null) R.string.garage_log_service else R.string.garage_edit_service),
         stringResource(R.string.garage_log_detail),
     ) {
         Labelled(stringResource(R.string.garage_odometer), stringResource(R.string.garage_odometer_help)) {
@@ -89,6 +95,7 @@ fun LogServiceSheet(
             stringResource(R.string.cancel),
             onCancel,
         )
+        onDelete?.let { HlDangerButton(stringResource(R.string.garage_delete_entry), it) }
     }
 }
 

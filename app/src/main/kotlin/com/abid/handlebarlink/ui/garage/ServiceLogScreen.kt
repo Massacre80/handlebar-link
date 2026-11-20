@@ -63,22 +63,24 @@ import java.time.LocalDate
 fun ServiceLogScreen(
     state: GarageUiState,
     onBack: () -> Unit,
+    onEntry: (Long) -> Unit,
 ) {
     SubPage(stringResource(R.string.garage_service_log), onBack) {
         HlGroup {
             newestFirst(state.data.log).forEachIndexed { index, entry ->
                 if (index > 0) HlGroupDivider()
-                EntryRow(entry, state.today)
+                EntryRow(entry, state.today) { onEntry(entry.id) }
             }
         }
     }
 }
 
-/** One log entry: what, at what km and where, on what day. */
+/** One log entry: what, at what km and where, on what day; a tap opens it to change or delete ([onClick]). */
 @Composable
 internal fun EntryRow(
     entry: ServiceEntry,
     today: LocalDate,
+    onClick: () -> Unit,
 ) {
     val extra =
         listOfNotNull(entry.workshop, entry.cost?.let { stringResource(R.string.garage_cost, grouped(it)) })
@@ -88,7 +90,7 @@ internal fun EntryRow(
         stringResource(serviceKindName(entry.kind)),
         if (extra.isEmpty()) km(entry.km) else stringResource(R.string.garage_entry_detail, grouped(entry.km), extra),
         shortDate(LocalDate.ofEpochDay(entry.day), today),
-        onClick = null,
+        onClick = onClick,
     )
 }
 

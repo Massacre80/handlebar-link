@@ -67,5 +67,6 @@ data class GarageActions(
     val onReminder: (Long?) -> Unit = {},
     val onColourway: () -> Unit = {},
     val onAllEntries: () -> Unit = {},
+    val onEntry: (Long) -> Unit = {},
     val onForget: () -> Unit = {},
 )

@@ -21,12 +21,12 @@ fun GarageData.logService(
     workshop: String? = null,
     cost: Int? = null,
 ): GarageData {
-    val entry = ServiceEntry(nextId, day.toEpochDay(), km, kind, workshop?.trim()?.ifEmpty { null }, cost)
-    val restarts = restart && kind == ServiceKind.GENERAL && (service.startDay ?: Long.MIN_VALUE) <= entry.day
+    val restarts = restart && kind == ServiceKind.GENERAL && (service.startDay ?: Long.MIN_VALUE) <= day.toEpochDay()
+    val entry = ServiceEntry(nextId, day.toEpochDay(), km, kind, workshop?.trim()?.ifEmpty { null }, cost, restarts)
     val chainRestarts = kind == ServiceKind.CHAIN && (chain.startKm ?: Int.MIN_VALUE) <= km
     return copy(
         log = log + entry,
-        odometer = odometer + OdometerReading(km, readingTime(day, nowMillis, zone)),
+        odometer = odometer + OdometerReading(km, readingTime(day, nowMillis, zone), entry.id),
         service = if (restarts) service.copy(startDay = entry.day, startKm = km) else service,
         chain = if (chainRestarts) chain.copy(startKm = km) else chain,
         nextId = nextId + 1,

@@ -40,11 +40,12 @@ data class ServiceInput(
     val restart: Boolean,
 )
 
-/** An odometer reading the rider entered: [km] on the meter at [atMillis]. */
+/** An odometer reading the rider entered: [km] on the meter at [atMillis]; [entry] the log entry that carried it. */
 @Serializable
 data class OdometerReading(
     val km: Int,
     val atMillis: Long,
+    val entry: Long? = null,
 )
 
 /** What a service log entry was. */
@@ -68,6 +69,8 @@ data class ServiceEntry(
     val workshop: String? = null,
     /** In whole rupees. */
     val cost: Int? = null,
+    /** This general service restarted the service count (the sheet's switch was on and it was the newest). */
+    val restarted: Boolean = false,
 )
 
 /**
