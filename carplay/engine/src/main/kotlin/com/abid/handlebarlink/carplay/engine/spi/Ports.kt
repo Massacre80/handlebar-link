@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.spi
 import com.abid.handlebarlink.carplay.protocol.audio.AudioCodec
 import com.abid.handlebarlink.carplay.protocol.audio.AudioFormat
 import com.abid.handlebarlink.carplay.protocol.iap2.WifiNetwork
+import com.abid.handlebarlink.carplay.protocol.location.CarPlayLocationFix
 import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.AirPlayIdentity
 import com.abid.handlebarlink.carplay.protocol.pairing.PairingStore
@@ -455,6 +456,35 @@ public interface MicrophonePort {
     }
 }
 
+/**
+ * The accessory's own GPS, forwarded to the iPhone over CarPlay's Location Information (C6 location): the Poco is
+ * bolted to the bars with a clear view of the sky, so the iPhone navigates off its fix instead of a pocketed phone's.
+ * Only read while the iPhone has subscribed ([start]..[stop]); [NONE] forwards nothing (no permission, or no source).
+ */
+public interface LocationPort {
+    /** Begin location updates; returns whether a source was subscribed. */
+    public fun start(): Boolean
+
+    /** Stop location updates. */
+    public fun stop()
+
+    /** The most recent fix since [start], or null when there is none. */
+    public fun latestFix(): CarPlayLocationFix?
+
+    /** The empty [LocationPort]. */
+    public companion object {
+        /** Forwards no location (the default). */
+        public val NONE: LocationPort =
+            object : LocationPort {
+                override fun start(): Boolean = false
+
+                override fun stop() {}
+
+                override fun latestFix(): CarPlayLocationFix? = null
+            }
+    }
+}
+
 /** The platform the receiver runs on. */
 public class CarPlayPorts(
     /** Bluetooth. */
@@ -473,6 +503,8 @@ public class CarPlayPorts(
     public val audio: AudioPort = AudioPort.NONE,
     /** Siri's and calls' microphone; [MicrophonePort.NONE] offers none. */
     public val microphone: MicrophonePort = MicrophonePort.NONE,
+    /** The bike's GPS, forwarded to the iPhone; [LocationPort.NONE] forwards none. */
+    public val location: LocationPort = LocationPort.NONE,
     /**
      * The platform's name for ChaCha20-Poly1305 (ChaCha20Poly1305.Transformation.ANDROID on the phone, so
      * every frame is decrypted natively by BoringSSL).
