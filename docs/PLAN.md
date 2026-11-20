@@ -592,6 +592,25 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   `CarPlayOff*` removed 2026-11-20 for `CarPlayReady*` and `CarPlayFailed*`; new `CarPlayMicrophoneNight`,
   `CarPlayMicrophoneBento`, `CarPlayScreenSheetNight`, `CarPlayScreenSheetBento`.
 
+### CarPlay size and dock side (owner, 2026-11-20)
+
+- **Why.** The dock icons were small: iOS sizes CarPlay's controls physically from the screen size it is told
+  (DiPlay CarPlaySize.kt:3-6) and we told it DiPlay's 300 mm while the Poco's landscape window is 136 mm, so every
+  control showed at about 45 %. iOS 26's Smart Display Zoom (CarPlay Settings → Display) does not help here: off made
+  them smaller still. No CarPlay setting or receiver key sizes the dock alone.
+- **Measured on the Poco** (landscape, same iPhone): 300 mm — thin dock along the bottom, icons ~80 px; 200 mm — bigger
+  home icons, the same dock; 150 and 136 mm — iOS switches layout: a tall dock on a side, icons ~120 px, map and widgets,
+  clean; 120 mm — the dock overlapped the clock (too small). iOS changes layout at a few sizes
+  (AirPlayDisplaySettings.kt:22-23).
+- **Rule:** the widest window's real width (`realWidthMm`): its pixels over the lower of `DisplayMetrics` xdpi/ydpi
+  (the bucket if either is more than twice off it), in 135..400 mm — 135 laid out cleanly, 120 did not; 400 is DiPlay's
+  largest. It replaces DiPlay's fixed 300 mm reference, so CarPlay's controls come out at their real size on any phone.
+  The Poco: `realMm=136` (2160 px at 403 ppi). Logged in `carplay.screen … dpi= realMm=`.
+- **Dock on the right:** `/info` `rightHandDrive` true (DiPlay AirPlayInfoPlist.kt:46, `CarPlayConfig.rightHandDrive`):
+  CarPlay docks on the driver's side. The owner wants it on the right (as cars in India are right-hand drive).
+- **Open:** portrait at the real size (68 x 141 mm on the Poco) still needs a look on the device; if iOS lays it out
+  badly, portrait gets its own floor.
+
 ### Review fixes, engine (2026-11-20, branch `carplay-engine-fixes`)
 
 A seven-dimension review of 424a79a (each finding checked by an independent skeptic) found 51 issues; the engine's

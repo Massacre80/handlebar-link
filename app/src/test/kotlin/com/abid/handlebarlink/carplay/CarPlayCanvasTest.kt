@@ -196,6 +196,30 @@ class CarPlayCanvasTest {
         assertThat(carPlayCanvas(1080, 2246, 60f, LANDSCAPE, decoderTakes = never).viewAreas).isEqualTo(emptyList())
     }
 
+    @Test
+    fun `the real width is the window's pixels over the lower density, kept to CarPlay's clean layouts`() {
+        // 2160 / 403.411 x 25.4 = 136.0: the Poco, whose y density reports its 420 bucket.
+        assertThat(realWidthMm(2160, 403.411f, 419.473f, 420)).isEqualTo(136)
+        // 2400 / 400 x 25.4 = 152.4, the lower of 400 and 500 (2400 / 500 x 25.4 would be 121.9).
+        assertThat(realWidthMm(2400, 500f, 400f, 420)).isEqualTo(152)
+        // A density of 50 against a 320 bucket is a broken report: 2560 / 320 x 25.4 = 203.2.
+        assertThat(realWidthMm(2560, 50f, 50f, 320)).isEqualTo(203)
+        // 1600 / 400 x 25.4 = 101.6, under the cleanest small layout: 135. 4000 / 100 x 25.4 = 1016: DiPlay's 400.
+        assertThat(realWidthMm(1600, 400f, 400f, 420)).isEqualTo(MIN_REAL_MM)
+        assertThat(realWidthMm(4000, 100f, 100f, 160)).isEqualTo(MAX_REAL_MM)
+    }
+
+    @Test
+    fun `a measured reference replaces DiPlay's 300 mm for the widest window`() {
+        // resolvePhysicalSizeMm with reference 136: landscape 136 x 2160/2160 = 136 (the square reports it);
+        // portrait 136 x 1080/2160 = 68 wide, 68 x 2246/1080 = 141.4 -> 141 high (the square reports the long side).
+        val landscape = carPlayCanvas(1080, 2246, 60f, LANDSCAPE, cutout = 86, decoderTakes = poco, referenceMm = 136)
+        val portrait = carPlayCanvas(1080, 2246, 60f, PORTRAIT, cutout = 86, decoderTakes = poco, referenceMm = 136)
+
+        assertThat(landscape.widthMillimetres to landscape.heightMillimetres).isEqualTo(136 to 136)
+        assertThat(portrait.widthMillimetres to portrait.heightMillimetres).isEqualTo(141 to 141)
+    }
+
     private companion object {
         /** c2.qti.avc.decoder's listed height limit (DiPlay CarPlayRotation.kt:69, "lists 4096x2176 at most"). */
         const val QUALCOMM_LISTED_SIDE = 2176

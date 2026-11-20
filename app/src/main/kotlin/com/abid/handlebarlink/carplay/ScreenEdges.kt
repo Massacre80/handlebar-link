@@ -40,9 +40,10 @@ data class ScreenEdges(
  *   exactly on a corner of radius r, so nothing square is cut off;
  * - upright, the bottom also clears the navigation bar's strip, the swipe-up handle's: CarPlay docks along the bottom
  *   there, so the dock never sits under it; and the top and bottom clear the cutout;
- * - on its side CarPlay docks on a side edge and nothing sits along the bottom, so the bottom clears only the corners,
- *   like the top (the owner found the navigation strip too much there, 2026-11-20; the iPhone too keeps a smaller
- *   home-indicator inset in landscape). The window already leaves the cutout's strip out ([carPlayWindow]).
+ * - on its side the bottom clears only the corners, like the top: told the real size ([realWidthMm]) CarPlay docks on
+ *   the right edge (Poco, 136 mm), so nothing sits along the bottom; and where a wider screen keeps the dock along the
+ *   bottom the owner still preferred the smaller inset (2026-11-20; the iPhone too keeps a smaller home-indicator
+ *   inset in landscape). The window already leaves the cutout's strip out ([carPlayWindow]).
  *
  * Then scaled to the area across each axis (the display stretches the area over the window per axis) and rounded up,
  * so the clear band is never thinner than measured. Each inset is held under a quarter of its side, so a broken

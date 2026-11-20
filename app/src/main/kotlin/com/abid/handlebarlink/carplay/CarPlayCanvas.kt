@@ -76,11 +76,11 @@ internal fun carPlayWindow(
  *
  * 1. CarPlay's window in each orientation ([carPlayWindow]); the start one is [orientation]'s, made even
  *    (CarPlayHostActivity.kt:7281-7282).
- * 2. Physical size: DiPlay's reference width, [REFERENCE_WIDTH_MM] (CarPlaySize.DEFAULT,
- *    AirPlayPersistence.kt:833-839),
- *    for the widest window it has seen, scaled to the start window (AirPlayDisplaySettings.resolvePhysicalSizeMm,
- *    AirPlayDisplaySettings.kt:44-81, basis WIDTH; CarPlayHostActivity.kt:5289-5297, 6196-6203). The phone's real size
- *    plays no part: DiPlay never measures it.
+ * 2. Physical size: [referenceMm] for the widest window, scaled to the start window
+ *    (AirPlayDisplaySettings.resolvePhysicalSizeMm, AirPlayDisplaySettings.kt:44-81, basis WIDTH;
+ *    CarPlayHostActivity.kt:5289-5297, 6196-6203). DiPlay's reference is a fixed width, [REFERENCE_WIDTH_MM]
+ *    (CarPlaySize.DEFAULT, AirPlayPersistence.kt:833-839), the default here; the app passes the widest window's real
+ *    width instead ([realWidthMm]; owner 2026-11-20), so CarPlay's controls come out at their real size on any phone.
  * 3. The square (CarPlayRotation.squareSide, CarPlayRotation.kt:20-23, 39-78): the long side capped at
  *    [SQUARE_LIMIT] (picture "Smoother"), made even, else the next of DiPlay's sides below it, the first the decoder
  *    takes. Both its sides report the long side's physical length (CarPlayHostActivity.kt:5136-5145).
@@ -109,6 +109,7 @@ internal fun carPlayCanvas(
     decoderTakes: (side: Int) -> Boolean = { true },
     base: CarPlayConfig = CarPlayConfig(),
     edges: ScreenEdges = ScreenEdges.NONE,
+    referenceMm: Int = REFERENCE_WIDTH_MM,
 ): CarPlayConfig {
     val landscape = carPlayWindow(screenWidth, screenHeight, CarPlayOrientation.LANDSCAPE, cutout)
     val portrait = carPlayWindow(screenWidth, screenHeight, CarPlayOrientation.PORTRAIT, cutout)
@@ -117,7 +118,7 @@ internal fun carPlayCanvas(
     val height = even(window.height)
     // The widest and tallest windows DiPlay has seen: this phone's two windows (and the current one).
     val maximumWidth = maxOf(landscape.width, portrait.width, window.width)
-    val widthMm = REFERENCE_WIDTH_MM * (width.toDouble() / maximumWidth)
+    val widthMm = referenceMm * (width.toDouble() / maximumWidth)
     val heightMm = widthMm * height / width
     val fps = refreshRate.toInt().coerceIn(MIN_FPS, MAX_FPS)
     val side = squareSide(max(width, height), decoderTakes)
@@ -190,8 +191,46 @@ private fun even(value: Int): Int = (value / 2 * 2).coerceAtLeast(MIN_SIDE)
 
 private const val MIN_SIDE = 2
 
+/**
+ * CarPlay's dock on the right, the side the owner wants it on the bike (2026-11-20): told as a right-hand-drive car
+ * ([CarPlayConfig.rightHandDrive]), as cars in India are.
+ */
+internal const val DOCK_ON_THE_RIGHT = true
+
 /** DiPlay's default "CarPlay size", Medium: the screen width told to the iPhone (CarPlaySize.kt:8-14). */
 internal const val REFERENCE_WIDTH_MM = 300
+
+/**
+ * The real width in millimetres of a window [pixels] wide on a screen of [xdpi] x [ydpi] (`DisplayMetrics`, the
+ * physical pixels per inch) with [densityDpi] as its density bucket: what CarPlay is told, so its controls come out
+ * at their real size (owner 2026-11-20). iOS sizes CarPlay's controls physically from the size it is told
+ * (CarPlaySize.kt:3-6) and switches layouts at a few sizes (AirPlayDisplaySettings.kt:22-23): on the Poco (2160 px at
+ * 403 ppi, 136 mm) the real size docks CarPlay on a side with large icons, where DiPlay's 300 mm gives a thin
+ * bottom dock with icons a third smaller (measured on the Poco: 300, 200, 150, 136 and 120 mm).
+ * - The lower of the two densities: phones report one of them as the density bucket now and then (the Poco reports
+ *   419 for y, 403 for x); the lower one only errs towards a larger size, never under the smallest clean layout.
+ * - A density more than twice off the bucket is a broken report: the bucket is used instead.
+ * - At least [MIN_REAL_MM]: at 120 mm the iPhone's dock overlapped its clock (Poco, 2026-11-20). At most
+ *   [MAX_REAL_MM], DiPlay's largest CarPlay size (AirPlayDisplaySettings.kt:21).
+ */
+internal fun realWidthMm(
+    pixels: Int,
+    xdpi: Float,
+    ydpi: Float,
+    densityDpi: Int,
+): Int {
+    val lower = min(xdpi, ydpi)
+    val dpi = if (lower >= densityDpi / 2f && lower <= densityDpi * 2f) lower else densityDpi.toFloat()
+    return Math.round(pixels / dpi * MM_PER_INCH).coerceIn(MIN_REAL_MM, MAX_REAL_MM)
+}
+
+/** The smallest width CarPlay is told: 135 mm laid out cleanly on the Poco, 120 mm did not. */
+internal const val MIN_REAL_MM = 135
+
+/** DiPlay's largest CarPlay size (AirPlayDisplaySettings.MAX_WIDTH_PHYSICAL_MM). */
+internal const val MAX_REAL_MM = 400
+
+private const val MM_PER_INCH = 25.4f
 
 /** The "Smoother" square's cap, DiPlay's default picture (CarPlayRotation.kt:23, 29-30). */
 internal const val SQUARE_LIMIT = 1920
@@ -263,6 +302,7 @@ class CarPlayCanvas
             val cutout: Int,
             val refresh: Float,
             val edges: ScreenEdges,
+            val realMm: Int,
         )
 
         private fun measure(): Screen {
@@ -272,6 +312,7 @@ class CarPlayCanvas
             val metrics = window.getSystemService(WindowManager::class.java).maximumWindowMetrics
             val bounds = metrics.bounds
             val edges = screenEdges(metrics.windowInsets, display.rotation)
+            val density = window.resources.displayMetrics
             val cut = display.cutout
             val cutout =
                 if (cut == null) {
@@ -286,6 +327,9 @@ class CarPlayCanvas
                         cut.safeInsetBottom,
                     )
                 }
+            // The widest window CarPlay gets: landscape, less the cutout strip (carPlayWindow).
+            val widest = carPlayWindow(bounds.width(), bounds.height(), CarPlayOrientation.LANDSCAPE, cutout).width
+            val realMm = realWidthMm(widest, density.xdpi, density.ydpi, density.densityDpi)
             log.info(
                 "carplay.screen",
                 "screen" to "${bounds.width()}x${bounds.height()}",
@@ -294,8 +338,10 @@ class CarPlayCanvas
                 "corner" to edges.cornerRadius,
                 "cutoutEnds" to "${edges.cutoutTop}/${edges.cutoutBottom}",
                 "navigationBar" to edges.navigationBar,
+                "dpi" to "${density.xdpi}x${density.ydpi}/${density.densityDpi}",
+                "realMm" to realMm,
             )
-            return Screen(bounds.width(), bounds.height(), cutout, display.refreshRate, edges)
+            return Screen(bounds.width(), bounds.height(), cutout, display.refreshRate, edges, realMm)
         }
 
         /**
@@ -315,7 +361,9 @@ class CarPlayCanvas
                     orientation,
                     screen.cutout,
                     decoderTakes = { side -> squares.getOrPut(side) { screenDecoderTakes(side, side) } },
+                    base = CarPlayConfig(rightHandDrive = DOCK_ON_THE_RIGHT),
                     edges = screen.edges,
+                    referenceMm = screen.realMm,
                 )
             val window = carPlayWindow(screen.width, screen.height, orientation, screen.cutout)
             val area = config.startViewArea

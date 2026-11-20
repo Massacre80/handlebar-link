@@ -110,6 +110,12 @@ public data class CarPlayConfig(
     val viewAreas: List<CarPlayViewArea> = emptyList(),
     /** The area CarPlay starts in, an index into [viewAreas] (0 without areas). */
     val initialViewArea: Int = 0,
+    /**
+     * The driver sits on the right: `/info` `rightHandDrive` (DiPlay AirPlayInfoPlist.kt:46, its driving-side setting,
+     * default false). CarPlay puts its dock on the driver's side, so true docks it on the right where it docks on a
+     * side.
+     */
+    val rightHandDrive: Boolean = false,
 ) {
     init {
         require(widthPixels > 0 && heightPixels > 0) { "Canvas size must be positive" }

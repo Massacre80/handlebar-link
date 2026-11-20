@@ -62,7 +62,7 @@ internal class AirPlayReceiver(
             "deviceID" to deviceId,
             "bluetoothIDs" to listOf(bluetoothId),
             "name" to config.name,
-            "rightHandDrive" to false,
+            "rightHandDrive" to config.rightHandDrive,
             "keepAliveLowPower" to false,
             "keepAliveSendStatsAsBody" to false,
             "modes" to modes(),

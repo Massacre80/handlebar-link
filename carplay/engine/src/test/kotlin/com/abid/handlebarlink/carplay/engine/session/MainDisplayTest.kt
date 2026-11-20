@@ -104,6 +104,16 @@ class MainDisplayTest {
     }
 
     @Test
+    fun `rightHandDrive tells the iPhone the driver's side, off unless configured, as DiPlay`() {
+        // DiPlay AirPlayInfoPlist.kt:46: "rightHandDrive" to config.rightHandDrive (a boolean, default false).
+        fun rightHandDrive(config: CarPlayConfig) =
+            AirPlayReceiver(config, "id", "id", "pi", "00").info()["rightHandDrive"]
+
+        assertThat(rightHandDrive(CarPlayConfig())).isEqualTo(Plist.Bool(false))
+        assertThat(rightHandDrive(CarPlayConfig(rightHandDrive = true))).isEqualTo(Plist.Bool(true))
+    }
+
+    @Test
     fun `safe insets that leave no room are refused`() {
         val wide = CarPlayViewArea(1920, 960, safe = CarPlayInsets(left = 960, right = 960))
         assertThat(runCatching { POCO_LANDSCAPE.copy(viewAreas = listOf(wide)) }.isFailure).isEqualTo(true)
