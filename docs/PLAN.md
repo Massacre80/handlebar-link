@@ -592,6 +592,34 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   `CarPlayOff*` removed 2026-11-20 for `CarPlayReady*` and `CarPlayFailed*`; new `CarPlayMicrophoneNight`,
   `CarPlayMicrophoneBento`, `CarPlayScreenSheetNight`, `CarPlayScreenSheetBento`.
 
+### Review fixes, engine (2026-11-20, branch `carplay-engine-fixes`)
+
+A seven-dimension review of 424a79a (each finding checked by an independent skeptic) found 51 issues; the engine's
+are fixed with a test each, and every new test was proven by a planted bug (45 plants, all caught; LESSONS 111-115).
+What changed in behaviour:
+- **StartSession (0x4301) offers one address**, the group's IPv4, as DiPlay's Wi-Fi P2P path (CarPlayController.kt:1753,
+  WifiP2pGroupManager.kt:676-688); it used to add the IPv6 link-local one, which DiPlay #1344/#242 tie to slow or broken
+  iPhone networking. The listener still binds every address. The identity-derived deviceID is upper case, as
+  DiPlayBootstrap writes it.
+- **Wi-Fi off:** the engine waits for Wi-Fi to come on (`WifiDirectPort.wifiOn`) instead of retrying every ≤30 s and
+  paging Bluetooth each time; it retries at once when it does.
+- **Ends and cleanup:** an attempt's end is reported from its job's completion, after every earlier attempt has closed,
+  so a quick start/stop can no longer leave the ride running; a cancelled write no longer closes a shared stream; each
+  microphone and socket resource is released on its own; a failing accept on one address no longer ends the listener;
+  a superseded connection's end no longer tears down the live session; a Wi-Fi Direct group still forming at cancel is
+  removed.
+- **Hand-over:** `disableBluetooth` counts only from the active (RECORDed) session; tunnel identification and
+  authentication have DiPlay's 5-minute limits; a tunnel lost after Bluetooth is gone ends the attempt instead of
+  falling back to a dead link.
+- **Call audio:** a headset route counts only once Android reports it as the active communication device; an
+  unconfirmed or lost route falls back to the loudspeaker; call microphones are counted per caller.
+- **Performance:** pictures are decrypted into buffers the decoder returns (`PictureBuffers`, FrameRecycler); the screen
+  reader runs at DISPLAY priority, the audio data socket at AUDIO priority with DiPlay's 512 KiB receive buffer; fewer
+  copies in audio receive, the microphone uplink and the tunnel buffer (`ByteQueue`).
+- The engine no longer publishes `CarPlayPermissions`; the app's list is the only one.
+- Device checks still open: the iPhone's internet with the single address, the headset route confirmation
+  (`carplay.audio.headset_confirmed`), the audio sockets' logged `rcvbuf`.
+
 ### CarPlay picture: DiPlay's negotiation (2026-11-19, worktree `carplay-c5`)
 
 - **Why.** A/B on the Poco (same iPhone, Wi-Fi Direct and swipes): the iPhone sent us 2–5x the video data it sent
