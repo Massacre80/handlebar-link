@@ -59,8 +59,9 @@ class CarPlayCoordinator
         private val restarts = MutableStateFlow(0)
 
         /**
-         * The rider stopped CarPlay ([hold]) until [resume]. Kept in memory only: a new ride does not clear it (the app
-         * restarts the ride whenever it comes to the front, which would undo a Disconnect at once), a new process does.
+         * The rider stopped CarPlay ([hold]) until [start] or the next ignition ([onBikeReady]). Kept in memory only: a
+         * new ride does not clear it (the app restarts the ride whenever it comes to the front, which would undo a
+         * Disconnect at once), a new process does.
          */
         private val held = MutableStateFlow(false)
 
@@ -125,6 +126,22 @@ class CarPlayCoordinator
             held.value = false
             if (failed.value) restarts.value++
             log.info("carplay.resumed", "after_failure" to failed.value)
+        }
+
+        /**
+         * The bike's meter turned Ready: the ignition is on and the rider is about to ride, so CarPlay tries the iPhone
+         * now. A hold from an earlier ride is lifted, a failure starts the engine again, and a retry waiting out its
+         * pause (up to 30 s) goes at once. Owner, 2026-11-21: "when I start the ignition
+         * CarPlay doesn't try to connect".
+         */
+        override fun onBikeReady() {
+            val wasHeld = held.value
+            val wasFailed = failed.value
+            log.info("carplay.bike_ready", "held" to wasHeld, "after_failure" to wasFailed)
+            held.value = false
+            // A fresh start tries at once; only a running engine has a pause to cut short.
+            if (wasFailed) restarts.value++
+            if (!wasHeld && !wasFailed) link?.retryNow()
         }
 
         /**

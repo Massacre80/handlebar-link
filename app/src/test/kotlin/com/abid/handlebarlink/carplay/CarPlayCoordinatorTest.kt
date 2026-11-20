@@ -15,6 +15,7 @@ import assertk.assertions.isNotEmpty
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.bike.link.MeterInfo
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
@@ -459,4 +460,68 @@ class CarPlayCoordinatorTest {
             bike.value = null
         }
     }
+
+    /** The meter turning Ready: the ignition (owner, 2026-11-21: "when I start the ignition CarPlay doesn't try"). */
+    private fun TestScope.ignition() {
+        bikeLink.setKeepAlive(true)
+        bikeLink.setState(LinkState.WaitingForBike)
+        runCurrent()
+        bikeLink.setState(LinkState.Ready(MeterInfo(null, null), Instant.EPOCH))
+        runCurrent()
+    }
+
+    @Test
+    fun `the ignition cuts a waiting retry short`() =
+        runTest {
+            ride()
+
+            ignition()
+
+            assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.RetryNow)
+            assertThat(logs.events("carplay.bike_ready")).isNotEmpty()
+        }
+
+    @Test
+    fun `the ignition lifts a hold from an earlier ride and starts CarPlay`() =
+        runTest {
+            ride()
+            carPlay.hold()
+            runCurrent()
+
+            ignition()
+
+            assertThat(carPlayLink.isRunning).isTrue()
+            assertThat(carPlay.stoppedByRider.value).isFalse()
+            assertThat(
+                carPlayLink.commands,
+            ).containsExactly(Command.Start, Command.Stop, Command.Start)
+        }
+
+    @Test
+    fun `the ignition starts the engine again after a failure`() =
+        runTest {
+            val failing = FailingCarPlayLink(IllegalStateException("bug in the engine"), afterMillis = 1_000)
+            ride(failing)
+            advanceTimeBy(1_500)
+            assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Failed)
+
+            ignition()
+
+            assertThat(carPlay.status.first()).isInstanceOf(CarPlayStatus.Engine::class)
+            assertThat(
+                failing.fake.commands,
+            ).containsExactly(Command.Start, Command.Stop, Command.Start)
+        }
+
+    @Test
+    fun `a meter that stays Ready tells CarPlay once`() =
+        runTest {
+            ride()
+            ignition()
+
+            bikeLink.setState(LinkState.Ready(MeterInfo(null, null), Instant.EPOCH.plusSeconds(1)))
+            runCurrent()
+
+            assertThat(carPlayLink.commands.count { it == Command.RetryNow }).isEqualTo(1)
+        }
 }

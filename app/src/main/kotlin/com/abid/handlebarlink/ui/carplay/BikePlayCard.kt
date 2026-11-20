@@ -130,7 +130,7 @@ private fun connected(
     action = TabAction.OPEN_CARPLAY,
 )
 
-/** BikePlay off: with the next ride, or ([held]) until the rider starts it (a hold outlives rides); Start BikePlay. */
+/** BikePlay off: with the next ride, or ([held]) until the rider starts it or the next ignition; Start BikePlay. */
 private fun off(held: Boolean) =
     BikePlayCardState(
         CardPhase.OFF,

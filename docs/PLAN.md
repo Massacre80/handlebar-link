@@ -595,8 +595,8 @@ second line repeating it).
   Wi-Fi, Turn on Bluetooth, Allow or Open settings, Choose iPhone) · 8 Couldn't connect (a retry the engine runs by itself: the danger arc draining with the pause,
   `pauseLeft` from `CarPlayState.Recovering.failedAt`, the status line's "<what failed> · Retrying in N s", e.g.
   "iPhone didn't answer · Retrying in 8 s", Try now) ·
-  9 BikePlay off (no ride: "Starts again when you ride"; stopped by the rider: "Stopped until you start it", since a
-  hold outlives rides; Start BikePlay). A tap outside the button opens the BikePlay tab.
+  9 BikePlay off (no ride: "Starts again when you ride"; stopped by the rider: "Stopped until your next ride", since the
+  hold lasts until the bike's next ignition, see "Ignition"; Start BikePlay). A tap outside the button opens the BikePlay tab.
 - **Buttons are the tab's** (`rememberTabActions`, `ui/carplay/TabActions.kt`, now shared by the tab and Home through
   `BikePlayCommands`): pairing and the iPhone sheet open over Home; Open BikePlay opens the display on the BikePlay tab.
 - **Try now** is a new engine command, `CarPlayLink.retryNow()` (non-suspending, queued to the runtime's dispatcher):
@@ -759,6 +759,13 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
   `CancellationException` that is not our own cancellation, docs/LESSONS.md 54) is logged as `carplay.failed` and
   shown as "Stopped after an error" until Start CarPlay (`start()`, which starts the engine again in the same ride);
   the bike link is untouched. Ending a ride (`RideCoordinator.stop`) stops CarPlay too.
+- **Ignition (2026-11-21, owner: "when I start the ignition CarPlay doesn't try to connect"):** each time the bike
+  link turns `Ready` in a ride (the meter is on, so the ignition is), `RideCoordinator` calls the companion's
+  `onBikeReady`. `CarPlayCoordinator` lifts a hold from an earlier trip, starts the engine again after a failure, or
+  else sends `retryNow`, so a retry waiting out its pause (up to 30 s, and a ride that lingered across a short stop
+  had been retrying since the ignition went off) tries the iPhone at once. Tests: `CarPlayCoordinatorTest` "the
+  ignition …". A meter link that drops and comes back mid-ride also lifts a Disconnect (accepted: rare, and the
+  rider expects BikePlay with the bike on).
 - **keepAlive:** the ride (and so `RideService`: `connectedDevice`, whose prerequisite `CHANGE_WIFI_STATE` and
   `BLUETOOTH_CONNECT` both meet, plus `microphone` while CarPlay runs, see "C5 audio") lasts while the bike link **or**
   CarPlay needs it. CarPlay

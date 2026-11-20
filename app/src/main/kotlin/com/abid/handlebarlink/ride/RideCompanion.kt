@@ -15,4 +15,10 @@ interface RideCompanion {
 
     /** The ride is asked to end: stop, so [keepAlive] can fall. */
     fun stop()
+
+    /**
+     * The bike's meter link became Ready: the ignition is on, so the rider is about to ride. Called each time the link
+     * turns Ready during a ride, the first time included.
+     */
+    fun onBikeReady() {}
 }

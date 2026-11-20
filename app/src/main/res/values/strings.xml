@@ -315,7 +315,7 @@
     <string name="bikeplay_card_off">BikePlay off</string>
     <string name="bikeplay_card_not_set_up">BikePlay shows your iPhone’s CarPlay on the bike. Pair it once to start.</string>
     <string name="bikeplay_card_starts_when_riding">Starts again when you ride</string>
-    <string name="bikeplay_card_held">Stopped until you start it</string>
+    <string name="bikeplay_card_held">Stopped until your next ride</string>
     <string name="bikeplay_card_your_iphone">Your iPhone</string>
     <string name="bikeplay_card_band_5">5 GHz</string>
     <string name="bikeplay_card_band_2_4">2.4 GHz</string>

@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.dropWhile
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
@@ -38,7 +39,7 @@ import javax.inject.Singleton
  * Owns the ride (architecture review M2.4–M3-1): one link per selected bike, run for as long as the
  * ride service calls [ride], with handlebar presses routed to CarPlay. The UI reads [shownState] for status.
  * Android's presence reports for the selected bike reach its link through [onPresence]. A [RideCompanion] (our own
- * CarPlay receiver) runs next to the link in its own child job.
+ * CarPlay receiver) runs next to the link in its own child job and hears each time the link turns Ready (the ignition).
  */
 @Singleton
 @Suppress("LongParameterList") // One per collaborator Hilt injects; the clock times the steady shown state.
@@ -146,6 +147,16 @@ class RideCoordinator
                 launch { current.run() }
                 // Undispatched, so the companion counts as keeping the service before the bike can report anything.
                 beside?.let { launch(start = CoroutineStart.UNDISPATCHED) { it.run() } }
+                // The meter turning Ready is the bike's ignition: CarPlay hears it to try the iPhone at once.
+                beside?.let { companion ->
+                    launch {
+                        current.state
+                            .map { it is LinkState.Ready }
+                            .distinctUntilChanged()
+                            .filter { it }
+                            .collect { companion.onBikeReady() }
+                    }
+                }
                 current.start(presentHint)
                 // keepAlive is current whenever a state arrives (BikeLink.keepAlive).
                 val bikeDone = current.state.dropWhile { it == LinkState.Stopped }.map { !current.keepAlive.value }
