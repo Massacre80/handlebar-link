@@ -35,6 +35,8 @@ public data class HlTypography(
     val display: TextStyle,
     /** 34/38, setup screens' titles. */
     val headline: TextStyle,
+    /** 15/20 medium, a hero's line under its title (Paper "Devices 1"). */
+    val heroDetail: TextStyle,
     /** 11/12, tab labels. */
     val tab: TextStyle,
     /** 11/12 with caps tracking: overlines; the text itself is upper-cased by the component. */
@@ -102,6 +104,7 @@ public val HlTypographyDefault: HlTypography =
         title = style(20.sp, 26.sp, FontWeight.SemiBold, Tracking.heading),
         display = style(46.sp, 46.sp, FontWeight.SemiBold, Tracking.hero),
         headline = style(34.sp, 38.sp, FontWeight.SemiBold, Tracking.hero),
+        heroDetail = style(15.sp, 20.sp, FontWeight.Medium, Tracking.tight),
         tab = style(11.sp, 12.sp, FontWeight.Medium, Tracking.tight),
         caps = style(11.sp, 12.sp, FontWeight.Medium, Tracking.caps),
         overline = style(11.sp, 12.sp, FontWeight.Medium, Tracking.wide),

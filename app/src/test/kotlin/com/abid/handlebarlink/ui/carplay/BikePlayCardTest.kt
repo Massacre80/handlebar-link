@@ -12,7 +12,6 @@ import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
-import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.core.designsystem.component.MeterTone
 import com.abid.handlebarlink.core.designsystem.component.MeterValue
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
@@ -37,19 +36,14 @@ class BikePlayCardTest {
         status: CarPlayStatus,
         iphones: List<PairedIphone>? = listOf(abid),
         chosen: String? = null,
-        video: CarPlayVideoStats? = null,
+        quality: LinkQuality? = null,
         bluetoothOn: Boolean = true,
         at: Instant = now,
-    ) = bikePlayCard(status, iphones, chosen, line, video, bluetoothOn, at)
-
-    private fun video(
-        dropped: Int,
-        decode: Double = 12.0,
-    ) = CarPlayVideoStats(received = 100, shown = 100 - dropped, framesPerSecond = 60.0, dropped, decode, 0)
+    ) = bikePlayCard(status, iphones, chosen, line, quality, bluetoothOn, at)
 
     @Test
     fun `B 1, connected shows the iPhone, the link quality as segments, the channel and Open BikePlay`() {
-        val card = card(engine(CarPlayState.Connected("p", now, wifiChannel = 36)), video = video(dropped = 0))
+        val card = card(engine(CarPlayState.Connected("p", now, wifiChannel = 36)), quality = LinkQuality.STRONG)
 
         assertThat(card.phase).isEqualTo(CardPhase.CONNECTED)
         assertThat(card.word).isEqualTo(R.string.carplay_status_connected)
@@ -66,10 +60,10 @@ class BikePlayCardTest {
     fun `the segments follow the link quality, and all three are lit before a verdict`() {
         val connected = engine(CarPlayState.Connected("p", now, wifiChannel = 36))
 
-        assertThat(card(connected, video = video(dropped = 1)).meter).isEqualTo(MeterValue.Segments(2))
-        assertThat(card(connected, video = video(dropped = 10)).meter).isEqualTo(MeterValue.Segments(1))
-        assertThat(card(connected, video = null).meter).isEqualTo(MeterValue.Segments(3))
-        assertThat(card(connected, video = null).quality).isNull()
+        assertThat(card(connected, quality = LinkQuality.FAIR).meter).isEqualTo(MeterValue.Segments(2))
+        assertThat(card(connected, quality = LinkQuality.WEAK).meter).isEqualTo(MeterValue.Segments(1))
+        assertThat(card(connected, quality = null).meter).isEqualTo(MeterValue.Segments(3))
+        assertThat(card(connected, quality = null).quality).isNull()
     }
 
     @Test

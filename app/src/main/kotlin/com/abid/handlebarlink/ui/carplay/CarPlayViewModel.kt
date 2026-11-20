@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.Instant
 import javax.inject.Inject
 
 /** CarPlay's status line for Home and the CarPlay page, counting down on the app's clock (carPlayLines). */
@@ -24,19 +25,23 @@ class CarPlayStatusLines
     @Inject
     constructor(
         coordinator: CarPlayCoordinator,
-        time: TimeProvider,
+        private val time: TimeProvider,
     ) {
         /** CarPlay's status as the screens show it (steady, [CarPlayCoordinator.status]). */
         val status: Flow<CarPlayStatus> = coordinator.status
 
         /** The current line. */
         val lines: Flow<CarPlayLine> = carPlayLines(status, time)
+
+        /** Now on the app's clock (how much of a retry's pause is left, with each line). */
+        fun now(): Instant = time.clock.instant()
     }
 
 /**
- * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4, without the switch row): the hero for CarPlay's state, the
- * iPhone and Link rows, then the CarPlay screen row; Cancel and Disconnect stop CarPlay ([CarPlayCoordinator.hold])
- * until Start CarPlay. Whether Bluetooth is on is read only when the engine reports it unavailable (the hero's fix).
+ * The BikePlay tab (Paper "BikePlay — flow", Tab 1–9 and 1L–9L): the meter with BikePlay's state, its buttons, the
+ * iPhone and Link rows, then the BikePlay screen row; Try now cuts a retry's pause short; Cancel and Disconnect stop
+ * CarPlay ([CarPlayCoordinator.hold]) until Start CarPlay. Whether Bluetooth is on is read only when the engine reports
+ * it unavailable (the hero's fix).
  */
 @HiltViewModel
 class CarPlayViewModel
@@ -45,7 +50,7 @@ class CarPlayViewModel
         private val coordinator: CarPlayCoordinator,
         private val settings: CarPlaySettings,
         pairing: IphonePairing,
-        lines: CarPlayStatusLines,
+        private val lines: CarPlayStatusLines,
         quality: SteadyLinkQuality,
         private val conditions: SetupConditions,
     ) : ViewModel(),
@@ -59,7 +64,17 @@ class CarPlayViewModel
                 combine(lines.lines, quality.quality, settings.orientation, ::Triple),
             ) { status, iphones, chosen, (line, quality, orientation) ->
                 // The Link row's quality comes steady from its own flow, not from each window ([steadyQuality]).
-                carPlayTab(status, iphones, chosen, line, null, orientation, bluetoothOn(status)).withQuality(quality)
+                carPlayTab(
+                    status,
+                    iphones,
+                    chosen,
+                    line,
+                    null,
+                    orientation,
+                    bluetoothOn(status),
+                    quality = quality,
+                    now = lines.now(),
+                )
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
 
         /** Bluetooth's state, read only when the engine says it is unavailable (a Binder call, not on every update). */

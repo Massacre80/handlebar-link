@@ -120,6 +120,59 @@ public fun TickBar(
 }
 
 /**
+ * A tab hero's dial (Paper "Devices 1 — No intercom yet": a 168 box, 50 ticks on r 78 drawn 7 long with dashes 0.4 of
+ * every 2, a disc of r 54 filled [disc] with a hairline [discEdge]): the ticks in [color], or the first [progress] of
+ * them in [color] over [track].
+ */
+@Composable
+public fun HlDialRing(
+    color: Color,
+    track: Color,
+    disc: Color,
+    discEdge: Color,
+    progress: Float?,
+    modifier: Modifier = Modifier,
+    size: Dp = HlTheme.sizes.dial,
+) {
+    val hairline = HlTheme.strokes.hairline
+    Canvas(modifier.size(size)) {
+        val half = this.size.minDimension / 2
+        val disc0 = half * DIAL_DISC_FRACTION
+        drawCircle(disc, radius = disc0)
+        drawCircle(discEdge, radius = disc0, style = Stroke(hairline.toPx()))
+        val length = half * DIAL_TICK_FRACTION
+        val radius = half * DIAL_RING_FRACTION
+        if (progress == null) {
+            dialTicks(radius, length, color to color, 1f)
+        } else {
+            dialTicks(radius, length, track to color, progress)
+        }
+    }
+}
+
+/** The dial's 50 ticks from the top, clockwise: SVG `stroke-dasharray: 0.4 1.6` over 100. */
+private fun DrawScope.dialTicks(
+    radius: Float,
+    length: Float,
+    trackAndFill: Pair<Color, Color>,
+    progress: Float,
+) {
+    val (track, color) = trackAndFill
+    val filled = (progress.coerceIn(0f, 1f) * RING_TICKS).roundToInt()
+    val width = (2 * PI * radius / RING_TICKS * DIAL_TICK_DUTY).toFloat()
+    repeat(RING_TICKS) { index ->
+        val angle = (index.toDouble() / RING_TICKS) * 2 * PI - PI / 2
+        val direction = Offset(cos(angle).toFloat(), sin(angle).toFloat())
+        drawLine(
+            if (index < filled) color else track,
+            center + direction * (radius - length / 2),
+            center + direction * (radius + length / 2),
+            strokeWidth = width,
+        )
+    }
+}
+
+/**
  * The CarPlay signal ring: 50 ticks around a tinted disc. [progress] null: the full ring in [color];
  * otherwise the first part in [color] over [track].
  */
@@ -201,3 +254,9 @@ private const val RING_EDGE_PX = 1f
 /** CarPlay ring in a 56 box (half 28): ticks on r 24, disc r 18. */
 private const val SIGNAL_RING_FRACTION = 24f / 28f
 private const val SIGNAL_DISC_FRACTION = 18f / 28f
+
+/** The tab hero's dial in a 168 box (half 84): ticks on r 78, 7 long, dashes 0.4 of every 2; the disc r 54. */
+private const val DIAL_RING_FRACTION = 78f / 84f
+private const val DIAL_TICK_FRACTION = 7f / 84f
+private const val DIAL_DISC_FRACTION = 54f / 84f
+private const val DIAL_TICK_DUTY = 0.2

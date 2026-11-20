@@ -55,6 +55,31 @@ public fun HlDialog(
             .then(if (night) Modifier.border(HlTheme.strokes.hairline, colors.lineStrong, shape) else Modifier)
             .padding(spacing.s24),
         horizontalAlignment = Alignment.CenterHorizontally,
+        // The button row 14 dp under the words (owner, 2026-11-20: an action group keeps the group gap).
+        verticalArrangement = Arrangement.spacedBy(spacing.groupGap),
+    ) {
+        DialogWords(icon, title, text, destructive)
+        // Side by side (owner, 2026-11-20; Paper "Handlebar 7"): the dismiss as the secondary button at the start,
+        // the action at the end, equal widths, 12 dp apart, as Android's dialogs place them.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing.buttonRow)) {
+            HlSecondaryButton(dismiss, onDismiss, Modifier.weight(1f))
+            HlButton(confirm, onConfirm, Modifier.weight(1f), destructive = destructive)
+        }
+    }
+}
+
+/** The dialog's icon in its circle, then its title and text. */
+@Composable
+private fun DialogWords(
+    @DrawableRes icon: Int,
+    title: String,
+    text: String,
+    destructive: Boolean,
+) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(spacing.s16),
     ) {
         Box(
@@ -79,15 +104,6 @@ public fun HlDialog(
                 Modifier.semantics { heading() },
             )
             HlText(text, HlTheme.typography.body.centred(), colors.inkMuted)
-        }
-        // Side by side (owner, 2026-11-20; Paper "Handlebar 7"): the dismiss as the secondary button at the start,
-        // the action at the end, equal widths, as Android's dialogs place them.
-        Row(
-            Modifier.fillMaxWidth().padding(top = spacing.s4),
-            horizontalArrangement = Arrangement.spacedBy(spacing.s12),
-        ) {
-            HlSecondaryButton(dismiss, onDismiss, Modifier.weight(1f))
-            HlButton(confirm, onConfirm, Modifier.weight(1f), destructive = destructive)
         }
     }
 }

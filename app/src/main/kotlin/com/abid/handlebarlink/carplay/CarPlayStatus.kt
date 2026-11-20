@@ -54,14 +54,30 @@ internal fun carPlayStatus(
  * less than [STATE_SHOW_DELAY_MS] never shows, and a shown one stays [STATE_MIN_SHOW_MS] before the next ordinary
  * change. Shown at once: Connected, an error only the rider can fix, the app's own states (no receiver, permissions,
  * failed, stopped by the rider), and anything that follows them (the answer to Start CarPlay or a permission granted).
- * A connection that drops for a moment and comes back shows nothing.
+ * A connection that drops for a moment and comes back shows nothing. The rider's Try now ([answering] true at the
+ * change) is a tap too: the retry it starts replaces Couldn't connect at once, never after the usual wait.
  */
-fun Flow<CarPlayStatus>.steady(time: TimeProvider): Flow<CarPlayStatus> =
+fun Flow<CarPlayStatus>.steady(
+    time: TimeProvider,
+    answering: () -> Boolean = { false },
+): Flow<CarPlayStatus> =
     stableState(
         time,
         stateOf = ::shownState,
-        immediate = { shown, next -> shown !is CarPlayStatus.Engine || atOnce(next) },
+        immediate = { shown, next ->
+            shown !is CarPlayStatus.Engine || atOnce(next) || (answering() && answersTryNow(shown, next))
+        },
     )
+
+/** The retry Try now starts: from waiting out a retry's pause to the next attempt starting. */
+internal fun answersTryNow(
+    shown: CarPlayStatus,
+    next: CarPlayStatus,
+): Boolean {
+    val from = (shown as? CarPlayStatus.Engine)?.state
+    val to = (next as? CarPlayStatus.Engine)?.state
+    return from is CarPlayState.Recovering && (to is CarPlayState.Connecting || to == CarPlayState.Idle)
+}
 
 /**
  * Which state [status] shows; new values of the same state replace it at once (a later Wi-Fi channel, the next

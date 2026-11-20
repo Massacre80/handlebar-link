@@ -150,9 +150,9 @@ class CarPlayTabTest {
         val connecting = hero(engine(CarPlayState.Connecting(ConnectStep.PAIRING)), listOf(abid, spare))
         assertThat(connecting.phase).isEqualTo(TabPhase.CONNECTING)
         assertThat(hero(engine(CarPlayState.Idle), listOf(abid, spare)).phase).isEqualTo(TabPhase.CONNECTING)
-        // The iPhone row says connected, not Choose.
+        // The iPhone row says Paired, not Choose (the meter says Connected: the status shows once).
         val row = carPlayTab(engine(CarPlayState.Connected("p", now)), listOf(abid, spare), null, line).iphone
-        assertThat(row.hint).isEqualTo(R.string.carplay_iphone_connected)
+        assertThat(row.hint).isEqualTo(R.string.carplay_iphone_paired)
     }
 
     @Test
@@ -185,7 +185,7 @@ class CarPlayTabTest {
         assertThat(
             connected,
         ).isEqualTo(
-            IphoneRow("Abid's iPhone", R.string.carplay_iphone_connected, R.string.carplay_iphone_used_detail, true),
+            IphoneRow("Abid's iPhone", R.string.carplay_iphone_paired, R.string.carplay_iphone_used_detail, true),
         )
         assertThat(
             carPlayTab(CarPlayStatus.Held, listOf(abid), null, line).iphone.hint,
@@ -198,9 +198,11 @@ class CarPlayTabTest {
     }
 
     @Test
-    fun `the Link row shows Bluetooth while calling and checking, Wi-Fi Direct from the join on`() {
+    fun `the Link row shows both links while connecting, the band once connected, both links in words when off`() {
+        assertThat(linkRow(engine(CarPlayState.Idle)).detail).isEqualTo(R.string.carplay_link_both)
         assertThat(linkRow(engine(CarPlayState.Connecting(ConnectStep.AUTHENTICATING))).detail)
-            .isEqualTo(R.string.carplay_link_bluetooth)
+            .isEqualTo(R.string.carplay_link_both)
+        assertThat(linkRow(CarPlayStatus.Held).detail).isEqualTo(R.string.carplay_link_idle)
         assertThat(linkRow(engine(CarPlayState.Connecting(ConnectStep.WAITING_FOR_PHONE))).detail)
             .isEqualTo(R.string.carplay_link_both)
         val connected = linkRow(engine(CarPlayState.Connected("p", now)))

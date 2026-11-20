@@ -117,8 +117,9 @@ internal fun iphoneRow(
         }
 
         // Connected even when the app's own choice names none (the engine found the iPhone with the live link).
+        // "Paired" also while connected: the meter says Connected (Paper "Tab 1": the status shows once).
         connected -> {
-            IphoneRow(used?.name, R.string.carplay_iphone_connected, R.string.carplay_iphone_used_detail, true)
+            IphoneRow(used?.name, R.string.carplay_iphone_paired, R.string.carplay_iphone_used_detail, true)
         }
 
         used == null -> {
@@ -140,6 +141,8 @@ internal fun linkRow(
     status: CarPlayStatus,
     video: CarPlayVideoStats? = null,
 ): LinkRow {
+    // Paper "BikePlay — flow": "Wi-Fi Direct · Bluetooth" while connecting (both are being set up), "Wi-Fi Direct and
+    // Bluetooth" while off; one line each.
     val state = (status as? CarPlayStatus.Engine)?.state
     return when {
         state is CarPlayState.Connected -> {
@@ -157,12 +160,8 @@ internal fun linkRow(
             )
         }
 
-        state is CarPlayState.Connecting && connectPhase(state.step).first >= WIFI_PHASE -> {
-            LinkRow(R.string.carplay_link_connecting, R.string.carplay_link_both, live = false)
-        }
-
         state is CarPlayState.Connecting || state == CarPlayState.Idle -> {
-            LinkRow(R.string.carplay_link_connecting, R.string.carplay_link_bluetooth, live = false)
+            LinkRow(R.string.carplay_link_connecting, R.string.carplay_link_both, live = false)
         }
 
         else -> {
@@ -172,7 +171,7 @@ internal fun linkRow(
 }
 
 /** The first step that uses Wi-Fi Direct. */
-private const val WIFI_PHASE = 3
+internal const val WIFI_PHASE = 3
 
 /**
  * How well the iPhone's picture comes through, from one window of its numbers (5 s; [CarPlayVideoStats]); null

@@ -41,7 +41,3 @@ const val QUALITY_SHOW_DELAY_MS: Long = 6_000L
 
 /** Two windows. */
 const val QUALITY_MIN_SHOW_MS: Long = 10_000L
-
-/** [this] tab with the steady [quality] in the Link row while connected (the only time the row shows one). */
-internal fun CarPlayUiState.withQuality(quality: LinkQuality?): CarPlayUiState =
-    if (link.live) copy(link = link.copy(quality = quality)) else this

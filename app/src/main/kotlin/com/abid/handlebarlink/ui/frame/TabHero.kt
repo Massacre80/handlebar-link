@@ -30,11 +30,11 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import com.abid.handlebarlink.core.designsystem.component.HlDialRing
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlTag
 import com.abid.handlebarlink.core.designsystem.component.HlTagTone
 import com.abid.handlebarlink.core.designsystem.component.HlText
-import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.centred
@@ -44,8 +44,9 @@ import com.abid.handlebarlink.core.designsystem.theme.centred
 // side two panes, the hero's state in the first and the rest in the second (docs/PLAN.md "Landscape layout").
 
 /**
- * The hero's state: the dial with [icon] ([tone], [progress]), the [tag], the [title] (a heading; [liveTitle] reads a
- * title that changes by itself politely) and the [detail], held to [heroTextMax] on its side.
+ * The hero's state (Paper "Devices 1 — No intercom yet"): the 168 dp dial with [icon] ([tone], [progress]), the [tag]
+ * 18 dp under it, the [title] 12 dp under that (a heading; [liveTitle] reads a title that changes by itself politely)
+ * and the [detail] 8 dp under the title, 15/20 medium and balanced, held to [heroTextMax] on its side.
  */
 @Composable
 fun ColumnScope.HeroState(
@@ -60,27 +61,28 @@ fun ColumnScope.HeroState(
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
     HeroDial(icon, tone, progress)
-    HlTag(tag, Modifier.padding(top = spacing.s4), tagTone(tone), dot = true)
+    HlTag(tag, Modifier.padding(top = spacing.s18), tagTone(tone), dot = true)
     HlText(
         title,
         HlTheme.typography.headline.centred(),
         colors.ink,
-        Modifier.semantics {
+        Modifier.padding(top = spacing.s12).semantics {
             heading()
             if (liveTitle) liveRegion = LiveRegionMode.Polite
         },
     )
     HlText(
         detail,
-        HlTheme.typography.body.centred(),
+        HlTheme.typography.heroDetail.centred(),
         colors.inkMuted,
-        Modifier.padding(horizontal = spacing.s8).widthIn(max = heroTextMax()),
+        Modifier.padding(top = spacing.s8, start = spacing.s8, end = spacing.s8).widthIn(max = heroTextMax()),
     )
 }
 
 /**
- * The tab's mark in the signal ring: lit by step while starting, whole when running, danger when it needs you, the
- * quiet ring with the mark in ink when idle.
+ * The tab's mark in the dial (Paper "Devices 1"): lit by step while starting, whole when running, danger when it needs
+ * you; idle the quiet ring with the 30 dp mark muted. The disc is the brand at 8 % with a faint edge (danger at 8 %
+ * with a danger edge when it needs you).
  */
 @Composable
 private fun HeroDial(
@@ -93,18 +95,22 @@ private fun HeroDial(
     val color by animateColorAsState(
         when (tone) {
             SignalTone.ERROR -> colors.danger
-            SignalTone.IDLE -> colors.inkMuted
+            SignalTone.IDLE -> colors.ink.copy(alpha = DIAL_TRACK)
             SignalTone.PROGRESS, SignalTone.ON -> colors.brand
         },
         motion.fade(),
     )
     val lit by animateFloatAsState(progress ?: 1f, motion.fade())
+    val error = tone == SignalTone.ERROR
     Box(contentAlignment = Alignment.Center) {
-        // Needs you: the disc takes the ring's red at the design's 8 %, so the whole hero reads as one error state
-        // (owner, 2026-11-20: the neutral or green disc inside the red ring looked half green); else the raised disc.
-        val disc = if (tone == SignalTone.ERROR) color.copy(alpha = ERROR_DISC) else colors.raisedLo
-        SignalRing(color, colors.track, disc, progress = lit, size = HlTheme.sizes.gauge)
-        HlIcon(icon, if (tone == SignalTone.IDLE) colors.ink else color, size = HlTheme.sizes.icon * 2)
+        HlDialRing(
+            color,
+            colors.ink.copy(alpha = DIAL_TRACK),
+            disc = (if (error) colors.danger else colors.brand).copy(alpha = DIAL_DISC),
+            discEdge = if (error) colors.danger.copy(alpha = DIAL_EDGE_ERROR) else colors.ink.copy(alpha = DIAL_EDGE),
+            progress = if (tone == SignalTone.IDLE) null else lit,
+        )
+        HlIcon(icon, if (tone == SignalTone.IDLE) colors.inkSoft else color, size = HlTheme.sizes.dialIcon)
     }
 }
 
@@ -120,8 +126,8 @@ internal fun tagTone(tone: SignalTone): HlTagTone =
     }
 
 /**
- * A hero tab upright: one column up to the content width, centred in the height and scrolling when it runs out of it
- * (docs/LESSONS.md 22), below the status bar and clear of the tab bar ([contentPadding]).
+ * A hero tab upright: one column up to the content width, from the top (Paper "Devices 1"), scrolling when it runs out
+ * of it (docs/LESSONS.md 22), below the status bar and clear of the tab bar ([contentPadding]).
  */
 @Composable
 fun HeroColumn(
@@ -140,9 +146,9 @@ fun HeroColumn(
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = maxHeight)
-                .padding(horizontal = spacing.s16, vertical = spacing.s16),
+                // Paper "Devices 1": the hero starts 20 dp under the status bar.
+                .padding(start = spacing.s16, end = spacing.s16, top = spacing.s20, bottom = spacing.s16),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s24, Alignment.CenterVertically),
             content = content,
         )
     }
@@ -178,7 +184,7 @@ fun HeroPanes(
                     .heightIn(min = maxHeight)
                     .padding(top = spacing.s16, bottom = bottom),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(spacing.s12, Alignment.CenterVertically),
+                verticalArrangement = Arrangement.Center,
                 content = hero,
             )
         }
@@ -189,12 +195,16 @@ fun HeroPanes(
                     .verticalScroll(rememberScrollState())
                     .heightIn(min = maxHeight)
                     .padding(top = spacing.s16, bottom = bottom),
-                verticalArrangement = Arrangement.spacedBy(spacing.s16, Alignment.CenterVertically),
+                verticalArrangement = Arrangement.spacedBy(spacing.groupGap, Alignment.CenterVertically),
                 content = side,
             )
         }
     }
 }
 
-/** The error disc's tint over the ring's red (Paper "Tab 4 — Needs you": danger at 8 %). */
-private const val ERROR_DISC = 0.08f
+// Paper "Devices 1" and "Tab 4 — Needs you": the ticks' track #FFFFFF24, the disc rgb(200 240 60 / 8%) (danger
+// #FF6B4A14 when it needs you) with a #FFFFFF14 edge (#FF6B4A33).
+private const val DIAL_TRACK = 0.14f
+private const val DIAL_DISC = 0.08f
+private const val DIAL_EDGE = 0.08f
+private const val DIAL_EDGE_ERROR = 0.20f

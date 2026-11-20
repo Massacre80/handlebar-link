@@ -124,7 +124,7 @@ fun IphoneSheet(
     HlSheet(Modifier.verticalScroll(rememberScrollState())) {
         Column(
             Modifier.windowInsetsPadding(WindowInsets.navigationBars),
-            verticalArrangement = Arrangement.spacedBy(spacing.s20),
+            verticalArrangement = Arrangement.spacedBy(spacing.groupGap),
         ) {
             HlHeader(
                 HlIcons.Phone,

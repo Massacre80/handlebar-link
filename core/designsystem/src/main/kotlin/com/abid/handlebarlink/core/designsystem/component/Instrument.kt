@@ -219,6 +219,8 @@ private fun Gauge(
             MeterSize.COMPACT -> InstrumentType.state
             MeterSize.WIDE -> InstrumentType.stateWide
             MeterSize.RETRY -> InstrumentType.stateRetry
+            MeterSize.HERO -> InstrumentType.heroState
+            MeterSize.HERO_PANE -> InstrumentType.stateWide
         }
     Box(
         modifier.heightIn(min = if (wide) WideGaugeHeight else MeterBandHeight),

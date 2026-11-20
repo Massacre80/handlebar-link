@@ -6,7 +6,6 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
-import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.usedIphone
 import com.abid.handlebarlink.core.designsystem.component.MeterTone
 import com.abid.handlebarlink.core.designsystem.component.MeterValue
@@ -59,7 +58,7 @@ data class BikePlayCardState(
 
 /**
  * The card for BikePlay's [status], the paired [iphones] and the [chosen] one, the status [line] (the retry's words),
- * the picture's last window ([video], for the link quality), whether Bluetooth is on ([bluetoothOn], as the tab) and
+ * the link's steady [quality] ([SteadyLinkQuality]), whether Bluetooth is on ([bluetoothOn], as the tab) and
  * the time [now] (how much of a retry's pause is left).
  */
 @Suppress("LongParameterList") // One input per part of the card, as carPlayTab.
@@ -68,7 +67,7 @@ internal fun bikePlayCard(
     iphones: List<PairedIphone>?,
     chosen: String?,
     line: CarPlayLine,
-    video: CarPlayVideoStats?,
+    quality: LinkQuality?,
     bluetoothOn: Boolean,
     now: Instant,
 ): BikePlayCardState {
@@ -89,7 +88,7 @@ internal fun bikePlayCard(
         TabPhase.CONNECTED -> {
             connected(
                 iphones?.let { usedIphone(it, chosen) }?.name,
-                video,
+                quality,
                 (state as? CarPlayState.Connected)?.wifiChannel,
             )
         }
@@ -115,18 +114,18 @@ internal fun bikePlayCard(
     }
 }
 
-/** Connected to the iPhone [name] (null: none named) over [channel], the link's quality from [video]; Open BikePlay. */
+/** Connected to the iPhone [name] (null: none named) over [channel], its link [quality]; Open BikePlay. */
 private fun connected(
     name: String?,
-    video: CarPlayVideoStats?,
+    quality: LinkQuality?,
     channel: Int?,
 ) = BikePlayCardState(
     CardPhase.CONNECTED,
     R.string.carplay_status_connected,
     name?.let(HeroDetail::Name) ?: HeroDetail.Text(R.string.bikeplay_card_your_iphone),
-    MeterValue.Segments(linkQuality(video).segments()),
+    MeterValue.Segments(quality.segments()),
     MeterTone.GOOD,
-    quality = linkQuality(video),
+    quality = quality,
     channel = channel,
     action = TabAction.OPEN_CARPLAY,
 )

@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -43,10 +44,13 @@ class CarPlayCoordinator
         private val link: CarPlayLink?,
         private val permissions: CarPlayPermissions,
         private val canvas: CanvasOrientation,
-        time: TimeProvider,
+        private val time: TimeProvider,
         logger: Logger,
     ) : RideCompanion {
         private val log = logger.child("carplay")
+
+        /** When the rider last pressed Try now (elapsed time): the retry it starts shows at once ([steady]). */
+        private val tryNowAt = AtomicLong(Long.MIN_VALUE / 2)
         private val running = AtomicBoolean(false)
         private val rechecks = MutableStateFlow(0)
         private val failed = MutableStateFlow(false)
@@ -87,7 +91,7 @@ class CarPlayCoordinator
                 link?.state ?: flowOf(CarPlayState.Stopped),
             ) { missing, failed, held, state ->
                 carPlayStatus(link != null, missing, failed, state, held)
-            }.steady(time)
+            }.steady(time) { time.elapsedMillis() - tryNowAt.get() < TRY_NOW_ANSWER_MS }
 
         /** Back in the foreground or after a permission answer: a permission may have changed (no broadcast tells). */
         fun recheckPermission() {
@@ -109,6 +113,7 @@ class CarPlayCoordinator
          */
         fun retryNow() {
             log.info("carplay.retry_now")
+            tryNowAt.set(time.elapsedMillis())
             link?.retryNow()
         }
 
@@ -220,3 +225,9 @@ class CarPlayCoordinator
             }
         }
     }
+
+/**
+ * How long after Try now the next attempt counts as its answer: the engine starts it within a dispatch, so a second is
+ * plenty, and a later, ordinary change waits as usual.
+ */
+private const val TRY_NOW_ANSWER_MS = 1_000L

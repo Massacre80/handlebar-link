@@ -107,6 +107,9 @@
   --spacing-18: 18px;          /* button insets, wordmark top */
   --spacing-22: 22px;          /* gauges top */
   --spacing-28: 28px;          /* between gauges */
+  --spacing-button-stack: 8px; /* stacked buttons of one action group (owner, 2026-11-20) */
+  --spacing-group-gap: 14px;   /* between an action group and the card, group or list next to it; between a sheet's groups */
+  --spacing-button-row: 12px;  /* buttons side by side (a dialog's) */
   --size-icon-medium: 22px;    /* Bento settings icon */
   --size-icon-micro: 14px;     /* check mark */
   --radius-floating: 20px;     /* Night's floating CarPlay card */
@@ -125,6 +128,7 @@
   --size-action: 48px;         /* CarPlay card button */
   --size-icon-small: 20px;
   --size-icon-tiny: 18px;
+  --size-chevron: 16px;        /* an icon row's chevron (Paper "BikePlay — flow" status list) */
   --size-indicator: 24px;      /* radio and check */
   --size-tick: 12px;           /* tick height */
   --size-tile: 140px;          /* Night device tiles */
@@ -140,6 +144,13 @@
   --size-meter-retry: 236px;   /* its meter arc while a retry counts down (Paper "B · 8") */
   --size-meter-foot: 72px;     /* the readings beside the meter ("Strong" / "Link", "5 GHz" / "Ch 36") */
   --size-instrument-text: 300px; /* the meter's detail line, widest (Paper "B · 4": two balanced lines) */
+  --size-meter-hero: 340px;    /* the BikePlay tab's meter (Paper "BikePlay — flow" Tab 1–9) */
+  --size-meter-hero-pane: 280px; /* the same on its side (Tab 1L–9L) */
+  --size-meter-hero-text: 290px; /* its detail line, widest */
+  --size-meter-hero-text-pane: 240px;
+  --size-hero-top: 76px;       /* the tab's meter below the status bar */
+  --size-dial: 168px;          /* a tab hero's dial (Paper "Devices 1 — No intercom yet") */
+  --size-dial-icon: 30px;      /* the mark inside it */
   --size-handle-width: 40px;
   --size-handle-height: 5px;
   --stroke-hairline: 1px;

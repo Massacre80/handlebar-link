@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.InstrumentType
 import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /** The main button ("Save device"): full width, inverse fill. */
@@ -101,25 +102,45 @@ public fun HlSecondaryButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    destructive: Boolean = false,
 ) {
     val colors = HlTheme.colors
     val press = remember { MutableInteractionSource() }
+    // [destructive]: ending something (Disconnect): danger at 12 % with a danger edge at 40 % and danger words, 16 sp
+    // semibold (Paper "BikePlay — flow" Tab 1, owner 2026-11-20).
+    val fill = if (destructive) colors.danger.copy(alpha = BUTTON_DANGER_FILL) else colors.well
+    val edge =
+        when {
+            destructive -> colors.danger.copy(alpha = BUTTON_DANGER_EDGE)
+            enabled -> colors.line
+            else -> colors.lineSoft
+        }
     Row(
         modifier
             .pressScale(press, HlTheme.motion)
             .fillMaxWidth()
             .height(HlTheme.sizes.controlLarge)
             .clip(CircleShape)
-            .background(colors.well)
-            .border(HlTheme.strokes.hairline, if (enabled) colors.line else colors.lineSoft, CircleShape)
+            .background(fill)
+            .border(HlTheme.strokes.hairline, edge, CircleShape)
             .clickable(press, LocalIndication.current, enabled, role = Role.Button, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HlText(
             label,
-            HlTheme.typography.value.copy(fontWeight = FontWeight.Medium),
-            if (enabled) colors.ink else colors.inkMuted,
+            if (destructive) {
+                InstrumentType.buttonQuiet
+            } else {
+                HlTheme.typography.value.copy(
+                    fontWeight = FontWeight.Medium,
+                )
+            },
+            when {
+                !enabled -> colors.inkMuted
+                destructive -> colors.danger
+                else -> colors.ink
+            },
             maxLines = 1,
         )
     }

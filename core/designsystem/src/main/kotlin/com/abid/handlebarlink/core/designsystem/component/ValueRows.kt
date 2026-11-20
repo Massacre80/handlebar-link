@@ -37,13 +37,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.InstrumentType
 import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /**
  * A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the
  * right; [chevron] marks a row that opens another page. [tag]: an [HlTag] before the hint ("SOON");
  * [hintColor]: a hint that is a state (End call in danger), muted otherwise. [icon]: a leading icon tile
- * ([HlRowIcon], Paper "CarPlay — flow v2" status list).
+ * ([HlRowIcon]) and the status list's row (Paper "BikePlay — flow", "Devices 1"): 14 dp padding and gap, a semibold
+ * title, the hint at 13 sp and a 16 dp chevron 6 dp after it; [compact] (on its side, Paper "Tab 1L") 12 dp padding.
  */
 @Composable
 public fun HlValueRow(
@@ -57,9 +59,11 @@ public fun HlValueRow(
     tag: String? = null,
     hintColor: Color = Color.Unspecified,
     @DrawableRes icon: Int? = null,
+    compact: Boolean = false,
 ) {
     val colors = HlTheme.colors
     val press = remember { MutableInteractionSource() }
+    val tile = icon != null
     RowFrame(
         modifier,
         press,
@@ -69,14 +73,41 @@ public fun HlValueRow(
         } else {
             Modifier
         },
+        RowStyle(tile, compact),
     ) {
         if (icon != null) HlRowIcon(icon)
-        RowText(value, detail)
+        RowText(value, detail, tile)
         tag?.let { HlTag(it) }
-        hint?.let { HlText(it, HlTheme.typography.meta, hintColor.takeOrElse { colors.inkMuted }, maxLines = 1) }
-        if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
+        if (tile) {
+            TileTrailing(hint, hintColor.takeOrElse { colors.inkMuted }, chevron)
+        } else {
+            hint?.let { HlText(it, HlTheme.typography.meta, hintColor.takeOrElse { colors.inkMuted }, maxLines = 1) }
+            if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
+        }
     }
 }
+
+/** An icon row's trailing part (Paper "BikePlay — flow"): the hint at 13 sp, then a 16 dp chevron 6 dp after it. */
+@Composable
+private fun TileTrailing(
+    hint: String?,
+    hintColor: Color,
+    chevron: Boolean,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s6),
+    ) {
+        hint?.let { HlText(it, InstrumentType.rowHint, hintColor, maxLines = 1) }
+        if (chevron) HlIcon(HlIcons.ChevronRight, HlTheme.colors.inkSoft, size = HlTheme.sizes.chevron)
+    }
+}
+
+/** A row's padding and gap: an icon row's [tile] (14 dp, or 12 dp when [compact]) or a plain row's 12 dp. */
+private class RowStyle(
+    val tile: Boolean,
+    val compact: Boolean = false,
+)
 
 /**
  * A row with an on/off switch ([HlSwitch]) at the right: the whole row toggles it (one touch target, `Role.Switch`,
@@ -93,6 +124,7 @@ public fun HlSwitchRow(
     @DrawableRes icon: Int? = null,
 ) {
     val press = remember { MutableInteractionSource() }
+    val tile = icon != null
     RowFrame(
         modifier,
         press,
@@ -104,9 +136,10 @@ public fun HlSwitchRow(
             role = Role.Switch,
             onValueChange = onCheckedChange,
         ),
+        RowStyle(tile),
     ) {
         if (icon != null) HlRowIcon(icon)
-        RowText(value, detail)
+        RowText(value, detail, tile)
         HlSwitch(checked, onCheckedChange = null)
     }
 }
@@ -118,8 +151,15 @@ private fun RowFrame(
     press: MutableInteractionSource,
     container: Color,
     interaction: Modifier,
+    style: RowStyle,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val spacing = HlTheme.spacing
+    val vertical =
+        when {
+            !style.tile || style.compact -> spacing.s12
+            else -> spacing.s14
+        }
     Row(
         modifier
             .pressScale(press, HlTheme.motion)
@@ -128,9 +168,9 @@ private fun RowFrame(
             .clip(rowShape(HlTheme.radii.control))
             .background(container)
             .then(interaction)
-            .padding(horizontal = HlTheme.spacing.s16, vertical = HlTheme.spacing.s12),
+            .padding(horizontal = spacing.s16, vertical = vertical),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
+        horizontalArrangement = Arrangement.spacedBy(if (style.tile) spacing.s14 else spacing.s12),
         content = content,
     )
 }
@@ -140,10 +180,15 @@ private fun RowFrame(
 private fun RowScope.RowText(
     value: String,
     detail: String?,
+    tile: Boolean = false,
 ) {
     val colors = HlTheme.colors
     HlRowText {
-        HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink)
+        HlText(
+            value,
+            if (tile) InstrumentType.rowTitle else HlTheme.typography.value.copy(fontWeight = FontWeight.Medium),
+            colors.ink,
+        )
         detail?.let { HlText(it, HlTheme.typography.meta.balanced(), colors.inkMuted) }
     }
 }

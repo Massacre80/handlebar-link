@@ -1,20 +1,30 @@
 package com.abid.handlebarlink.ui.carplay
 
 import android.Manifest
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayOrientation
@@ -24,28 +34,34 @@ import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
+import com.abid.handlebarlink.core.designsystem.component.HlActionButton
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlButton
+import com.abid.handlebarlink.core.designsystem.component.HlButtonKind
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlMeterHero
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
+import com.abid.handlebarlink.core.designsystem.theme.HlSpacing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.frame.HeroColumn
 import com.abid.handlebarlink.ui.frame.HeroState
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
 
 /**
- * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4): a hero (the dial, a state tag, a big title, a detail line,
- * one primary and one ghost action), then the status list: the iPhone (opens the iPhone sheet), the Link and
- * "CarPlay screen" (opens its picker, [onScreen]). No switch: our CarPlay replaced CarLink and always runs with the
- * ride (owner, 2026-11-20). The page scrolls when it runs out of height (docs/LESSONS.md 22).
+ * The BikePlay tab (Paper "BikePlay — flow", Tab 1–9; on its side Tab 1L–9L, [CarPlayPanes]): the meter with BikePlay's
+ * state word and one line (the whole status, shown once), the buttons where the rider can act (8 dp apart), then 14 dp
+ * below them the status list: the iPhone (opens the iPhone sheet), the Link and "BikePlay screen" (opens its picker,
+ * [onScreen]). No switch: BikePlay always runs with the ride (owner, 2026-11-20). The page scrolls when it runs out of
+ * height (docs/LESSONS.md 22).
  */
 @Composable
 fun CarPlayScreen(
@@ -59,68 +75,115 @@ fun CarPlayScreen(
         CarPlayPanes(state, onAction, onIphone, onScreen, contentPadding)
         return
     }
-    HeroColumn(contentPadding) {
-        Hero(state.hero, onAction, Modifier.widthIn(max = HlTheme.sizes.contentMax))
-        StatusList(state, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
+    val spacing = HlTheme.spacing
+    Column(
+        Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.pageTop)
+            .padding(contentPadding)
+            .verticalScroll(rememberScrollState())
+            .padding(start = spacing.s16, end = spacing.s16, top = HlTheme.sizes.heroTop, bottom = spacing.s16),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        val width = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()
+        BikePlayHero(state, pane = false)
+        val buttons = tabButtons(state.card)
+        TabButtons(buttons, onAction, width.padding(top = spacing.s28))
+        StatusList(
+            state,
+            onIphone,
+            onScreen,
+            width.padding(top = if (buttons.isEmpty()) spacing.s28 else spacing.groupGap),
+        )
     }
 }
 
+/**
+ * The meter with BikePlay's state word and its line ([HlMeterHero]); on its side ([pane]) the smaller meter, and a
+ * retry's line keeps only its countdown (Paper "Tab 8L": "Retrying in 8 s"). Read as one heading; TalkBack announces a
+ * new state politely, except while a retry counts down (its line changes every second).
+ */
 @Composable
-private fun Hero(
-    hero: CarPlayHero,
-    onAction: (TabAction) -> Unit,
+internal fun BikePlayHero(
+    state: CarPlayUiState,
+    pane: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    Column(
-        modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
-    ) {
-        HeroState(hero)
-        HeroActions(hero, onAction, Modifier.padding(top = HlTheme.spacing.s8))
-    }
-}
-
-/** The dial, the state tag, the title and the detail line ([HeroState] with the CarPlay mark). */
-@Composable
-internal fun ColumnScope.HeroState(hero: CarPlayHero) {
-    // The hero changes by itself (starting, running, needs you): TalkBack reads the new title politely. Not the
-    // detail, whose retry countdown ticks every second.
-    HeroState(
-        HlIcons.CarPlay,
-        hero.tone,
-        hero.progress,
-        stringResource(hero.tag),
-        stringResource(hero.title),
-        hero.detail.words(),
-        liveTitle = true,
+    val card = state.card
+    HlMeterHero(
+        stringResource(card.word),
+        tabDetail(card, pane),
+        card.meter,
+        card.tone,
+        modifier.semantics(mergeDescendants = true) {
+            heading()
+            if (card.phase != CardPhase.RETRYING) liveRegion = LiveRegionMode.Polite
+        },
+        pane = pane,
     )
 }
 
-/** The hero's primary and ghost actions, when it has any. */
+/**
+ * The tab's line under the state word: the card's, but "<iPhone> · Wi-Fi Direct" connected and only the countdown
+ * on its side.
+ */
 @Composable
-internal fun HeroActions(
-    hero: CarPlayHero,
-    onAction: (TabAction) -> Unit,
-    modifier: Modifier,
-) {
-    if (hero.primary != null || hero.ghost != null) {
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
-            hero.primary?.let {
-                HlButton(stringResource(actionLabel(it)), { onAction(it) }, Modifier.fillMaxWidth(), brand = true)
-            }
-            hero.ghost?.let { HlSecondaryButton(stringResource(actionLabel(it)), { onAction(it) }) }
+private fun tabDetail(
+    card: BikePlayCardState,
+    pane: Boolean,
+): String {
+    val detail = card.detail
+    return when {
+        card.phase == CardPhase.CONNECTED && detail is HeroDetail.Name -> {
+            stringResource(R.string.carplay_tab_connected_detail, detail.name)
+        }
+
+        card.phase == CardPhase.CONNECTED -> {
+            stringResource(R.string.bikeplay_tab_connected_any)
+        }
+
+        pane && detail is HeroDetail.Line && detail.line.seconds != null -> {
+            stringResource(R.string.bikeplay_retrying_in, detail.line.seconds)
+        }
+
+        else -> {
+            detail.words()
         }
     }
 }
 
-/** The iPhone, the Link and the CarPlay screen, in one group. */
+/** The tab's buttons, stacked 8 dp apart ([HlSpacing.buttonStack]); nothing when there are none. */
+@Composable
+internal fun TabButtons(
+    buttons: List<TabButton>,
+    onAction: (TabAction) -> Unit,
+    modifier: Modifier,
+) {
+    if (buttons.isEmpty()) return
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.buttonStack)) {
+        buttons.forEach { button ->
+            HlActionButton(
+                stringResource(actionLabel(button.action)),
+                { onAction(button.action) },
+                button.kind,
+                icon = button.icon,
+            )
+        }
+    }
+}
+
+/**
+ * The iPhone, the Link and the BikePlay screen, in one group; [compact] (on its side) with 12 dp rows. The Link row's
+ * trailing word is the link's quality while connected (in the brand colour), nothing otherwise: the meter already says
+ * whether BikePlay is connected.
+ */
 @Composable
 internal fun StatusList(
     state: CarPlayUiState,
     onIphone: () -> Unit,
     onScreen: () -> Unit,
     modifier: Modifier = Modifier,
+    compact: Boolean = false,
 ) {
     val colors = HlTheme.colors
     HlGroup(modifier) {
@@ -132,15 +195,20 @@ internal fun StatusList(
             container = Color.Transparent,
             chevron = true,
             icon = HlIcons.Phone,
+            compact = compact,
         )
         HlGroupDivider()
         HlValueRow(
             value = stringResource(R.string.carplay_link_row),
-            hint = stringResource(state.link.hint),
+            hint =
+                state.link.quality
+                    ?.takeIf { state.link.live }
+                    ?.let { stringResource(it.words) },
             detail = state.link.detailWords(),
             container = Color.Transparent,
-            hintColor = if (state.link.live) colors.success else Color.Unspecified,
+            hintColor = colors.brand,
             icon = HlIcons.Wifi,
+            compact = compact,
         )
         HlGroupDivider()
         HlValueRow(
@@ -151,6 +219,7 @@ internal fun StatusList(
             container = Color.Transparent,
             chevron = true,
             icon = orientationIcon(state.orientation),
+            compact = compact,
         )
     }
 }
@@ -170,6 +239,54 @@ internal fun actionLabel(action: TabAction): Int =
         TabAction.TURN_ON_WIFI -> R.string.carplay_action_wifi
         TabAction.TURN_ON_BLUETOOTH -> R.string.carplay_action_bluetooth
         TabAction.RETRY_NOW -> R.string.carplay_action_try_now
+    }
+
+/** One of the tab's buttons: what it does and how it looks. */
+@Immutable
+data class TabButton(
+    val action: TabAction,
+    val kind: HlButtonKind,
+    @param:DrawableRes val icon: Int? = null,
+)
+
+/**
+ * The tab's buttons for the [card]'s state (Paper "BikePlay — flow", owner 2026-11-20: what the rider does is lime,
+ * dismissing is the secondary button, ending is the red one): Connected, Open BikePlay (no icon) over Disconnect;
+ * starting or connecting, Cancel; a retry counting down, Try now over Cancel; otherwise the card's one action (Add
+ * iPhone with its plus, Start BikePlay with its play mark, a fix).
+ */
+internal fun tabButtons(card: BikePlayCardState): List<TabButton> =
+    when (card.phase) {
+        CardPhase.CONNECTED -> {
+            listOf(
+                TabButton(TabAction.OPEN_CARPLAY, HlButtonKind.PRIMARY),
+                TabButton(TabAction.DISCONNECT, HlButtonKind.DESTRUCTIVE),
+            )
+        }
+
+        CardPhase.STARTING, CardPhase.CONNECTING -> {
+            listOf(TabButton(TabAction.CANCEL, HlButtonKind.SECONDARY))
+        }
+
+        CardPhase.RETRYING -> {
+            listOf(
+                TabButton(TabAction.RETRY_NOW, HlButtonKind.PRIMARY),
+                TabButton(TabAction.CANCEL, HlButtonKind.SECONDARY),
+            )
+        }
+
+        else -> {
+            listOfNotNull(card.action?.let { TabButton(it, HlButtonKind.PRIMARY, actionIcon(it)) })
+        }
+    }
+
+/** The icon before a lime button's words: Add iPhone's plus, Start BikePlay's play mark. */
+@DrawableRes
+internal fun actionIcon(action: TabAction): Int? =
+    when (action) {
+        TabAction.ADD_IPHONE -> HlIcons.PlusBold
+        TabAction.START_CARPLAY -> HlIcons.Play
+        else -> null
     }
 
 /** Sample states for previews and screenshot tests (Paper "Tab 1–4"). */
@@ -211,7 +328,7 @@ internal val PreviewBikePlayConnected =
         listOf(PreviewIphone),
         PreviewIphone.address,
         PreviewLine,
-        CarPlayVideoStats(received = 300, shown = 300, framesPerSecond = 60.0, 0, decodeP90Millis = 12.0, 0),
+        LinkQuality.STRONG,
         bluetoothOn = true,
         now = Instant.EPOCH,
     )
@@ -231,7 +348,7 @@ internal val PreviewCarPlayMicrophone =
         null,
         PreviewLine,
         orientation = CarPlayOrientation.PORTRAIT,
-    ).let { it.copy(hero = it.hero.withAccess(Access.BLOCKED)) }
+    ).let { it.copy(hero = it.hero.withAccess(Access.BLOCKED), card = it.card.withAccess(Access.BLOCKED)) }
 
 @Preview(name = "CarPlay · Night", widthDp = 411, heightDp = 856)
 @Composable

@@ -33,6 +33,7 @@ import com.abid.handlebarlink.ui.carplay.PreviewCarPlayFailed
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayMicrophone
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayNotSetUp
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayReady
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayRetrying
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayWifiOff
 import com.abid.handlebarlink.ui.devices.AddDeviceActions
 import com.abid.handlebarlink.ui.devices.AddDeviceScreen
@@ -211,6 +212,12 @@ fun CarPlayWifiOffBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayWifiOff)
 @LargeText
 @Composable
 fun CarPlayReadyNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayReady)
+
+/** Paper "Tab 8": a retry counting down, the danger arc draining, Try now over Cancel. */
+@PreviewTest
+@Artboard
+@Composable
+fun CarPlayRetryingNight() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayRetrying)
 
 @PreviewTest
 @Artboard

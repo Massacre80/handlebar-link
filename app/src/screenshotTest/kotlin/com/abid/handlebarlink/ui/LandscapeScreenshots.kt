@@ -28,6 +28,7 @@ import com.abid.handlebarlink.ui.carplay.CarPlayUiState
 import com.abid.handlebarlink.ui.carplay.PairIphoneScreen
 import com.abid.handlebarlink.ui.carplay.PairIphoneUiState
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnected
+import com.abid.handlebarlink.ui.carplay.PreviewCarPlayRetrying
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayWifiOff
 import com.abid.handlebarlink.ui.carplay.PreviewPairActions
 import com.abid.handlebarlink.ui.carplay.PreviewPairPaired
@@ -128,6 +129,12 @@ fun CarPlayConnectedNightLandscape() = CarPlay(HlThemeVariant.NIGHT, PreviewCarP
 @Landscape
 @Composable
 fun CarPlayWifiOffBentoLandscape() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayWifiOff)
+
+/** Paper "Tab 8L": a retry counting down, Try now over Cancel, the line only "Retrying in 8 s". */
+@PreviewTest
+@Landscape
+@Composable
+fun CarPlayRetryingNightLandscape() = CarPlay(HlThemeVariant.NIGHT, PreviewCarPlayRetrying)
 
 // Devices and the tabs still to come fill the frame between the start margin and the rail, as Home does.
 

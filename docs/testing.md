@@ -123,7 +123,9 @@ at `@Landscape`; the same day the feature became BikePlay on screen, so every im
 CarPlay tab, pairing, the iPhone sheet, Home's card, Settings › Permissions, the handlebar pages and setup's welcome
 change and are recorded again; then the design system +36 for the BikePlay instrument card, its nine states in both looks at font 1 and 1.5
 (`InstrumentCardNight`, `InstrumentCardBento` with `InstrumentSamples`), and every Home image changes (the card replaces
-the CarPlay card; `HomeCarPlay*` shows it connected)). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+the CarPlay card; `HomeCarPlay*` shows it connected); then :app +4 for the BikePlay tab's retry (`CarPlayRetryingNight` at
+the artboard, `CarPlayRetryingNightLandscape` at `@Landscape`), and every BikePlay tab, Devices and sheet image changes (the
+tab redrawn from the instrument, icon rows, the 14 dp group gap)). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

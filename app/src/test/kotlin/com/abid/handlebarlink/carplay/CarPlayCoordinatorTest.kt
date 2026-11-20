@@ -16,6 +16,7 @@ import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
+import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
@@ -43,6 +44,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.time.Instant
 
 /** CarPlay beside the bike link during a ride, through the real RideCoordinator (docs/PLAN.md "CarPlay in the app"). */
 class CarPlayCoordinatorTest {
@@ -119,6 +121,25 @@ class CarPlayCoordinatorTest {
 
             assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.RetryNow)
             assertThat(carPlayLink.isRunning).isTrue()
+        }
+
+    @Test
+    fun `the retry Try now starts shows at once, not after the usual wait`() =
+        runTest {
+            ride()
+            val seen = mutableListOf<CarPlayStatus>()
+            backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { carPlay.status.collect { seen += it } }
+            carPlayLink.setState(CarPlayState.Recovering(CarPlayError.TimedOut(ConnectStep.PAIRING), 1, Instant.EPOCH))
+            // Couldn't connect is on screen (an ordinary change: it shows after the usual wait).
+            advanceTimeBy(2_000)
+
+            carPlay.retryNow()
+            carPlayLink.setState(CarPlayState.Connecting(ConnectStep.LOADING_IDENTITY))
+            runCurrent()
+
+            assertThat(
+                seen.last(),
+            ).isEqualTo(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.LOADING_IDENTITY)))
         }
 
     @Test

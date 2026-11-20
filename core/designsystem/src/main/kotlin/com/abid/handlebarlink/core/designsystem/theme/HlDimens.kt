@@ -33,6 +33,15 @@ public data class HlSpacing(
     val s20: Dp = 20.dp,
     /** 24 dp. */
     val s24: Dp = 24.dp,
+    /** Stacked buttons of one action group (owner, 2026-11-20). */
+    val buttonStack: Dp = 8.dp,
+    /**
+     * Between an action group and the card, group or list next to it, and between a sheet's or column's groups
+     * (header, options, footnote, actions) (owner, 2026-11-20).
+     */
+    val groupGap: Dp = 14.dp,
+    /** Buttons side by side (a dialog's). */
+    val buttonRow: Dp = 12.dp,
 )
 
 /**
@@ -91,6 +100,8 @@ public data class HlSizes(
     val iconMicro: Dp = 14.dp,
     /** Tiny icons. */
     val iconTiny: Dp = 18.dp,
+    /** An icon row's chevron (Paper "BikePlay — flow" status list). */
+    val chevron: Dp = 16.dp,
     /** Radios and checks. */
     val indicator: Dp = 24.dp,
     /** The battery's width, terminal included (iOS style, the number inside). */
@@ -135,6 +146,20 @@ public data class HlSizes(
     val meterFoot: Dp = 72.dp,
     /** The instrument's detail line at its widest: two balanced lines (Paper "B · 4 Not set up"). */
     val instrumentText: Dp = 300.dp,
+    /** The BikePlay tab's meter (Paper "BikePlay — flow", Tab 1–9). */
+    val meterHero: Dp = 340.dp,
+    /** The BikePlay tab's meter on its side (Tab 1L–9L). */
+    val meterHeroPane: Dp = 280.dp,
+    /** The tab meter's detail line at its widest. */
+    val meterHeroText: Dp = 290.dp,
+    /** The same on its side. */
+    val meterHeroTextPane: Dp = 240.dp,
+    /** The BikePlay tab's meter below the status bar. */
+    val heroTop: Dp = 76.dp,
+    /** A tab hero's dial (Paper "Devices 1 — No intercom yet"). */
+    val dial: Dp = 168.dp,
+    /** The mark inside a tab hero's dial. */
+    val dialIcon: Dp = 30.dp,
     /** Sheet handle width. */
     val handleWidth: Dp = 40.dp,
     /** Sheet handle height. */

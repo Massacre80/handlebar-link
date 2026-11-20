@@ -12,12 +12,9 @@ import com.abid.handlebarlink.ride.RideCoordinator
 import com.abid.handlebarlink.ui.carplay.BikePlayCards
 import com.abid.handlebarlink.ui.carplay.BikePlayCommands
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
@@ -39,11 +36,10 @@ class HomeViewModel
         // The BikePlay card's buttons do what the BikePlay tab's do (rememberTabActions).
         BikePlayCommands by bikePlay {
         /** Home's state; "no bike" until loaded. */
-        @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
         val uiState: StateFlow<HomeUiState> =
             combine(
                 settings.bike,
-                coordinator.link.flatMapLatest { it?.state ?: flowOf(null) },
+                coordinator.shownState,
                 combine(devices.devices, devices.primary, ::Pair),
                 bluetooth.statuses(),
                 combine(handlebar.current, bikePlay.cards, ::Pair),

@@ -64,7 +64,7 @@ fun DeviceSheet(
     HlSheet(Modifier.verticalScroll(rememberScrollState())) {
         Column(
             Modifier.windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime)),
-            verticalArrangement = Arrangement.spacedBy(spacing.s20),
+            verticalArrangement = Arrangement.spacedBy(spacing.groupGap),
         ) {
             val now = stringResource(if (device.connected) R.string.device_connected else R.string.device_paired)
             HlHeader(
@@ -88,7 +88,7 @@ fun DeviceSheet(
                 HlSectionLabel(stringResource(R.string.device_sheet_name))
                 HlTextField(name, stringResource(R.string.device_sheet_name_hint), placeholder = device.name)
             }
-            Column(Modifier.padding(top = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.buttonStack)) {
                 HlButton(stringResource(R.string.device_save), onSave, Modifier.fillMaxWidth())
                 HlSecondaryButton(stringResource(R.string.cancel), onCancel)
             }

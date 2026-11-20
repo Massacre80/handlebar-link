@@ -13,6 +13,7 @@ import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.carplay.usedIphone
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
+import java.time.Instant
 
 /** The CarPlay tab's hero, after Paper "CarPlay — flow v2" (Tab 1–4) and the states it implies. */
 enum class TabPhase {
@@ -150,12 +151,9 @@ enum class LinkQuality(
     WEAK(R.string.carplay_link_quality_weak),
 }
 
-/** The Link row's detail: "Wi-Fi Direct · 5 GHz ch 36 · Strong" while connected. */
+/** The Link row's detail: "Wi-Fi Direct · 5 GHz · ch 36" while connected (the quality is its trailing word). */
 @Composable
-fun LinkRow.detailWords(): String {
-    val base = if (channel != null) stringResource(detail, channel) else stringResource(detail)
-    return quality?.let { stringResource(R.string.carplay_link_with_quality, base, stringResource(it.words)) } ?: base
-}
+fun LinkRow.detailWords(): String = if (channel != null) stringResource(detail, channel) else stringResource(detail)
 
 /** The CarPlay tab. */
 @Immutable
@@ -165,13 +163,15 @@ data class CarPlayUiState(
     val link: LinkRow = linkRow(NOT_LOADED),
     /** The "CarPlay screen" row: which way the picture stands. */
     val orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
+    /** The meter, its word and line, and the buttons (the BikePlay card's states, Paper "BikePlay — flow" Tab 1–9). */
+    val card: BikePlayCardState = bikePlayCard(NOT_LOADED, null, null, NOT_LOADED_LINE, null, true, Instant.EPOCH),
 )
 
 /**
  * The tab for CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one, the status [line], the
- * picture's last window of numbers ([video], for the Link row's quality), the "CarPlay screen" setting
+ * link's [quality] (steady, or from the picture's last window [video]), the "CarPlay screen" setting
  * ([orientation]) and whether Bluetooth is on ([bluetoothOn], read only when the engine says Bluetooth is
- * unavailable).
+ * unavailable) at the time [now] (how much of a retry's pause is left).
  */
 @Suppress("LongParameterList") // One input per part of the page.
 fun carPlayTab(
@@ -182,12 +182,15 @@ fun carPlayTab(
     video: CarPlayVideoStats? = null,
     orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
     bluetoothOn: Boolean = true,
+    quality: LinkQuality? = linkQuality(video),
+    now: Instant = Instant.EPOCH,
 ): CarPlayUiState =
     CarPlayUiState(
         hero = carPlayHero(status, iphones, chosen, line, bluetoothOn),
         iphone = iphoneRow(status, iphones, chosen),
-        link = linkRow(status, video),
+        link = linkRow(status).let { if (it.live) it.copy(quality = quality) else it },
         orientation = orientation,
+        card = bikePlayCard(status, iphones, chosen, line, quality, bluetoothOn, now),
     )
 
 /**

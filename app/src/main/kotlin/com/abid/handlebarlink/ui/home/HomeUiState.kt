@@ -76,7 +76,7 @@ private val BikePlayNotLoaded: BikePlayCardState =
         iphones = null,
         chosen = null,
         line = CarPlayLine(R.string.carplay_status_waiting, tone = SignalTone.IDLE),
-        video = null,
+        quality = null,
         bluetoothOn = true,
         now = Instant.EPOCH,
     )

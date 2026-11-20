@@ -112,7 +112,7 @@ fun CarPlayEntry(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val actions = rememberTabActions(viewModel, navigation)
     CarPlayScreen(
-        state.copy(hero = state.hero.withAccess(actions.access)),
+        state.copy(hero = state.hero.withAccess(actions.access), card = state.card.withAccess(actions.access)),
         onAction = actions.onAction,
         onIphone = { if (state.iphone.hasIphones) navigation.onIphone() else navigation.onAddIphone() },
         contentPadding = contentPadding,

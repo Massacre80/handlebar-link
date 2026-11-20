@@ -257,7 +257,7 @@ private fun PairedPage(
         Spacer(Modifier.weight(1f))
         Column(
             Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24),
-            verticalArrangement = Arrangement.spacedBy(spacing.s8),
+            verticalArrangement = Arrangement.spacedBy(spacing.buttonStack),
         ) {
             HlButton(
                 stringResource(R.string.carplay_action_start),

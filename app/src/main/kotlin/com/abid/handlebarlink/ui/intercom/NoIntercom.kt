@@ -52,22 +52,24 @@ internal fun NoIntercom(
             hero = { Hero() },
             side = {
                 AddButton(onAdd, transform, Modifier)
-                Intro()
+                Intro(compact = true)
             },
         )
         return
     }
     HeroColumn(contentPadding) {
         val width = Modifier.widthIn(max = HlTheme.sizes.contentMax)
-        Column(
-            width.fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
-        ) {
+        Column(width.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Hero()
-            AddButton(onAdd, transform, Modifier.padding(top = HlTheme.spacing.s8))
+            // Paper "Devices 1": the button 22 dp under the line and 8 dp in from the list's edges, the list 14 dp
+            // under it.
+            AddButton(
+                onAdd,
+                transform,
+                Modifier.padding(top = HlTheme.spacing.s22).padding(horizontal = HlTheme.spacing.s8),
+            )
         }
-        Intro(width)
+        Intro(width.padding(top = HlTheme.spacing.groupGap))
     }
 }
 
@@ -96,7 +98,10 @@ private fun AddButton(
 
 /** What an intercom brings, one row each: an icon, what it is and a line on it; information only, nothing to tap. */
 @Composable
-private fun Intro(modifier: Modifier = Modifier) {
+private fun Intro(
+    modifier: Modifier = Modifier,
+    compact: Boolean = false,
+) {
     HlGroup(modifier) {
         IntroRows.forEachIndexed { index, row ->
             if (index > 0) HlGroupDivider()
@@ -108,6 +113,8 @@ private fun Intro(modifier: Modifier = Modifier) {
                 detail = stringResource(row.detail),
                 container = Color.Transparent,
                 icon = row.icon,
+                // On its side 12 dp rows, as the BikePlay tab's (Paper "Tab 1L").
+                compact = compact,
             )
         }
     }

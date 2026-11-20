@@ -2,7 +2,6 @@ package com.abid.handlebarlink.ui.carplay
 
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.carplay.CarPlayStatus
-import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
@@ -16,7 +15,7 @@ import javax.inject.Inject
 /**
  * Home's BikePlay card from the same sources as the BikePlay tab: the coordinator's status, the paired iPhones and the
  * chosen one, the status line (which ticks every second while a retry counts down, so the draining arc follows it), the
- * picture's numbers and, only when the engine says Bluetooth is unavailable, whether it is on. Its commands are the
+ * link's steady quality and, only when the engine says Bluetooth is unavailable, whether it is on. Its commands are the
  * tab's ([BikePlayCommands] on the coordinator).
  */
 class BikePlayCards
@@ -25,7 +24,7 @@ class BikePlayCards
         private val coordinator: CarPlayCoordinator,
         private val pairing: IphonePairing,
         private val lines: CarPlayStatusLines,
-        private val video: CarPlayVideoStatsSource,
+        private val quality: SteadyLinkQuality,
         private val conditions: SetupConditions,
         private val time: TimeProvider,
     ) : BikePlayCommands {
@@ -37,9 +36,9 @@ class BikePlayCards
                     pairing.iphones(),
                     pairing.chosen(),
                     lines.lines,
-                    video.stats(),
-                ) { status, iphones, chosen, line, stats ->
-                    bikePlayCard(status, iphones, chosen, line, stats, bluetoothOn(status), time.clock.instant())
+                    quality.quality,
+                ) { status, iphones, chosen, line, quality ->
+                    bikePlayCard(status, iphones, chosen, line, quality, bluetoothOn(status), time.clock.instant())
                 }.distinctUntilChanged()
 
         override fun start() {

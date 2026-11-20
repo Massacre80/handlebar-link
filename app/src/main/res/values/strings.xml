@@ -322,9 +322,11 @@
     <string name="bikeplay_card_band_2_4">2.4 GHz</string>
     <string name="bikeplay_card_channel">Ch %1$d</string>
     <string name="bikeplay_card_wifi">Wi-Fi</string>
+    <string name="bikeplay_tab_connected_any">Your iPhone · Wi-Fi Direct</string>
+    <string name="bikeplay_retrying_in">Retrying in %1$d s</string>
     <!-- The CarPlay tab's status list. -->
     <string name="carplay_screen_row">BikePlay screen</string>
-    <string name="carplay_screen_row_detail">Which way the picture stands</string>
+    <string name="carplay_screen_row_detail">Portrait or landscape</string>
     <string name="carplay_screen_landscape">Landscape</string>
     <string name="carplay_screen_portrait">Portrait</string>
     <string name="carplay_screen_landscape_detail">The phone across the handlebar. The default</string>
@@ -337,7 +339,7 @@
     <string name="carplay_iphone_add">Add</string>
     <string name="carplay_iphone_choose">Choose</string>
     <string name="carplay_iphone_unknown">Not allowed</string>
-    <string name="carplay_iphone_used_detail">BikePlay connects to this iPhone</string>
+    <string name="carplay_iphone_used_detail">Used for BikePlay</string>
     <string name="carplay_iphone_none_detail">No iPhone paired yet</string>
     <string name="carplay_iphone_choose_detail">Pick the iPhone BikePlay connects to</string>
     <string name="carplay_iphone_unknown_detail">Allow Nearby devices to see your iPhones</string>
@@ -346,15 +348,13 @@
     <string name="carplay_link_connecting">Connecting</string>
     <string name="carplay_link_off">Not connected</string>
     <string name="carplay_link_both">Wi-Fi Direct · Bluetooth</string>
-    <string name="carplay_link_wifi_2_4">Wi-Fi Direct · 2.4 GHz ch %1$d</string>
-    <string name="carplay_link_wifi_5">Wi-Fi Direct · 5 GHz ch %1$d</string>
+    <string name="carplay_link_wifi_2_4">Wi-Fi Direct · 2.4 GHz · ch %1$d</string>
+    <string name="carplay_link_wifi_5">Wi-Fi Direct · 5 GHz · ch %1$d</string>
     <!-- The Link row's detail and its quality word: "Wi-Fi Direct · 5 GHz ch 36 · Strong". -->
-    <string name="carplay_link_with_quality">%1$s · %2$s</string>
     <string name="carplay_link_quality_strong">Strong</string>
     <string name="carplay_link_quality_fair">Fair</string>
     <string name="carplay_link_quality_weak">Weak</string>
-    <string name="carplay_link_bluetooth">Bluetooth</string>
-    <string name="carplay_link_idle">Wi-Fi Direct and Bluetooth, while BikePlay runs</string>
+    <string name="carplay_link_idle">Wi-Fi Direct and Bluetooth</string>
     <!-- The iPhone sheet (Paper "Sheet 6") and its "Forget …?" dialog. -->
     <string name="sheet_iphone_title">iPhone</string>
     <string name="sheet_iphone_detail">BikePlay connects to the one with the check</string>

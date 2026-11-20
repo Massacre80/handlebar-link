@@ -492,6 +492,41 @@ second line repeating it).
   "Home (Night)"); Bento: where the CarPlay card was ("Home (Bento)"); on its side first in the cards pane, the pane 1.6
   x the bike's ("Landscape Home (Night)"). `SignalCard` is no longer on Home.
 
+### The BikePlay tab from the instrument (owner, 2026-11-20: "let's start developing end to end"; branch `polish`)
+
+Paper "BikePlay — flow", Tab 1–9 and 1L–9L (Night approved first). The tab is the card's states drawn large:
+- **The status once:** the meter (`HlMeterHero`: the HERO geometry, 340 dp, `M14 172 A156` stroke 6 with ticks on r 140;
+  on its side HERO_PANE, 280 dp), its state word (34 sp, 30 sp on its side) and one line (15 sp, 14 sp; up to two
+  balanced lines, 290 dp / 240 dp) are the whole status; no tag, no title, no repeated status in the rows (the iPhone row
+  says Paired, the Link row's only trailing word is the link's quality while connected, in lime). The meter sits 76 dp
+  under the status bar (`size-hero-top`); on its side it is centred 56 dp above the pane's bottom.
+- **Buttons** (`tabButtons`, `HlActionButton` with `HlButtonKind`, 8 dp apart, `spacing-button-stack`): Connected,
+  Open BikePlay (no icon) over the red Disconnect (`DESTRUCTIVE`: danger at 12 %, edge at 40 %, danger words; also
+  `HlSecondaryButton(destructive = true)`); Starting and Connecting, Cancel (`SECONDARY`, the well with its edge); a
+  retry counting down, Try now over Cancel; otherwise the card's one lime action: Add iPhone (plus), Start BikePlay
+  (play mark) for no ride, a stop by the rider and a stop after an error, the fix for Needs you (Turn on Wi-Fi, Turn on
+  Bluetooth, Allow or Open settings, Choose iPhone). The status list 14 dp under the buttons (`spacing-group-gap`).
+- **Lines:** connected "<iPhone> · Wi-Fi Direct" (or "Your iPhone · Wi-Fi Direct"); a retry "<what failed> ·
+  Retrying in N s", on its side only "Retrying in N s"; Not set up "BikePlay shows your iPhone's CarPlay on the bike.
+  Pair it once to start." Row subtexts on one line: "Used for BikePlay", "Wi-Fi Direct · 5 GHz · ch 36" (connected),
+  "Wi-Fi Direct · Bluetooth" (connecting), "Wi-Fi Direct and Bluetooth" (off), "Portrait or landscape".
+- **Rows with an icon tile** (the BikePlay tab's and the Devices tab's, `HlValueRow(icon = …)`): 14 dp padding and gap
+  (12 dp on its side, `compact`), a 15/20 semibold title, the hint at 13 sp and a 16 dp chevron 6 dp after it
+  (`size-chevron`).
+- **Try now feels instant:** the coordinator notes the tap, and `steady` shows the retry it starts at once instead of
+  after the usual wait (`answersTryNow`, TryNowSteadyTest, CarPlayCoordinatorTest).
+- **Data:** the tab's state carries the card (`CarPlayUiState.card`, from `carPlayTab(…, quality, now)`), the link's
+  steady quality (stable-ui's `SteadyLinkQuality`) lights both the segments and the Link row; `CarPlayStatusLines.now()`
+  gives the countdown's time with each line.
+- **The Devices tab's empty hero** (Paper "Devices 1"): the 168 dp dial (`HlDialRing`: ticks on r 78, 7 long, the disc
+  r 54, brand at 8 % with a faint edge), the 30 dp headset muted, the tag 18 dp under it, the title 12 dp, the line 8 dp
+  (15/20 medium, `heroDetail`); the hero from the top, 20 dp under the status bar; Add device 22 dp under the line, the
+  rows 14 dp under it.
+- **Spacing (owner, 2026-11-20):** stacked buttons 8 dp (`spacing-button-stack`), an action group and the card, group or
+  list beside it 14 dp, and a sheet's or column's groups 14 dp apart (`spacing-group-gap`: the sheets of the BikePlay
+  screen, the device, the handlebar action, Calls, Music and the iPhone), buttons side by side 12 dp
+  (`spacing-button-row`: the dialog, whose button row is 14 dp under its words).
+
 ### Our CarPlay replaces CarLink (owner decision, 2026-11-20; worktree `carplay-only-app`)
 
 The owner: "Remove the text beta instead of carlink, we are replacing carlink, that's the goal, so no need of toggle

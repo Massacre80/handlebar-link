@@ -41,6 +41,15 @@ internal object InstrumentType {
     /** A reading's label ("Link", "Ch 36"): 13/16 medium. */
     val readingLabel: TextStyle = HlTypographyDefault.label.copy(lineHeight = 16.sp, letterSpacing = 0.em)
 
+    /** The tab meter's state word on its side: 30/34 semibold, -0.035em ([stateWide]); upright the headline. */
+    val heroState: TextStyle = HlTypographyDefault.headline
+
+    /** A row's title beside an icon tile (Paper "BikePlay — flow" status list): 15/20 semibold, -0.02em. */
+    val rowTitle: TextStyle = HlTypographyDefault.value.copy(lineHeight = 20.sp)
+
+    /** A row's trailing value ("Paired", "Strong"): 13/17 medium. */
+    val rowHint: TextStyle = HlTypographyDefault.label.copy(letterSpacing = 0.em)
+
     /** The card's button: 16/20 semibold, -0.01em. */
     val button: TextStyle =
         HlTypographyDefault.lead.copy(
@@ -48,6 +57,9 @@ internal object InstrumentType {
             lineHeight = 20.sp,
             letterSpacing = (-0.01).em,
         )
+
+    /** A secondary or destructive button on the BikePlay tab: 16/20 semibold. */
+    val buttonQuiet: TextStyle = button.copy(letterSpacing = 0.em)
 }
 
 /**
@@ -115,6 +127,20 @@ internal class MeterGeometry(
          */
         val RETRY: MeterGeometry =
             MeterGeometry(236f, 94f, 10f, 92f, 109.8f, 4f, 97.8f, 78.9f, 5f, 7.14f, 0.7f, 5.5f, 2.5f)
+
+        /**
+         * The BikePlay tab's meter (Paper "BikePlay — flow" Tab 1–9): a 340 x 180 box, `M14 172 A156 156` stroke 6;
+         * ticks `M48.76 102 A140 140` stroke 7, dashes 0.6 every 5; the knob r 8 with a 3 ring.
+         */
+        val HERO: MeterGeometry =
+            MeterGeometry(340f, 180f, 14f, 172f, 156f, 6f, 140f, 121.24f, 7f, 5f, 0.6f, 8f, 3f)
+
+        /**
+         * The same on its side (Tab 1L–9L): a 280 x 150 box, `M10 144 A130 130` stroke 5; ticks `M39.54 86 A116 116`
+         * stroke 6, dashes 0.6 every 5; the knob r 7 with a 3 ring.
+         */
+        val HERO_PANE: MeterGeometry =
+            MeterGeometry(280f, 150f, 10f, 144f, 130f, 5f, 116f, 100.46f, 6f, 5f, 0.6f, 7f, 3f)
 
         /** Connected's link quality as three segments: `stroke-dasharray="32 2 32 2 32 100"`. */
         const val SEGMENT = 32f
