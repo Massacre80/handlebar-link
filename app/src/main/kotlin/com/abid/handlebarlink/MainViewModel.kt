@@ -9,6 +9,8 @@ import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.AppearanceSettings
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.ride.RideCoordinator
+import com.abid.handlebarlink.ui.home.LinkStatus
+import com.abid.handlebarlink.ui.home.linkStatus
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +58,14 @@ class MainViewModel
                 !iphones.isNullOrEmpty() &&
                     !stopped
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), false)
+
+        /**
+         * The bike link's state for the app header's pill, on every tab (the ride's steady state, docs/PLAN.md "Stable
+         * live indicators"); "no bike" until loaded.
+         */
+        val link: StateFlow<LinkStatus> =
+            combine(bikes.bike, coordinator.shownState) { bike, state -> linkStatus(bike != null, state) }
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), LinkStatus.NO_BIKE)
 
         private val skipped = MutableStateFlow(false)
 

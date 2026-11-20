@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -53,6 +52,7 @@ import com.abid.handlebarlink.ui.frame.HeroState
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
 
@@ -76,13 +76,15 @@ fun CarPlayScreen(
         return
     }
     val spacing = HlTheme.spacing
+    // The page scrolls under the app header ([contentPadding]'s top) and the status bar; the meter starts 8 dp
+    // under the header.
     Column(
         Modifier
             .fillMaxSize()
+            .verticalScroll(rememberPageScrollState())
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
-            .verticalScroll(rememberScrollState())
-            .padding(start = spacing.s16, end = spacing.s16, top = HlTheme.sizes.heroTop, bottom = spacing.s16),
+            .padding(start = spacing.s16, end = spacing.s16, top = spacing.headerGap, bottom = spacing.s16),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         val width = Modifier.widthIn(max = HlTheme.sizes.contentMax).fillMaxWidth()

@@ -42,6 +42,7 @@ import com.abid.handlebarlink.ui.devices.PairDeviceActions
 import com.abid.handlebarlink.ui.devices.PairDeviceScreen
 import com.abid.handlebarlink.ui.devices.PairDeviceUiState
 import com.abid.handlebarlink.ui.devices.SheetDevice
+import com.abid.handlebarlink.ui.frame.PreviewTabFrame
 import com.abid.handlebarlink.ui.handlebar.HandlebarPicker
 import com.abid.handlebarlink.ui.handlebar.HandlebarScreen
 import com.abid.handlebarlink.ui.handlebar.previewHandlebar
@@ -68,8 +69,8 @@ import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.abid.handlebarlink.ui.settings.ThemeScreen
 import com.android.tools.screenshot.PreviewTest
 
-// Every page in both looks at the nine sizes and with large text (testing-setup skill, Step 8). Pages are
-// framed like AppRoot (background, floating tab bar, room for it) without its Hilt view models.
+// Every page in both looks at the nine sizes and with large text (testing-setup skill, Step 8). Tab pages are
+// framed like AppRoot (background, app header, floating tab bar, room for both) without its Hilt view models.
 
 @Composable
 private fun TabFrame(
@@ -77,22 +78,7 @@ private fun TabFrame(
     selected: Int,
     page: @Composable (PaddingValues) -> Unit,
 ) {
-    HlTheme(variant) {
-        val spacing = HlTheme.spacing
-        HlBackground(Modifier.fillMaxSize()) {
-            page(PaddingValues(bottom = HlTheme.sizes.tabBar + spacing.s20 * 2))
-            HlTabBar(
-                tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
-                selected = selected,
-                onSelect = {},
-                modifier =
-                    Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
-                        .widthIn(max = HlTheme.sizes.contentMax),
-            )
-        }
-    }
+    HlTheme(variant) { PreviewTabFrame(selected, page = page) }
 }
 
 @Composable
@@ -100,7 +86,7 @@ private fun Home(variant: HlThemeVariant) =
     TabFrame(
         variant,
         selected = tabIndex(HomeRoute),
-    ) { HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = it) }
+    ) { HomeScreen(HomeUiState(LinkStatus.CONNECTED), contentPadding = it) }
 
 @Composable
 private fun Settings(variant: HlThemeVariant) =
@@ -230,7 +216,6 @@ private fun HomeCarPlay(variant: HlThemeVariant) =
     TabFrame(variant, selected = tabIndex(HomeRoute)) {
         HomeScreen(
             HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
-            onSettings = {},
             contentPadding = it,
         )
     }

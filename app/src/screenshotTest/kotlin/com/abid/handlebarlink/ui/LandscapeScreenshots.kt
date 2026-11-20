@@ -33,6 +33,7 @@ import com.abid.handlebarlink.ui.carplay.PreviewPairPaired
 import com.abid.handlebarlink.ui.carplay.PreviewPairSteps
 import com.abid.handlebarlink.ui.carplay.PreviewPairWaiting
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.PreviewTabFrame
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.handlebar.HandlebarScreen
 import com.abid.handlebarlink.ui.handlebar.previewHandlebar
@@ -79,23 +80,12 @@ private fun RailFrame(
     variant: HlThemeVariant,
     selected: Int,
     page: @Composable (PaddingValues) -> Unit,
-) = Panes(variant) {
-    val spacing = HlTheme.spacing
-    Box(Modifier.fillMaxSize()) {
-        page(PaddingValues(end = HlTheme.sizes.tabRail + spacing.s16 * 2))
-        HlTabRail(
-            tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
-            selected = selected,
-            onSelect = {},
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = spacing.s16),
-        )
-    }
-}
+) = Panes(variant) { PreviewTabFrame(selected, page = page) }
 
 @Composable
 private fun Home(variant: HlThemeVariant) =
     RailFrame(variant, selected = tabIndex(HomeRoute)) {
-        HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = it)
+        HomeScreen(HomeUiState(LinkStatus.CONNECTED), contentPadding = it)
     }
 
 @PreviewTest

@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -68,6 +67,7 @@ import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
 import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
@@ -100,16 +100,20 @@ internal fun HomeNight(
         Column(
             Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberPageScrollState())
                 .heightIn(min = maxHeight)
                 .windowInsetsPadding(WindowInsets.pageTop)
                 .padding(contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            NightHeader(state, actions.onSettings, column)
-            // Without the gauges the bike still starts clear of the header (its mirrors covered the status pill
-            // on the phone, owner 2026-11-18).
-            if (state.rideData) NightGauges(column) else Spacer(Modifier.height(HlTheme.spacing.s24 * 2))
+            // Under the app header (its 12 dp below the pill included): the gauges 22 dp under the pill, or without
+            // them the bike 48 dp under it, clear of the header (its mirrors covered the status pill on the phone,
+            // owner 2026-11-18).
+            if (state.rideData) {
+                NightGauges(column.padding(top = spacing.s10))
+            } else {
+                Spacer(Modifier.height(spacing.s24 + spacing.s12))
+            }
             Box(column.height(heroHeight)) {
                 HeroBike(backdrop, Modifier.align(Alignment.TopCenter))
                 NightDevices(
@@ -180,38 +184,12 @@ internal fun NightDevices(
     }
 }
 
-/** The bike's wordmark and the link pill, centred; settings top right. */
-@Composable
-internal fun NightHeader(
-    state: HomeUiState,
-    onSettings: () -> Unit,
-    modifier: Modifier,
-) {
-    val spacing = HlTheme.spacing
-    Box(modifier) {
-        Column(
-            Modifier.align(Alignment.TopCenter).padding(top = spacing.s18),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s4),
-        ) {
-            HlText(stringResource(R.string.bike_model), HlTheme.typography.wordmark, HlTheme.colors.ink)
-            Pill(state.link)
-        }
-        HlIconButton(
-            HlIcons.Settings,
-            stringResource(R.string.settings),
-            onSettings,
-            Modifier.align(Alignment.TopEnd).padding(top = spacing.s8, end = spacing.s12),
-        )
-    }
-}
-
 /** Service and trip gauges: shown only for a meter that reports speed and odometer (rideData), empty until then. */
 @Composable
 internal fun NightGauges(modifier: Modifier) {
     val spacing = HlTheme.spacing
     Row(
-        modifier.padding(top = spacing.s22, start = spacing.s16, end = spacing.s16),
+        modifier.padding(start = spacing.s16, end = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s28, Alignment.CenterHorizontally),
     ) {
         ArcGauge(

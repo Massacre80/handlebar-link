@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -55,6 +54,7 @@ import com.abid.handlebarlink.ui.frame.HeroPanes
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 import java.time.LocalDate
 
 /**
@@ -87,7 +87,7 @@ fun GarageScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberPageScrollState())
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
             .wrapContentWidth()

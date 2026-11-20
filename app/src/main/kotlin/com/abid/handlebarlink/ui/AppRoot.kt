@@ -28,13 +28,16 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -49,8 +52,8 @@ import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.controls.ScreenRequest
 import com.abid.handlebarlink.core.designsystem.component.Backdrop
+import com.abid.handlebarlink.core.designsystem.component.HlAppHeaderDefaults
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
-import com.abid.handlebarlink.core.designsystem.component.HlStatusBarProtection
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
 import com.abid.handlebarlink.core.designsystem.component.HlTabRail
@@ -65,16 +68,24 @@ import com.abid.handlebarlink.ui.carplay.rememberTabActions
 import com.abid.handlebarlink.ui.carplay.withAccess
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
+import com.abid.handlebarlink.ui.frame.FloatingHeader
+import com.abid.handlebarlink.ui.frame.HeaderLift
 import com.abid.handlebarlink.ui.frame.LivePadding
+import com.abid.handlebarlink.ui.frame.LocalHeaderLift
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.TabHeader
 import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.currentRailRoom
 import com.abid.handlebarlink.ui.frame.currentWindowLayout
+import com.abid.handlebarlink.ui.frame.forPage
 import com.abid.handlebarlink.ui.frame.pageSides
 import com.abid.handlebarlink.ui.frame.railSpace
+import com.abid.handlebarlink.ui.frame.tabPageRoom
 import com.abid.handlebarlink.ui.garage.garageEntries
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
+import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.intercom.intercomEntries
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayAccessRoute
@@ -168,23 +179,11 @@ private fun BoxScope.Tabs(main: MainViewModel) {
             }
         }
     }
-    val spacing = HlTheme.spacing
-    val panes = LocalWindowLayout.current == WindowLayout.PANES
-    val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val side = WindowInsets.pageSides.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr)
-    val currentBarSpace =
-        if (panes) {
-            // On its side, room for the rail on the end edge and the navigation bar below. Pages pad both sides by
-            // the mirrored side (WindowInsets.pageTop) and set their content 16 dp in, so the content's margin
-            // to the screen's start, its gap to the rail and the rail's margin to the end are one width:
-            // side + 16 dp (owner, 2026-11-20: "the right side padding is totally wrong").
-            PaddingValues(end = railSpace(side, spacing.s16, HlTheme.sizes.tabRail), bottom = navigationBar)
-        } else {
-            // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
-            PaddingValues(bottom = HlTheme.sizes.tabBar + spacing.s20 * 2 + navigationBar)
-        }
+    val layout = LocalWindowLayout.current
+    val panes = layout == WindowLayout.PANES
+    val railRoom = currentRailRoom()
     // One object for every page, always reading the current room (LivePadding: pages keep what they were given).
-    val barSpaceState = rememberUpdatedState(currentBarSpace)
+    val barSpaceState = rememberUpdatedState(tabPageRoom(panes, railRoom))
     val barSpace = remember(barSpaceState) { LivePadding(barSpaceState) }
     val motion = HlTheme.motion
     val entries =
@@ -197,20 +196,31 @@ private fun BoxScope.Tabs(main: MainViewModel) {
             deviceEntries(navigator, motion)
             handlebarEntries(navigator, motion)
         }
-    // The pages are the tab bar's backdrop: recorded with their ground, frosted under the bar.
+    // Whether each tab page's own scrollers are away from their top (the header lifts into its glass; at the top it
+    // draws nothing behind it). Each page's entry is told its page, so its scrollers register under it.
+    val lift = remember { HeaderLift() }
+    val pageKey = rememberUpdatedState(state.currentPage.toString())
+    // The pages are the tab bar's and the header's backdrop: recorded with their ground, frosted under them.
     val barBackdrop = rememberBackdrop()
     HlBackground(Modifier.fillMaxSize().backdropSource(barBackdrop)) {
         // Shared bounds between pages (Add device grows out of its tile); the docs' setup for Navigation 3.
         SharedTransitionLayout(Modifier.fillMaxSize()) {
-            CompositionLocalProvider(LocalSharedTransitionScope provides this) {
-                Pages(state, navigator, entries)
+            CompositionLocalProvider(LocalSharedTransitionScope provides this, LocalHeaderLift provides lift) {
+                Pages(state, navigator) { key -> entries(key).forPage(key) }
             }
         }
     }
-    val onTabPage = state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route }
-    // On its side the tab pages' second pane scrolls behind the status bar; keep the clock readable (full pages
-    // such as Settings draw their own).
-    if (panes && onTabPage) HlStatusBarProtection(Modifier.align(Alignment.TopCenter))
+    // The header's glass, once lifted, is the status bar's protection on tab pages (never two: edge-to-edge guide).
+    val link by main.link.collectAsStateWithLifecycle()
+    FloatingHeader(
+        visible = state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route },
+        link = link,
+        page = pageKey.value,
+        lifted = { lift.isLifted(pageKey.value) },
+        onSettings = { navigator.navigate(SettingsRoute) },
+        railRoom = railRoom.takeIf { panes },
+        backdrop = barBackdrop,
+    )
     if (panes) FloatingTabRail(state, navigator, barBackdrop) else FloatingTabBar(state, navigator, barBackdrop)
 }
 
@@ -415,7 +425,6 @@ private fun HomeEntry(
         )
     HomeScreen(
         home.copy(bikePlay = home.bikePlay.withAccess(bikePlay.access)),
-        onSettings = { navigator.navigate(SettingsRoute) },
         contentPadding = barSpace,
         onAddDevice = { navigator.navigate(AddDeviceRoute(ADD_DEVICE)) },
         onDevice = { navigator.navigate(IntercomRoute) },

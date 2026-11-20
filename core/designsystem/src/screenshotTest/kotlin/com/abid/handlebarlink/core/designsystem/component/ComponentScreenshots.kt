@@ -122,3 +122,13 @@ fun SheetNight() = HlTheme(HlThemeVariant.NIGHT) { Sheet() }
 @FontScales
 @Composable
 fun SheetBento() = HlTheme(HlThemeVariant.BENTO) { Sheet() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun AppHeaderNight() = Gallery(HlThemeVariant.NIGHT) { AppHeaders() }
+
+@PreviewTest
+@FontScales
+@Composable
+fun AppHeaderBento() = Gallery(HlThemeVariant.BENTO) { AppHeaders() }

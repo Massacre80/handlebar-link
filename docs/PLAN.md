@@ -182,6 +182,51 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   cropped); the Handlebar card is no longer laid over the bike (it showed the bike through its unblurred glass), and the
   switch photo on the Handlebar page is no longer blown up to 570 dp (1024 px source).
 
+### App header (owner, 2026-11-20: "make sure the header stays everywhere consistently create component or something according to the docs"; worktree `header`)
+
+Only Home had a header (the wordmark, the bike link's pill, Settings); the other tabs started with their heroes. Now
+one design-system component, `HlAppHeader` (`component/AppHeader.kt`; Paper "Component · App header", the tab
+artboards "Header · Home / BikePlay / Garage / Devices (Night)"), sits on every tab page in the same place, framed by
+`AppRoot` like the tab bar (`FloatingHeader`, `ui/frame/TabHeader.kt`), and hides on full pages (Settings) as the bar
+does.
+
+- **What the docs say, what we chose:** Compose's app bars offer three `TopAppBarScrollBehavior`s: `pinned` (stays in
+  place), `enterAlways` and `exitUntilCollapsed` (Android docs "App bars"). Material's top app bar lifts on scroll ("Upon
+  scroll, it increases elevation and lets content scroll behind it", `liftOnScroll` by default, its container colour
+  `liftOnScrollColor`; material-components-android TopAppBar.md). The edge-to-edge guide asks scrolling app bars to
+  collapse or protect the status bar, never with two stacked protections, and solid bars to draw into the cutout. We
+  pin it (the owner's "stays"; it carries the bike link's state and pairs with the floating tab bar, which never hides
+  either) and lift it: at rest it is clear on the page's ground; once the page has scrolled under it, it fades into the
+  tab bar's frosted glass (the same backdrop, blur 18 and saturation 1.4, the look's `glass` tint) with a `glass-line`
+  hairline at its foot. Its container runs edge to edge under the status bar, so on tab pages the lifted glass is the
+  status bar's protection (the panes' separate `HlStatusBarProtection` is gone). Enter-always was not chosen: it would
+  hide the link's state while riding and move the layout under the rider's thumb.
+- **Lift** (`ui/frame/HeaderLift.kt`, HeaderLiftTest): at rest (the page at its top) the header draws nothing behind
+  it, no glass, blur or tint, and sits on the page like Home's old header (owner, 2026-11-20: "the header in homepage
+  shows a blur bg, we don't need it… on scroll is fine, not initially"). The glass fades in (`motion.fade`) only while
+  the page's own scroll is away from its top and fades out at the top: each tab page's scrollers use
+  `rememberPageScrollState`, which registers them for that page (the frame names the page around each entry), and the
+  header reads them (either pane on its side). A tab at its top never shows the last tab's glass (the header starts in
+  the new page's state). The first build added up nested-scroll deltas (Material's pinned behaviour); it was replaced
+  because a sum restored after the phone turned, or rounded off by a fling, could leave the glass on a page at its top.
+- **Layout** (`HlAppHeaderDefaults.height`, AppHeaderHeightTest): Night upright, the wordmark 18 dp under the status bar,
+  the pill 4 dp under it and 12 dp below (78 dp; it grows with the wordmark at large text), Settings' glass circle 10 dp
+  under the status bar and 16 dp from the edge, centred in the 600 dp column like the bar; Bento upright, the pill and
+  Settings in one 48 dp row, 8 dp above and below (64 dp; Bento's bike card names the bike, so no wordmark). On its side
+  one 56 dp row (48 + 4 + 4) so the panes keep their height: Night the wordmark then the pill 10 dp after it, Bento the
+  pill; it starts at the pages' start margin (mirrored side + 16 dp, `pageTop`) and ends where they end beside the rail;
+  the glass runs edge to edge, under the rail.
+- **Room:** the header's band reaches the pages as the top of the same `LivePadding` that carries the bar's or rail's
+  room (docs/LESSONS.md 118), and every page applies it inside its scroll (so content scrolls under the header and the
+  status bar), then starts `spacing-header-gap` (8 dp) under it: the BikePlay meter, the Devices hero, the panes. Home
+  keeps its approved rhythm (the gauges 22 dp and the bike 48 dp under the pill), Garage its own 4 dp. Measured on
+  emulator-5554 (1080 x 2400, 420 dpi, 48 dp status bar): upright the header is [0,0][1080,331] on all four tabs (Night;
+  Bento [0,0][1080,294]), the wordmark at [435,173][646,221]; on its side [0,0][2400,210] on all four tabs in rotations
+  1 and 3, Settings' circle ending at x 1896, where the pages' content ends (the rail starts at 2064, 168 px further).
+- **The pill is the bike link's status, once:** Home no longer draws its own header. Still to decide (owner): the
+  BikePlay tab's meter says "Connected" for BikePlay while the pill can say "Connected" for the bike, and the Garage
+  hero repeats the bike's name ("Honda CB350RS") under the wordmark.
+
 ### Stable live indicators (owner, 2026-11-20: "the signal keeps changing very fast, strong, medium, low within seconds; there are many like that, fix it overall properly")
 
 Live values from radios reached the screen raw, so setup's meter signal flipped every few packets and connection
@@ -568,8 +613,9 @@ Paper "BikePlay — flow", Tab 1–9 and 1L–9L (Night approved first). The tab
 - **The status once:** the meter (`HlMeterHero`: the HERO geometry, 340 dp, `M14 172 A156` stroke 6 with ticks on r 140;
   on its side HERO_PANE, 280 dp), its state word (34 sp, 30 sp on its side) and one line (15 sp, 14 sp; up to two
   balanced lines, 290 dp / 240 dp) are the whole status; no tag, no title, no repeated status in the rows (the iPhone row
-  says Paired, the Link row's only trailing word is the link's quality while connected, in lime). The meter sits 76 dp
-  under the status bar (`size-hero-top`); on its side it is centred 56 dp above the pane's bottom.
+  says Paired, the Link row's only trailing word is the link's quality while connected, in lime). The meter sits 8 dp
+  under the app header (`spacing-header-gap`; it sat 76 dp under the status bar, `size-hero-top`, before the header);
+  on its side it is centred between the header and the navigation bar (it was 56 dp above the pane's bottom).
 - **Buttons** (`tabButtons`, `HlActionButton` with `HlButtonKind`, 8 dp apart, `spacing-button-stack`): Connected,
   Open BikePlay (no icon) over the red Disconnect (`DESTRUCTIVE`: danger at 12 %, edge at 40 %, danger words; also
   `HlSecondaryButton(destructive = true)`); Starting and Connecting, Cancel (`SECONDARY`, the well with its edge); a
