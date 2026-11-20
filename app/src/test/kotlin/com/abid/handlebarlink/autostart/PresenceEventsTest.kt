@@ -44,6 +44,7 @@ class PresenceEventsTest {
                 buttons = ButtonPresses {},
                 io = io,
                 scope = backgroundScope,
+                time = TestTimeProvider(testScheduler),
                 logger = logger,
             )
         return PresenceEvents(

@@ -14,6 +14,8 @@ import com.abid.handlebarlink.bike.link.ButtonEvent
 import com.abid.handlebarlink.bike.link.LinkError
 import com.abid.handlebarlink.bike.link.LinkProblem
 import com.abid.handlebarlink.bike.link.LinkState
+import com.abid.handlebarlink.bike.link.MeterInfo
+import com.abid.handlebarlink.bike.link.SetupStep
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink
 import com.abid.handlebarlink.bike.link.test.FakeBikeLink.Command
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
@@ -28,8 +30,11 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
@@ -51,6 +56,7 @@ class RideCoordinatorTest {
             buttons = ButtonPresses { pressed += it },
             io = StandardTestDispatcher(testScheduler),
             scope = backgroundScope,
+            time = time,
             logger = testLogger(RecordingLogSink(), time),
         )
     }
@@ -295,4 +301,63 @@ class RideCoordinatorTest {
             bike.value = null
         }
     }
+
+    /** What [RideCoordinator.shownState] shows and when, from now on. */
+    private fun TestScope.shown(coordinator: RideCoordinator): List<Pair<Long, LinkState?>> {
+        val seen = mutableListOf<Pair<Long, LinkState?>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            coordinator.shownState.collect { seen += testScheduler.currentTime to it }
+        }
+        runCurrent()
+        return seen
+    }
+
+    private val ready = LinkState.Ready(MeterInfo(null, null), Instant.EPOCH)
+
+    @Test
+    fun `the shown state hides a reconnect of a moment and shows Ready at once`() =
+        runTest {
+            settings.bike.value = bike
+            val coordinator = coordinator()
+            val seen = shown(coordinator)
+            link.setState(LinkState.WaitingForBike)
+            advanceTimeBy(5_000)
+
+            link.setState(ready)
+            runCurrent()
+            link.setState(LinkState.Recovering(LinkError.Disconnected(8), 1, Instant.EPOCH))
+            advanceTimeBy(300)
+            link.setState(ready)
+            advanceTimeBy(5_000)
+
+            // Waiting shows once Stopped has had its minimum time; the drop never shows.
+            assertThat(seen.filter { it.second != null })
+                .containsExactly(0L to LinkState.Stopped, 1_000L to LinkState.WaitingForBike, 5_000L to ready)
+        }
+
+    @Test
+    fun `connecting and setting up show as one state after the show delay, Blocked at once`() =
+        runTest {
+            settings.bike.value = bike
+            val coordinator = coordinator()
+            val seen = shown(coordinator)
+            advanceTimeBy(5_000)
+
+            link.setState(LinkState.Connecting(1))
+            advanceTimeBy(100)
+            link.setState(LinkState.SettingUp(SetupStep.BOND))
+            advanceTimeBy(299)
+            assertThat(seen.last().second).isEqualTo(LinkState.Stopped)
+            advanceTimeBy(2)
+            assertThat(seen.last()).isEqualTo(5_400L to LinkState.SettingUp(SetupStep.BOND))
+
+            // The next steps replace it in place, at once.
+            link.setState(LinkState.SettingUp(SetupStep.MTU))
+            runCurrent()
+            assertThat(seen.last()).isEqualTo(5_401L to LinkState.SettingUp(SetupStep.MTU))
+
+            link.setState(LinkState.Blocked(LinkError.BluetoothOff))
+            runCurrent()
+            assertThat(seen.last()).isEqualTo(5_401L to LinkState.Blocked(LinkError.BluetoothOff))
+        }
 }

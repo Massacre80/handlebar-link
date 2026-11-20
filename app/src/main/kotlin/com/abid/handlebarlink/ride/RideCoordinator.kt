@@ -6,14 +6,17 @@ import com.abid.handlebarlink.bike.link.LinkProblem
 import com.abid.handlebarlink.bike.link.LinkState
 import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.di.ApplicationScope
 import com.abid.handlebarlink.di.IoDispatcher
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -21,6 +24,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.dropWhile
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -32,11 +36,12 @@ import javax.inject.Singleton
 
 /**
  * Owns the ride (architecture review M2.4–M3-1): one link per selected bike, run for as long as the
- * ride service calls [ride], with handlebar presses routed to CarPlay. The UI reads [link] for status.
+ * ride service calls [ride], with handlebar presses routed to CarPlay. The UI reads [shownState] for status.
  * Android's presence reports for the selected bike reach its link through [onPresence]. A [RideCompanion] (our own
  * CarPlay receiver) runs next to the link in its own child job.
  */
 @Singleton
+@Suppress("LongParameterList") // One per collaborator Hilt injects; the clock times the steady shown state.
 class RideCoordinator
     @Inject
     constructor(
@@ -45,6 +50,7 @@ class RideCoordinator
         private val buttons: ButtonPresses,
         @IoDispatcher private val io: CoroutineDispatcher,
         @ApplicationScope scope: CoroutineScope,
+        time: TimeProvider,
         logger: Logger,
     ) {
         private val log = logger.child("ride")
@@ -61,6 +67,13 @@ class RideCoordinator
         /** The selected bike's link (one per address, created once), or null when no bike is selected. */
         val link: StateFlow<BikeLink?> =
             rideLink.map { it?.link }.stateIn(scope, SharingStarted.Eagerly, null)
+
+        /**
+         * The selected bike's link state as screens and the ride notification show it: steady ([steady]), null without
+         * a selected bike. Nothing decides on it; the ride itself follows [link]'s own state.
+         */
+        @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
+        val shownState: Flow<LinkState?> = link.flatMapLatest { it?.state ?: flowOf(null) }.steady(time)
 
         /** The app is back in the foreground: the Bluetooth permission may have changed meanwhile. */
         fun recheckPermission() {

@@ -22,12 +22,15 @@ import com.abid.handlebarlink.core.testing.testLogger
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.SelectedBike
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -57,6 +60,7 @@ class SetupViewModelTest {
     private var linkFailure: SetupException? = null
     private var linkedAddress: String? = meter.address
     private val bondResults = ArrayDeque(listOf(true))
+    private var bondMillis = 0L
     private val bikes = FakeBikes()
     private var paired = emptyList<FoundMeter>()
 
@@ -79,8 +83,13 @@ class SetupViewModelTest {
                         data: Intent?,
                     ): String? = if (resultCode == Activity.RESULT_OK) linkedAddress else null
                 },
-            bonding = MeterBonding { bondResults.removeFirst() },
+            bonding =
+                MeterBonding {
+                    delay(bondMillis)
+                    bondResults.removeFirst()
+                },
             bikes = bikes,
+            time = TestTimeProvider(testScheduler),
             logger = testLogger(RecordingLogSink(), TestTimeProvider(testScheduler)),
         )
 
@@ -92,15 +101,21 @@ class SetupViewModelTest {
 
     private fun TestScope.ready() = viewModel().also { it.start() }
 
+    /** What setup shows now, once the steady state ([steady]) has passed on everything due at this moment. */
+    private fun TestScope.state(vm: SetupViewModel): SetupUiState {
+        runCurrent()
+        return vm.uiState.value
+    }
+
     @Test
     fun `welcome leads to the meter steps, and Back returns`() =
         runTest(main.dispatcher.scheduler) {
             val vm = viewModel()
             vm.start()
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.READY)
+            assertThat(state(vm).step).isEqualTo(SetupStep.READY)
 
             assertThat(vm.back()).isTrue()
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.WELCOME)
+            assertThat(state(vm).step).isEqualTo(SetupStep.WELCOME)
             assertThat(vm.back()).isFalse()
         }
 
@@ -110,14 +125,14 @@ class SetupViewModelTest {
             val vm = ready()
             conditions.bluetooth = false
             vm.findBike()
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.BLUETOOTH_OFF)
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.BLUETOOTH_OFF)
 
             conditions.bluetooth = true
             conditions.location = false
             vm.findBike()
 
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.LOCATION_OFF)
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.READY)
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.LOCATION_OFF)
+            assertThat(state(vm).step).isEqualTo(SetupStep.READY)
             assertThat(scanning).isFalse()
         }
 
@@ -130,14 +145,14 @@ class SetupViewModelTest {
             found.emit(listOf(meter))
             runCurrent()
 
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.CHOOSE)
-            assertThat(vm.uiState.value.meters).containsExactly(meter)
-            assertThat(vm.uiState.value.searching).isTrue()
+            assertThat(state(vm).step).isEqualTo(SetupStep.CHOOSE)
+            assertThat(state(vm).meters).containsExactly(meter)
+            assertThat(state(vm).searching).isTrue()
 
             advanceTimeBy(15_001)
             runCurrent()
 
-            assertThat(vm.uiState.value.searching).isFalse()
+            assertThat(state(vm).searching).isFalse()
             assertThat(scanning).isFalse()
         }
 
@@ -150,8 +165,8 @@ class SetupViewModelTest {
             vm.findBike()
             runCurrent()
 
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.SCAN_FAILED)
-            assertThat(vm.uiState.value.searching).isFalse()
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.SCAN_FAILED)
+            assertThat(state(vm).searching).isFalse()
         }
 
     @Test
@@ -165,10 +180,10 @@ class SetupViewModelTest {
             runCurrent()
 
             assertThat(scanning).isFalse()
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.LINKING)
-            assertThat(vm.uiState.value.consent).isEqualTo(consent)
+            assertThat(state(vm).step).isEqualTo(SetupStep.LINKING)
+            assertThat(state(vm).consent).isEqualTo(consent)
             vm.consentLaunched()
-            assertThat(vm.uiState.value.consent).isNull()
+            assertThat(state(vm).consent).isNull()
         }
 
     @Test
@@ -180,8 +195,8 @@ class SetupViewModelTest {
             vm.choose(meter)
             runCurrent()
 
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.CHOOSE)
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.NOT_LINKED)
+            assertThat(state(vm).step).isEqualTo(SetupStep.CHOOSE)
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.NOT_LINKED)
         }
 
     @Test
@@ -193,8 +208,8 @@ class SetupViewModelTest {
 
             vm.onConsentResult(Activity.RESULT_CANCELED, null)
 
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.CHOOSE)
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.NOT_LINKED)
+            assertThat(state(vm).step).isEqualTo(SetupStep.CHOOSE)
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.NOT_LINKED)
         }
 
     @Test
@@ -207,7 +222,7 @@ class SetupViewModelTest {
             vm.onConsentResult(Activity.RESULT_OK, null)
             runCurrent()
 
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.DONE)
+            assertThat(state(vm).step).isEqualTo(SetupStep.DONE)
             assertThat(bikes.bike.value).isNull()
 
             vm.finish()
@@ -226,14 +241,14 @@ class SetupViewModelTest {
             runCurrent()
             vm.onConsentResult(Activity.RESULT_OK, null)
             runCurrent()
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.PAIRING)
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.PAIRING_FAILED)
+            assertThat(state(vm).step).isEqualTo(SetupStep.PAIRING)
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.PAIRING_FAILED)
 
             vm.pair()
             runCurrent()
 
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.DONE)
-            assertThat(vm.uiState.value.problem).isNull()
+            assertThat(state(vm).step).isEqualTo(SetupStep.DONE)
+            assertThat(state(vm).problem).isNull()
         }
 
     @Test
@@ -243,8 +258,8 @@ class SetupViewModelTest {
 
             vm.permissionRefused()
 
-            assertThat(vm.uiState.value.problem).isNotNull()
-            assertThat(vm.uiState.value.problem).isEqualTo(SetupProblem.PERMISSION_MISSING)
+            assertThat(state(vm).problem).isNotNull()
+            assertThat(state(vm).problem).isEqualTo(SetupProblem.PERMISSION_MISSING)
         }
 
     @Test
@@ -254,18 +269,18 @@ class SetupViewModelTest {
             val vm = ready()
             vm.findBike()
             runCurrent()
-            assertThat(vm.uiState.value.paired).isEqualTo(paired)
+            assertThat(state(vm).paired).isEqualTo(paired)
 
             // The scan hearing the same meter does not list it twice.
             found.emit(listOf(meter))
             runCurrent()
-            assertThat(vm.uiState.value.meters).isEqualTo(emptyList())
+            assertThat(state(vm).meters).isEqualTo(emptyList())
 
             vm.choose(paired.single())
             runCurrent()
-            assertThat(vm.uiState.value.step).isEqualTo(SetupStep.DONE)
-            assertThat(vm.uiState.value.consent).isNull()
-            assertThat(vm.uiState.value.linkedAddress).isEqualTo(meter.address)
+            assertThat(state(vm).step).isEqualTo(SetupStep.DONE)
+            assertThat(state(vm).consent).isNull()
+            assertThat(state(vm).linkedAddress).isEqualTo(meter.address)
             assertThat(bondResults.size).isEqualTo(1) // bond() never called
             assertThat(scanning).isFalse()
         }
@@ -290,4 +305,46 @@ class SetupViewModelTest {
             bike.value = null
         }
     }
+
+    /** The steps setup shows, from now on. */
+    private fun TestScope.steps(vm: SetupViewModel): List<SetupStep> {
+        val seen = mutableListOf<SetupStep>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { vm.uiState.collect { seen += it.step } }
+        runCurrent()
+        return seen
+    }
+
+    @Test
+    fun `a meter that pairs at once goes from Android's consent to You're set without flashing Pairing`() =
+        runTest(main.dispatcher.scheduler) {
+            val vm = ready()
+            vm.findBike()
+            runCurrent()
+            val seen = steps(vm)
+
+            vm.choose(meter)
+            runCurrent()
+            vm.onConsentResult(Activity.RESULT_OK, null)
+            advanceTimeBy(5_000)
+
+            assertThat(seen.distinct()).containsExactly(SetupStep.CHOOSE, SetupStep.LINKING, SetupStep.DONE)
+        }
+
+    @Test
+    fun `a pairing that takes a while shows its page after the show delay`() =
+        runTest(main.dispatcher.scheduler) {
+            bondMillis = 3_000
+            val vm = ready()
+            vm.choose(meter)
+            advanceTimeBy(5_000)
+
+            vm.onConsentResult(Activity.RESULT_OK, null)
+            advanceTimeBy(399)
+            assertThat(state(vm).step).isEqualTo(SetupStep.LINKING)
+            advanceTimeBy(2)
+            assertThat(state(vm).step).isEqualTo(SetupStep.PAIRING)
+
+            advanceTimeBy(3_000)
+            assertThat(state(vm).step).isEqualTo(SetupStep.DONE)
+        }
 }

@@ -182,6 +182,39 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   cropped); the Handlebar card is no longer laid over the bike (it showed the bike through its unblurred glass), and the
   switch photo on the Handlebar page is no longer blown up to 570 dp (1024 px source).
 
+### Stable live indicators (owner, 2026-11-20: "the signal keeps changing very fast, strong, medium, low within seconds; there are many like that, fix it overall properly")
+
+Live values from radios reached the screen raw, so setup's meter signal flipped every few packets and connection
+words flashed for a fraction of a second. Android and production apps never show radio values raw; the rules below
+follow them and apply wherever a radio or a connection feeds a screen. Nothing that decides behaviour reads the steady
+values; the engines' own states are unchanged.
+
+- **One state rule** (`steady/StableState.kt`, `Flow.stableState(time, …)`, after AndroidX's
+  `ContentLoadingProgressBar`, which waits `MIN_DELAY_MS` 500 ms before showing progress and keeps it up
+  `MIN_SHOW_TIME_MS` 500 ms): a state that lasts less than **400 ms** never shows; a shown state stays **1 s** before an
+  ordinary change replaces it; the first value, errors, things only the rider can fix, "connected" and the answer to a
+  tap show at once; a new value of the shown state (a countdown tick, a battery, a later channel) replaces it at once
+  and keeps its time. A burst of short states shows its latest one each second (never stuck on the old one). Time is the
+  injected `TimeProvider` and the collector's dispatcher, so tests run on one virtual clock.
+- **Applied:** BikePlay's status (`CarPlayCoordinator.status`: the tab's hero and rows, the iPhone sheet, the
+  display's overlay, Home's card through `CarPlayStatusLines`; each connecting step is its own state; Connected,
+  needs-you errors and the app's own states at once); the bike link (`RideCoordinator.shownState`: the ride
+  notification, and Home's pill once `HomeViewModel` reads it instead of `link`'s raw state, a one-line change left to the
+  branch that owns Home; connecting and setting up are one state; Ready and Blocked at once); the devices' live
+  states (`AndroidBluetoothDevices.statuses`: a device or profile going away waits, connecting shows at once); setup's
+  Linking and Pairing waits (a meter that pairs at once goes straight to "You're set").
+- **Setup's meter signal** (`setup/MeterSignal.kt`, `MeterSignals`): per device an exponential moving average of RSSI
+  with a **1.5 s** time constant (Wi-Fi's connected score uses a Kalman filter, AltBeacon a 20 s running average), the
+  level moves only once the average is **4 dB** past a boundary (-60 strong, -75 good; telephony asks for 2 dB,
+  `SignalStrengthController.REPORTING_HYSTERESIS_DB`, and BLE is noisier) and a shown level stays **2.5 s**
+  (telephony's `REPORTING_HYSTERESIS_MILLIS` is 3 s). A device not heard for a while keeps its level and stays listed.
+- **BikePlay's Link quality** (`ui/carplay/SteadyLinkQuality.kt`): worse news fast, better news slowly. Weak shows at
+  once; any other change only once the next 5 s window agrees (**6 s**); a shown word stays two windows (**10 s**).
+- **Left as they are, on purpose:** headset batteries (Apple's report comes in 10 % steps, `(level + 1) × 10` as
+  Android's `RemoteDevices` maps it, and only on change), countdowns (1 s ticks), the media route (changes only when
+  audio devices come or go), the intercom search (one run, then "ended"), iPhone pairing (steps follow the rider or
+  Android's bond broadcasts, which last seconds; problems show at once).
+
 ### First-time setup (M4.1, started 2026-11-17 at the owner's request)
 
 Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the official docs (research

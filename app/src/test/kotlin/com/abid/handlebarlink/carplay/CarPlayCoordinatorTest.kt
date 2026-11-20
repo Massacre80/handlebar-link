@@ -67,6 +67,7 @@ class CarPlayCoordinatorTest {
                 buttons = ButtonPresses {},
                 io = StandardTestDispatcher(testScheduler),
                 scope = backgroundScope,
+                time = TestTimeProvider(testScheduler),
                 logger = logger,
             )
         val ride = backgroundScope.async { coordinator.ride(presentHint = true, beside = carPlay) }

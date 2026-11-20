@@ -16,6 +16,7 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.setup.cleanName
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -31,7 +32,7 @@ import javax.inject.Inject
  * proxies and their connection broadcasts for live state; the battery each headset last reported, from
  * [HeadsetBatteries] (Apple's +IPHONEACCEV, the only public route to a headset's battery).
  * Everything needs BLUETOOTH_CONNECT ("Nearby devices"), checked before each call; a SecurityException (it was
- * revoked meanwhile) reads as "not allowed".
+ * revoked meanwhile) reads as "not allowed". Live states come steady ([steady]).
  */
 class AndroidBluetoothDevices
     @Inject
@@ -39,6 +40,7 @@ class AndroidBluetoothDevices
         @param:ApplicationContext private val context: Context,
         logger: Logger,
         private val batteries: HeadsetBatteries,
+        private val time: TimeProvider,
     ) : BluetoothDevices {
         private val log = logger.child("devices")
         private val adapter: BluetoothAdapter? get() = context.getSystemService(BluetoothManager::class.java)?.adapter
@@ -68,6 +70,8 @@ class AndroidBluetoothDevices
                     DeviceStatus(connected = true, battery = levels[it], calls = it in calls, music = it in music)
                 }
             }.distinctUntilChanged()
+                // Every reader is a screen: a drop of a moment never flashes "Not connected" ([steady]).
+                .steady(time)
 
         /** The addresses connected now per profile (Headset: calls, A2DP: music), while collected. */
         private fun connections(): Flow<Map<Int, Set<String>>> =

@@ -3,11 +3,14 @@ package com.abid.handlebarlink.carplay
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.test.FakeCarPlayLink
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
+import com.abid.handlebarlink.core.testing.TestTimeProvider
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.test.TestScope
 
 /** The CarPlay screen in memory. */
 class InMemoryCarPlaySettings(
@@ -71,11 +74,12 @@ class RecordingCanvas : CanvasOrientation {
     }
 }
 
-/** A coordinator over [link] (null: no platform ports). */
-fun carPlayCoordinator(
+/** A coordinator over [link] (null: no platform ports), on the test's virtual clock. */
+fun TestScope.carPlayCoordinator(
     link: CarPlayLink?,
     settings: CarPlaySettings,
     permissions: CarPlayPermissions,
     logger: Logger,
     canvas: CanvasOrientation = RecordingCanvas(),
-): CarPlayCoordinator = CarPlayCoordinator(settings, link, permissions, canvas, logger)
+    time: TimeProvider = TestTimeProvider(testScheduler),
+): CarPlayCoordinator = CarPlayCoordinator(settings, link, permissions, canvas, time, logger)

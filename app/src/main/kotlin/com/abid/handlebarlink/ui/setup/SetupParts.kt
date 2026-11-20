@@ -75,6 +75,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.core.designsystem.theme.centred
 import com.abid.handlebarlink.setup.FoundMeter
 import com.abid.handlebarlink.setup.SetupProblem
+import com.abid.handlebarlink.setup.SignalLevel
 import com.abid.handlebarlink.ui.frame.heroTextMax
 
 /** Back and the three step dots; [step] 1–3 lights the dots up to it. */
@@ -193,9 +194,9 @@ internal fun MeterCard(
                 horizontalArrangement = Arrangement.spacedBy(spacing.s6),
             ) {
                 // A paired meter was not heard by the scan: no signal to show.
-                if (!meter.paired) SignalBars(bars(meter.rssi))
+                if (!meter.paired) SignalBars(meter.signal.bars)
                 HlText(
-                    stringResource(if (meter.paired) R.string.setup_meter_paired else signalText(meter.rssi)),
+                    stringResource(if (meter.paired) R.string.setup_meter_paired else signalText(meter.signal)),
                     HlTheme.typography.meta,
                     colors.inkInverseMuted,
                     maxLines = 1,
@@ -224,20 +225,13 @@ private fun SignalBars(lit: Int) {
     }
 }
 
-/** Lit bars for [rssi] dBm: strong above -60, good above -75, weak below. */
-internal fun bars(rssi: Int): Int =
-    when {
-        rssi > STRONG_DBM -> BARS - 1
-        rssi > GOOD_DBM -> 2
-        else -> 1
-    }
-
+/** The word for a meter's steady [signal] ([FoundMeter.signal]). */
 @StringRes
-private fun signalText(rssi: Int): Int =
-    when {
-        rssi > STRONG_DBM -> R.string.setup_meter_strong
-        rssi > GOOD_DBM -> R.string.setup_meter_good
-        else -> R.string.setup_meter_weak
+private fun signalText(signal: SignalLevel): Int =
+    when (signal) {
+        SignalLevel.STRONG -> R.string.setup_meter_strong
+        SignalLevel.GOOD -> R.string.setup_meter_good
+        SignalLevel.WEAK -> R.string.setup_meter_weak
     }
 
 /** The setup's numbered steps (Ready, Choose, Linking/Pairing). */
@@ -249,6 +243,4 @@ private val BARS_WIDTH = 14.dp
 private val BARS_HEIGHT = 12.dp
 private const val BARS = 4
 private const val UNLIT = 0.24f
-private const val STRONG_DBM = -60
-private const val GOOD_DBM = -75
 private const val CARD_TINT = 0.12f

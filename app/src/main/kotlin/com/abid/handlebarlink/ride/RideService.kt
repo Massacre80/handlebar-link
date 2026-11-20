@@ -16,11 +16,9 @@ import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.controls.OurCarPlay
 import com.abid.handlebarlink.core.common.log.Logger
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -142,13 +140,12 @@ class RideService : LifecycleService() {
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class) // flatMapLatest
     private suspend fun runRide(presentHint: Boolean) {
         val updates =
             lifecycleScope.launch {
-                coordinator.link
+                // The steady state, as Home's pill: a reconnect of a moment does not rewrite the notification.
+                coordinator.shownState
                     .filterNotNull()
-                    .flatMapLatest { it.state }
                     .map(::statusText)
                     .distinctUntilChanged()
                     .collect {

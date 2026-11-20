@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.ride.RideCompanion
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
@@ -42,6 +43,7 @@ class CarPlayCoordinator
         private val link: CarPlayLink?,
         private val permissions: CarPlayPermissions,
         private val canvas: CanvasOrientation,
+        time: TimeProvider,
         logger: Logger,
     ) : RideCompanion {
         private val log = logger.child("carplay")
@@ -73,7 +75,10 @@ class CarPlayCoordinator
         override val keepAlive: Flow<Boolean> =
             if (link == null) wanted else combine(wanted, link.keepAlive) { want, engine -> want || engine }
 
-        /** What the CarPlay page and Home show. */
+        /**
+         * What the CarPlay page, its sheets and display, and Home show: steady ([steady]), so a step or a drop that
+         * lasts a moment never flashes. Nothing decides on it; every collector starts from the current status.
+         */
         val status: Flow<CarPlayStatus> =
             combine(
                 missing,
@@ -82,7 +87,7 @@ class CarPlayCoordinator
                 link?.state ?: flowOf(CarPlayState.Stopped),
             ) { missing, failed, held, state ->
                 carPlayStatus(link != null, missing, failed, state, held)
-            }
+            }.steady(time)
 
         /** Back in the foreground or after a permission answer: a permission may have changed (no broadcast tells). */
         fun recheckPermission() {

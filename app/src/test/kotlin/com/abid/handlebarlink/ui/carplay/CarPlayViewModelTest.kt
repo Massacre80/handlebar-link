@@ -4,6 +4,7 @@
 package com.abid.handlebarlink.ui.carplay
 
 import assertk.assertThat
+import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import com.abid.handlebarlink.carplay.CarPlayStatus
@@ -28,6 +29,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
@@ -56,7 +58,7 @@ class CarPlayViewModelTest {
                 settings,
                 pairing,
                 CarPlayStatusLines(coordinator, time),
-                CarPlayVideoStatsSource { video },
+                SteadyLinkQuality(CarPlayVideoStatsSource { video }, time),
                 radios,
             )
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
@@ -126,6 +128,133 @@ class CarPlayViewModelTest {
             )
             runCurrent()
             assertThat(viewModel.uiState.value.hero.primary).isEqualTo(TabAction.CHOOSE_IPHONE)
+        }
+
+    /** The tab's states with their virtual times, from now on. */
+    private fun TestScope.record(viewModel: CarPlayViewModel): List<Pair<Long, CarPlayUiState>> {
+        val seen = mutableListOf<Pair<Long, CarPlayUiState>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.uiState.collect { seen += testScheduler.currentTime to it }
+        }
+        return seen
+    }
+
+    /** One 5 s window of the picture's numbers with [dropped] pictures lost of 300 ([linkQuality]). */
+    private fun window(
+        dropped: Int,
+        recoveries: Int = 0,
+    ) = CarPlayVideoStats(300, 300 - dropped, 60.0, dropped = dropped, decodeP90Millis = 12.0, recoveries = recoveries)
+
+    @Test
+    fun `a connection that drops for a moment never leaves Connected on the tab`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH))
+            advanceTimeBy(5_000)
+            val seen = record(viewModel)
+
+            link.setState(CarPlayState.Recovering(CarPlayError.LinkFailed("closed"), 1, Instant.EPOCH))
+            advanceTimeBy(300)
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH))
+            advanceTimeBy(5_000)
+
+            assertThat(seen.map { it.second.hero.phase }.distinct()).containsExactly(TabPhase.CONNECTED)
+        }
+
+    @Test
+    fun `steps quicker than the show delay never flash, and Connected shows at once`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            advanceTimeBy(5_000)
+            val seen = record(viewModel)
+            val before = viewModel.uiState.value.hero.phase
+
+            link.setState(CarPlayState.Idle)
+            advanceTimeBy(100)
+            link.setState(CarPlayState.Connecting(ConnectStep.PREPARING))
+            advanceTimeBy(100)
+            link.setState(CarPlayState.Connecting(ConnectStep.DIALING_PHONE))
+            advanceTimeBy(100)
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH))
+            runCurrent()
+
+            assertThat(seen.map { it.second.hero.phase }.distinct()).containsExactly(before, TabPhase.CONNECTED)
+            assertThat(seen.first { it.second.hero.phase == TabPhase.CONNECTED }.first).isEqualTo(5_300L)
+        }
+
+    @Test
+    fun `a lasting step shows after the show delay`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            advanceTimeBy(5_000)
+            val before = viewModel.uiState.value.hero.phase
+
+            link.setState(CarPlayState.Connecting(ConnectStep.DIALING_PHONE))
+            advanceTimeBy(399)
+            assertThat(viewModel.uiState.value.hero.phase).isEqualTo(before)
+            advanceTimeBy(2)
+            assertThat(viewModel.uiState.value.hero.phase).isEqualTo(TabPhase.CONNECTING)
+        }
+
+    @Test
+    fun `an error only the rider can fix shows at once, even right after a step`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            link.setState(CarPlayState.Connecting(ConnectStep.DIALING_PHONE))
+            advanceTimeBy(5_000)
+
+            link.setState(CarPlayState.Connecting(ConnectStep.IDENTIFYING))
+            advanceTimeBy(500)
+            link.setState(CarPlayState.Recovering(CarPlayError.WifiOff, 1, Instant.EPOCH))
+            runCurrent()
+
+            assertThat(viewModel.uiState.value.hero.phase).isEqualTo(TabPhase.NEEDS_YOU)
+        }
+
+    @Test
+    fun `one odd window of the picture's numbers never changes the Link row's word`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 36))
+            video.value = window(dropped = 0)
+            runCurrent()
+            val seen = record(viewModel)
+
+            // Windows every 5 s: one lost picture (Fair by itself), then clean again, and again.
+            for (dropped in listOf(1, 0, 2, 0, 0, 1, 0)) {
+                advanceTimeBy(5_000)
+                video.value = window(dropped)
+            }
+            advanceTimeBy(5_000)
+
+            assertThat(seen.map { it.second.link.quality }.distinct()).containsExactly(LinkQuality.STRONG)
+        }
+
+    @Test
+    fun `a lasting change of quality shows once the next window agrees, Weak at once`() =
+        runTest {
+            val (viewModel, _) = viewModel()
+            link.setState(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 36))
+            video.value = window(dropped = 0)
+            advanceTimeBy(20_000)
+
+            video.value = window(dropped = 2)
+            advanceTimeBy(5_000)
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.STRONG)
+            video.value = window(dropped = 3)
+            advanceTimeBy(1_001)
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.FAIR)
+
+            video.value = window(dropped = 0, recoveries = 1)
+            runCurrent()
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.WEAK)
+
+            // Better news waits two windows on screen.
+            video.value = window(dropped = 0)
+            advanceTimeBy(9_000)
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.WEAK)
+            advanceTimeBy(1_001)
+            assertThat(viewModel.uiState.value.link.quality).isEqualTo(LinkQuality.STRONG)
         }
 
     /** Bluetooth's state as the test sets it, counting the reads. */
