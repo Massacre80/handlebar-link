@@ -110,6 +110,7 @@
   --spacing-button-stack: 8px; /* stacked buttons of one action group (owner, 2026-11-20) */
   --spacing-group-gap: 14px;   /* between an action group and the card, group or list next to it; between a sheet's groups */
   --spacing-button-row: 12px;  /* buttons side by side (a dialog's) */
+  --spacing-header-gap: 8px;   /* a tab page's content below the app header */
   --size-icon-medium: 22px;    /* Bento settings icon */
   --size-icon-micro: 14px;     /* check mark */
   --radius-floating: 20px;     /* Night's floating CarPlay card */

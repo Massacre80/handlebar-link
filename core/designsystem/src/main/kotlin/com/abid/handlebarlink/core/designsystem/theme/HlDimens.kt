@@ -42,6 +42,8 @@ public data class HlSpacing(
     val groupGap: Dp = 14.dp,
     /** Buttons side by side (a dialog's). */
     val buttonRow: Dp = 12.dp,
+    /** A tab page's content below the app header ("Component · App header"). */
+    val headerGap: Dp = 8.dp,
 )
 
 /**

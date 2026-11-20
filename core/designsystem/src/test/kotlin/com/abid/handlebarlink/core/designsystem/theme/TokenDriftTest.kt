@@ -220,6 +220,7 @@ class TokenDriftTest {
                 "spacing-button-stack" to s.buttonStack,
                 "spacing-group-gap" to s.groupGap,
                 "spacing-button-row" to s.buttonRow,
+                "spacing-header-gap" to s.headerGap,
                 "radius-card" to r.card,
                 "radius-hero" to r.hero,
                 "radius-full" to r.full,
