@@ -262,7 +262,8 @@ CompanionDeviceService and DevicePresenceEvent references) and 02 §3. Code: `ap
   API 31–35 `startObservingDevicePresence(address)`. Associations are listed with `getMyAssociations()` (33+)
   or `getAssociations()` (Android 12, addresses only). FEATURE_COMPANION_DEVICE_SETUP is checked first, as the
   reference requires. "Forgotten" here means the selection is cleared: observation stops; the association
-  itself is kept (disassociating is part of "Forget this bike", not built yet; 02 §4.2).
+  itself is kept (disassociating is part of "Forget this bike", not built yet; 02 §4.2; Garage's Forget clears the
+  selection only, see "Garage").
 - **Presence service** (`BikePresenceService`, a `CompanionDeviceService`, exported and guarded by
   `BIND_COMPANION_DEVICE_SERVICE`): only the callback family of the running release is trusted
   (`presenceCallbacks`: `onDevicePresenceEvent` on 36+, `onDeviceAppeared/Disappeared(AssociationInfo)` on
@@ -415,6 +416,75 @@ and picks that layer of `HandlebarMapping`.
   leaves out. The intercom's assistant button offers Siri too (through our CarPlay, as a press). Reset to default (`HlSecondaryButton`) only
   opens a "Reset all buttons?" dialog (`HandlebarResetRoute`, Paper "Handlebar 7"); its Reset puts all three
   layers back.
+
+### Garage (2026-11-20, worktree `garage`)
+
+Design: Paper "CB350RS", page "Garage" (Night): Garage 1–4 (nothing added, all on track, service due soon, PUC
+overdue), 5 (Log a service), 6 (Insurance), 7 (Forget this bike), 8 (Colourway), 2L (landscape). The owner's rules
+of 2026-11-20 apply where the artboards predate them: the brand button is what the rider must do, the secondary
+pill only Cancel, destructive actions a red-tinted pill (`HlDangerButton`, new) that opens a confirmation; buttons
+in a group 8 dp apart, 14 dp from an action group to the card under it, sheets' groups 14 dp apart (the polish
+branch adds tokens for these; Garage uses `s8`/`s14` with a comment); row subtexts one line; the service's state is
+shown once, by its gauge and "Log this service", so the hero's tag never repeats it (`garageHero`).
+
+- **Scope built:** the tab upright and on its side (hero | everything else, `HeroPanes`); the next service card
+  with the due gauge (`HlDueArc`, new design-system component from the artboard's SVG: three segments, ticks, end
+  dot when due soon, full in danger when overdue); Coming up (chain, insurance, PUC, RC, the rider's own reminders,
+  soonest first, papers not added last with "Add"; an overdue row in the danger tint); the service log (latest two,
+  "All entries" page past two; "+ Log a service" as a row when the card does not ask for it); the Bike section
+  (odometer, colourway, meter); sheets: Log a service, odometer, service interval, chain, a paper's date and lead,
+  own reminder (name, by date or by km, Delete with a confirmation), colourway; the Forget dialog; the daily
+  reminder notification. Bento waits for the Night review.
+- **Data** (`garage/`): one JSON document in a typed DataStore (`garage.json`, `GarageSerializer`; the DataStore
+  guide's kotlinx.serialization route, `androidx.datastore:datastore` and `kotlinx-serialization-json` added with
+  `addLibrary`). Room was not needed: a few dozen records, read whole, changed in one transaction; DataStore is
+  already the app's store. Unknown keys are skipped and missing ones take defaults, so versions read each other's
+  files; a file that cannot be parsed starts empty (corruption handler). Days are epoch days, moments epoch millis.
+  Odometer readings are the rider's (the meter sends no distance), each with its time; km reminders use the latest
+  by time, so logging an old service never replaces a newer reading. Logging a general service restarts the count
+  (switch on by default), never moving it back to an older day; Chain and sprockets restarts the chain's count.
+- **Due logic** (`Reminders.kt`, pure, today passed in from the injected clock): date and km, whichever first (the
+  more urgent state); due soon within the lead (inclusive), due today is soon, overdue the day after / past the km;
+  no reading means km cannot make anything due. Order: overdue, soon, OK, not added; within a group by days left,
+  a km reminder converted with the riding rate (km a day between the first and latest readings, at least a day
+  apart); without a rate it goes first in its group (it could come up any ride). The gauge shows the larger share
+  used, by time or by km.
+- **Notifications:** WorkManager unique periodic work, once a day (`GarageSchedule`, enqueued KEEP on every save;
+  `work-runtime-ktx` added with `addLibrary`; Android "Schedule alarms": WorkManager for deferrable work that must
+  survive reboots, no exact alarm needed). The worker gets its dependencies through a Hilt entry point (WorkManager's
+  default factory; no Application change). Channel "Reminders". Each reminder is notified once per stage for the
+  same due target (`planAlerts`): due soon, a week before for a paper reminded a month or two weeks ahead ("On 14
+  Feb, and again a week before"), overdue; a renewed paper or a logged service is a new target. Marks are stored
+  before posting; without notification permission nothing is marked, so allowing it later still brings them.
+- **Forget this bike:** a confirmation (Paper "Garage 7"), then `BikeSettings.forget()`: the selection is cleared,
+  presence observing stops (`PresenceArming`) and setup shows. Garage's records stay on the phone (the dialog says
+  so). The companion association and the bond are kept: disassociating (02 §4.2: stop observing, `removeBond`,
+  `disassociate`) has no existing API in the app and cannot be checked without the phone; it stays "not built".
+- **Dates:** the platform's `DatePickerDialog` until a picker in the app's design is drawn.
+
+Defaults, owner to confirm (all rider-editable):
+
+| Default | Value | Source |
+|---|---|---|
+| Service interval | every 6 months or 6,000 km, whichever first, from the last general service | Honda CB350RS owner's manual (India), maintenance schedule pp. 41–43: columns at 1, 6, 12, … ×1,000 km and 1, 6, 12, … months, "Service according to odometer reading or months, whichever is earlier", "At higher odometer readings, repeat at the frequency interval established here" (official PDF, read from the Wayback copy of `honda2wheelersindia.com/assets/FAQ/MaintenanceSchedule/…CB350RS-_OM.pdf`, 12 Jul 2024; the live link now redirects to the owner's-manual picker). The first service (1,000 km or 1 month) is not modelled: the count starts at the first logged general service. Free-service counts are not in the manual (dealer, third-party only). |
+| Chain | inspect and lubricate every 1,000 km | Same manual: "Drive Chain … Every 1000 km (600mi): I L". The artboard's "Every 600 km" was the manual's miles. |
+| Due soon | service 14 days or 500 km; chain 100 km; own reminders 7 days or 100 km; papers their lead (a month by default; two weeks or a week) | Ours. The meter's own service light blinks 250 km before the first and 500 km before later services (manual p. 25), which matches 500 km. |
+| Papers | Insurance, PUC, RC by date | PUC: needed one year after first registration, then each certificate 12 months for BS-VI (CMVR rule 115(7) as quoted by the Supreme Court; PIB via search summaries; a 2026 draft for three years is not notified). RC: 15 years first validity for a private vehicle (MV Act s. 41(7), not checked against the current text). Garage only reminds by the date the rider enters, so none of this is hard-coded. |
+| Colourway | the one render the app has: "Matte Massive Grey Metallic" ("Matte Grey" in rows) | Honda India's colours (HMSI releases and model pages): 2021 Radiant Red Metallic, Black with Pearl Sports Yellow; 2023 Athletic Blue Metallic, Matte Massive Grey Metallic, Radiant Red Metallic, Black with Pearl Sports Yellow; New Hue (Oct 2023) Sports Red, Athletic Blue Metallic; 2025 Pearl Igneous Black, Pearl Deep Ground Gray, Mat Axis Gray Metallic, Rebel Red Metallic; 2026 adds Pearl Siren Blue. The render (matte grey, yellow pinstripe) is matched to Matte Massive Grey by eye. Other colourways need renders: the same 1200 x 864 side view on a transparent ground, one per colour; until then the sheet lists only colourways with a render. |
+| Notification | once a day; per stage as above | Ours. |
+
+Tests (`app/src/test/.../garage/`, 44, an injected fixed clock): due by date and km, whichever first, the soon and
+overdue thresholds on their boundaries, ordering, the riding rate, restart on logging, readings, alerts per stage and
+target, the hero, the JSON file. 13 planted bugs, each failing a named test (read from the result XMLs, file restored
+and compared after each): due today as overdue; the less urgent of date and km; state order ignored; a km reminder
+without a rate last; the gauge by time only; any kind restarting the count; an older service moving it back; a past
+entry's reading dated now; the same stage notified again; the target never changing; no week-before stage; the latest
+reading by km (survived at first: the test's older reading was also the lower one; the test now has a corrected
+typo); the hero tagging the service. Previews (`GaragePreviews.kt`, `GarageSheetPreviews.kt`) and screenshot tests
+(`GarageScreenshots.kt`: Night upright, large text, on its side, the sheets); references are recorded on Linux CI.
+
+Not built: editing or deleting a log entry; the first-service (1,000 km) reminder for a new bike; the colourway
+changing Home's bike (one render); companion disassociation on Forget; Bento.
 
 ## Milestones
 

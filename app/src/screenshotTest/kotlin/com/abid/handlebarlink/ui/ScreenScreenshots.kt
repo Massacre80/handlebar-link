@@ -10,10 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
-import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
 import com.abid.handlebarlink.core.designsystem.preview.LargeText
@@ -55,9 +53,7 @@ import com.abid.handlebarlink.ui.intercom.IntercomScreen
 import com.abid.handlebarlink.ui.intercom.IntercomUiState
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
 import com.abid.handlebarlink.ui.intercom.PreviewIntercom
-import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
-import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
@@ -107,12 +103,6 @@ private fun Home(variant: HlThemeVariant) =
     ) { HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = it) }
 
 @Composable
-private fun Garage(variant: HlThemeVariant) =
-    TabFrame(variant, selected = tabIndex(GarageRoute)) {
-        LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it)
-    }
-
-@Composable
 private fun Settings(variant: HlThemeVariant) =
     HlTheme(variant) {
         HlBackground(Modifier.fillMaxSize()) {
@@ -135,18 +125,6 @@ fun HomeNight() = Home(HlThemeVariant.NIGHT)
 @LargeText
 @Composable
 fun HomeBento() = Home(HlThemeVariant.BENTO)
-
-@PreviewTest
-@ScreenSizes
-@LargeText
-@Composable
-fun EmptyTabNight() = Garage(HlThemeVariant.NIGHT)
-
-@PreviewTest
-@ScreenSizes
-@LargeText
-@Composable
-fun EmptyTabBento() = Garage(HlThemeVariant.BENTO)
 
 // The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4, without the switch row since our CarPlay replaced CarLink;
 // plus Ready and Stopped after an error, each with Start CarPlay): no iPhone yet at every size, the others at the

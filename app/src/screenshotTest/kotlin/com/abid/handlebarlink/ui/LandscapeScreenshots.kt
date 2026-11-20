@@ -9,10 +9,8 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
-import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabRail
 import com.abid.handlebarlink.core.designsystem.preview.Landscape
@@ -45,9 +43,7 @@ import com.abid.handlebarlink.ui.intercom.IntercomScreen
 import com.abid.handlebarlink.ui.intercom.IntercomUiState
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
 import com.abid.handlebarlink.ui.intercom.PreviewIntercom
-import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
-import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
@@ -162,14 +158,6 @@ fun DevicesNoneNightLandscape() = NoIntercom(HlThemeVariant.NIGHT)
 @Landscape
 @Composable
 fun DevicesNoneBentoLandscape() = NoIntercom(HlThemeVariant.BENTO)
-
-@PreviewTest
-@Landscape
-@Composable
-fun GarageBentoLandscape() =
-    RailFrame(HlThemeVariant.BENTO, selected = tabIndex(GarageRoute)) {
-        LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it)
-    }
 
 private val LandscapeMeter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
 

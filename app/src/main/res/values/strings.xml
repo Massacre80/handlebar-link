@@ -249,7 +249,6 @@
     <string name="tab_carplay">BikePlay</string>
     <string name="tab_garage">Garage</string>
     <string name="tab_devices">Devices</string>
-    <string name="later_garage">Odometer, service and bike details will live here.</string>
 
     <!-- CarPlay page and Home's CarPlay card: our own receiver (ui/carplay/) -->
     <!-- The CarPlay tab's hero (Paper "CarPlay — flow v2", Tab 1–4): tag, title, detail and its actions. -->

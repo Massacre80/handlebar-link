@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Garage tab (docs/PLAN.md "Garage"; Paper "CB350RS", page "Garage"). Row subtexts stay on one line. -->
+<resources>
+    <string name="channel_reminders">Reminders</string>
+    <string name="garage_bike_name">Honda CB350RS</string>
+
+    <!-- Hero -->
+    <string name="garage_tag_nothing">Nothing added yet</string>
+    <string name="garage_tag_all_good">All good</string>
+    <string name="garage_tag_overdue">%1$s overdue</string>
+    <string name="garage_tag_soon">%1$s due soon</string>
+    <string name="garage_empty_detail">Add your last service and your papers. Garage reminds you before they\'re due.</string>
+    <string name="garage_detail">%1$s · %2$s</string>
+    <string name="garage_meter_linked">Meter linked</string>
+    <string name="garage_meter_none">No meter linked</string>
+    <string name="garage_overdue_insurance">Your insurance ran out on %1$s. Renew it, then set the new date.</string>
+    <string name="garage_overdue_puc">The PUC ran out on %1$s. Renew it, then set the new date.</string>
+    <string name="garage_overdue_rc">The RC ran out on %1$s. Renew it, then set the new date.</string>
+    <string name="garage_overdue_chain">The chain is past its %1$s. Clean and lube it, then mark it done.</string>
+    <string name="garage_overdue_custom">%1$s is overdue. Do it, then set the next one.</string>
+    <string name="garage_renewed">I\'ve renewed it</string>
+    <string name="garage_chain_done">I\'ve done it</string>
+    <string name="garage_custom_next">Set the next one</string>
+    <string name="garage_log_last">Log the last service</string>
+    <string name="garage_add_papers">Add papers</string>
+    <string name="garage_intro_service">Service</string>
+    <string name="garage_intro_service_detail">When it\'s due, by date or by km</string>
+    <string name="garage_intro_papers">Papers</string>
+    <string name="garage_intro_papers_detail">Insurance, PUC and RC, before they run out</string>
+    <string name="garage_intro_own">Your own reminders</string>
+    <string name="garage_intro_own_detail">Tyres, chain, anything you\'d rather not forget</string>
+
+    <!-- Short names for the hero's tag -->
+    <string name="garage_short_insurance">Insurance</string>
+    <string name="garage_short_puc">PUC</string>
+    <string name="garage_short_rc">RC</string>
+    <string name="garage_short_chain">Chain</string>
+    <string name="garage_short_custom">Reminder</string>
+
+    <!-- Next service card -->
+    <string name="garage_next_service">Next service</string>
+    <plurals name="garage_days">
+        <item quantity="one">%d day</item>
+        <item quantity="other">%d days</item>
+    </plurals>
+    <string name="garage_today">Today</string>
+    <string name="garage_overdue">Overdue</string>
+    <string name="garage_or_km">or %1$s km</string>
+    <string name="garage_or_km_by">or %1$s km · by %2$s</string>
+    <string name="garage_by_day">by %1$s</string>
+    <string name="garage_since">since %1$s</string>
+    <string name="garage_km_over">%1$s km over</string>
+    <string name="garage_due_by">Due by</string>
+    <string name="garage_every">Every</string>
+    <string name="garage_months_short">%1$d mo</string>
+    <string name="garage_log_this">Log this service</string>
+    <string name="garage_service_none">Log a general service and Garage counts to the next one.</string>
+
+    <!-- Sections and rows -->
+    <string name="garage_coming_up">Coming up</string>
+    <string name="garage_service_log">Service log</string>
+    <string name="garage_bike">Bike</string>
+    <string name="garage_chain">Clean and lube chain</string>
+    <string name="garage_insurance">Insurance</string>
+    <string name="garage_puc">PUC certificate</string>
+    <string name="garage_rc">Registration (RC)</string>
+    <string name="garage_custom">Reminder</string>
+    <string name="garage_every_km">Every %1$s km</string>
+    <string name="garage_renews">Renews %1$s</string>
+    <string name="garage_valid_till">Valid till %1$s</string>
+    <string name="garage_ran_out">Ran out %1$s</string>
+    <string name="garage_on_day">On %1$s</string>
+    <string name="garage_at_km">At %1$s km</string>
+    <string name="garage_add_date">Add the date</string>
+    <string name="garage_add">Add</string>
+    <string name="garage_km">%1$s km</string>
+    <string name="garage_in_km">In %1$s km</string>
+    <string name="garage_tomorrow">Tomorrow</string>
+    <plurals name="garage_in_days">
+        <item quantity="one">In %d day</item>
+        <item quantity="other">In %d days</item>
+    </plurals>
+    <plurals name="garage_in_months">
+        <item quantity="one">In %d month</item>
+        <item quantity="other">In %d months</item>
+    </plurals>
+    <plurals name="garage_years">
+        <item quantity="one">%d year</item>
+        <item quantity="other">%d years</item>
+    </plurals>
+    <plurals name="garage_days_ago">
+        <item quantity="one">%d day ago</item>
+        <item quantity="other">%d days ago</item>
+    </plurals>
+    <string name="garage_add_reminder">Add a reminder</string>
+    <string name="garage_log_service">Log a service</string>
+    <string name="garage_all_entries">All entries</string>
+    <string name="garage_entry_detail">%1$s km · %2$s</string>
+    <string name="garage_cost">₹%1$s</string>
+    <string name="garage_odometer">Odometer</string>
+    <string name="garage_odometer_read">Read it off the meter</string>
+    <string name="garage_odometer_today">You entered it today</string>
+    <string name="garage_odometer_yesterday">You entered it yesterday</string>
+    <plurals name="garage_odometer_days">
+        <item quantity="one">You entered it %d day ago</item>
+        <item quantity="other">You entered it %d days ago</item>
+    </plurals>
+    <string name="garage_colourway">Colourway</string>
+    <string name="garage_colourway_detail">The bike on Home and here</string>
+    <string name="garage_meter">Meter</string>
+    <string name="garage_linked">Linked</string>
+    <string name="garage_not_linked">Not linked</string>
+    <string name="garage_forget">Forget this bike</string>
+
+    <!-- Log a service -->
+    <string name="garage_log_detail">What was done, and when</string>
+    <string name="garage_odometer_help">The number on the meter at the workshop</string>
+    <string name="garage_what">What was done</string>
+    <string name="garage_date">Date</string>
+    <string name="garage_today_day">Today, %1$s</string>
+    <string name="garage_extras">Workshop and cost</string>
+    <string name="garage_optional">Optional</string>
+    <string name="garage_workshop">Workshop</string>
+    <string name="garage_cost_hint">Cost</string>
+    <string name="garage_rupees">₹</string>
+    <string name="garage_restart">Restart the service count</string>
+    <string name="garage_restart_detail">Next due %1$s or at %2$s km</string>
+    <string name="garage_kind_general">General service</string>
+    <string name="garage_kind_oil">Oil change</string>
+    <string name="garage_kind_chain">Chain and sprockets</string>
+    <string name="garage_kind_tyres">Tyres</string>
+    <string name="garage_kind_brakes">Brakes</string>
+    <string name="garage_kind_other">Other</string>
+    <string name="garage_kind_general_detail">The periodic service, oil included</string>
+    <string name="garage_kind_oil_detail">Engine oil, and the filter if changed</string>
+    <string name="garage_kind_chain_detail">Replaced; restarts the chain\'s count</string>
+    <string name="garage_kind_tyres_detail">Replaced or repaired</string>
+    <string name="garage_kind_brakes_detail">Pads, shoes or fluid</string>
+    <string name="garage_kind_other_detail">Anything else</string>
+    <string name="garage_save">Save</string>
+    <string name="garage_km_unit">km</string>
+
+    <!-- Odometer, service interval, chain -->
+    <string name="garage_odometer_sheet_help">Garage counts the service and the chain from it</string>
+    <string name="garage_interval">Service interval</string>
+    <string name="garage_interval_detail">Whichever comes first</string>
+    <string name="garage_interval_months">Every (months)</string>
+    <string name="garage_interval_km">Every (km)</string>
+    <string name="garage_months_unit">months</string>
+    <string name="garage_interval_help">Honda\'s schedule: every %1$s or %2$s km</string>
+    <plurals name="garage_months">
+        <item quantity="one">%d month</item>
+        <item quantity="other">%d months</item>
+    </plurals>
+    <string name="garage_chain_detail">Garage reminds you when it\'s due</string>
+    <string name="garage_chain_every">Every</string>
+    <string name="garage_chain_now">Done it now</string>
+    <string name="garage_chain_now_detail">At %1$s km</string>
+    <string name="garage_chain_needs_odometer">Enter the odometer first</string>
+
+    <!-- Papers -->
+    <string name="garage_paper_detail">Garage reminds you before it runs out</string>
+    <string name="garage_runs_out">Runs out on</string>
+    <string name="garage_paper_help_insurance">The date on your policy</string>
+    <string name="garage_paper_help_puc">The date on the certificate</string>
+    <string name="garage_paper_help_rc">The date on your RC</string>
+    <string name="garage_change">Change</string>
+    <string name="garage_choose_date">Choose a date</string>
+    <string name="garage_remind_me">Remind me</string>
+    <string name="garage_lead_month">A month before</string>
+    <string name="garage_lead_month_detail">On %1$s, and again a week before</string>
+    <string name="garage_lead_two_weeks">Two weeks before</string>
+    <string name="garage_lead_week">A week before</string>
+    <plurals name="garage_lead_days">
+        <item quantity="one">%d day before it runs out</item>
+        <item quantity="other">%d days before it runs out</item>
+    </plurals>
+
+    <!-- Own reminders -->
+    <string name="garage_reminder_detail">By date or by km, whichever you know</string>
+    <string name="garage_reminder_name">Name</string>
+    <string name="garage_reminder_name_hint">Tyre pressure, chain…</string>
+    <string name="garage_by_date">By date</string>
+    <string name="garage_by_km">By km</string>
+    <string name="garage_due_on">Due on</string>
+    <string name="garage_due_at">Due at</string>
+    <string name="garage_delete_reminder">Delete reminder</string>
+    <string name="garage_delete_title">Delete %1$s?</string>
+    <string name="garage_delete_text">Garage stops reminding you about it.</string>
+    <string name="garage_delete">Delete</string>
+
+    <!-- Colourway -->
+    <string name="garage_colourway_sheet_detail">The bike you see on Home and in Garage</string>
+    <string name="garage_your_bike">Your bike</string>
+    <string name="garage_colourway_more">Other colourways come with their pictures.</string>
+    <string name="colourway_matte_grey">Matte Massive Grey Metallic</string>
+    <string name="colourway_matte_grey_short">Matte Grey</string>
+
+    <!-- Forget this bike -->
+    <string name="garage_forget_title">Forget this bike?</string>
+    <string name="garage_forget_text">The app stops linking to this meter and setup starts again. Your service log and reminders stay on this phone.</string>
+    <string name="garage_forget_confirm">Forget</string>
+
+    <!-- Notifications -->
+    <string name="garage_alert_soon">%1$s due soon</string>
+    <string name="garage_alert_overdue">%1$s overdue</string>
+    <string name="garage_alert_by_either">By %1$s or %2$s, whichever comes first</string>
+    <string name="garage_alert_by_day">By %1$s</string>
+    <string name="garage_alert_by_km">At %1$s on the meter</string>
+</resources>

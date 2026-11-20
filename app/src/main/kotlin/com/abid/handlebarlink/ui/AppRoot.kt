@@ -47,11 +47,9 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
-import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.ScreenRequest
 import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
-import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlStatusBarProtection
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
@@ -73,15 +71,14 @@ import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.currentWindowLayout
 import com.abid.handlebarlink.ui.frame.pageSides
 import com.abid.handlebarlink.ui.frame.railSpace
+import com.abid.handlebarlink.ui.garage.garageEntries
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
 import com.abid.handlebarlink.ui.intercom.intercomEntries
-import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.AddDeviceRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayAccessRoute
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
-import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HandlebarRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.IntercomRoute
@@ -194,7 +191,7 @@ private fun BoxScope.Tabs(main: MainViewModel) {
         entryProvider {
             entry<HomeRoute> { HomeEntry(navigator, barSpace) }
             carPlayEntries(navigator, barSpace)
-            entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
+            garageEntries(navigator, barSpace)
             intercomEntries(navigator, barSpace)
             settingsEntries(navigator)
             deviceEntries(navigator, motion)
