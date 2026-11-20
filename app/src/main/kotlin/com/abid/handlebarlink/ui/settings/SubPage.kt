@@ -31,6 +31,8 @@ import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.ui.frame.pageAll
+import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.setup.navigationBarRoom
 
 /**
  * A full page under Settings (Settings itself, Appearance): back and the [title], then [content] in a
@@ -64,9 +66,10 @@ internal fun SubPage(
 }
 
 /**
- * A full page under Settings on its side, in two panes inside the system bars and the mirrored sides: back and the
- * [title] above [start], which fills the rest of its pane's height (Handlebar's switch), and [end] scrolling on its
- * own beside it, below the status bar.
+ * A full page under Settings on its side, in two panes below the status bar and inside the mirrored sides: back and
+ * the [title] above [start], which fills the rest of its pane's height above the navigation bar (Handlebar's switch),
+ * and [end] scrolling on its own beside it. The navigation bar's room is inside [end]'s scroll, so its last rows
+ * scroll to the screen's edge instead of being cut off above the bar.
  */
 @Composable
 internal fun SubPagePanes(
@@ -76,15 +79,16 @@ internal fun SubPagePanes(
     end: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = HlTheme.spacing
+    val bottom = navigationBarRoom()
     Row(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.pageAll)
+            .windowInsetsPadding(WindowInsets.pageTop)
             .padding(horizontal = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s24),
     ) {
         Column(
-            Modifier.weight(1f).fillMaxHeight().padding(vertical = spacing.s8),
+            Modifier.weight(1f).fillMaxHeight().padding(top = spacing.s8, bottom = bottom + spacing.s8),
             verticalArrangement = Arrangement.spacedBy(spacing.s16),
         ) {
             TitleRow(title, onBack)
@@ -95,7 +99,7 @@ internal fun SubPagePanes(
                 .weight(1f)
                 .fillMaxHeight()
                 .verticalScroll(rememberScrollState())
-                .padding(vertical = spacing.s8),
+                .padding(top = spacing.s8, bottom = bottom + spacing.s8),
             verticalArrangement = Arrangement.spacedBy(spacing.s24),
             content = end,
         )

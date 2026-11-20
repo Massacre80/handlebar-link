@@ -9,8 +9,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
+import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabRail
 import com.abid.handlebarlink.core.designsystem.preview.Landscape
@@ -23,8 +25,14 @@ import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupUiState
 import com.abid.handlebarlink.ui.carplay.CarPlayScreen
 import com.abid.handlebarlink.ui.carplay.CarPlayUiState
+import com.abid.handlebarlink.ui.carplay.PairIphoneScreen
+import com.abid.handlebarlink.ui.carplay.PairIphoneUiState
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayConnected
 import com.abid.handlebarlink.ui.carplay.PreviewCarPlayWifiOff
+import com.abid.handlebarlink.ui.carplay.PreviewPairActions
+import com.abid.handlebarlink.ui.carplay.PreviewPairPaired
+import com.abid.handlebarlink.ui.carplay.PreviewPairSteps
+import com.abid.handlebarlink.ui.carplay.PreviewPairWaiting
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.handlebar.HandlebarScreen
@@ -32,6 +40,10 @@ import com.abid.handlebarlink.ui.handlebar.previewHandlebar
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
+import com.abid.handlebarlink.ui.intercom.IntercomScreen
+import com.abid.handlebarlink.ui.intercom.NoIntercomActions
+import com.abid.handlebarlink.ui.intercom.PreviewIntercom
+import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.settings.NoActions
@@ -109,6 +121,22 @@ fun CarPlayConnectedNightLandscape() = CarPlay(HlThemeVariant.NIGHT, PreviewCarP
 @Composable
 fun CarPlayWifiOffBentoLandscape() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayWifiOff)
 
+// Devices and the tabs still to come fill the frame between the start margin and the rail, as Home does.
+
+@PreviewTest
+@Landscape
+@Composable
+fun DevicesNightLandscape() =
+    RailFrame(HlThemeVariant.NIGHT, selected = 4) { IntercomScreen(PreviewIntercom, NoIntercomActions, it) }
+
+@PreviewTest
+@Landscape
+@Composable
+fun GarageBentoLandscape() =
+    RailFrame(HlThemeVariant.BENTO, selected = 3) {
+        LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it)
+    }
+
 private val LandscapeMeter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
 
 @Composable
@@ -154,6 +182,39 @@ fun SetupPairingNightLandscape() =
 @Landscape
 @Composable
 fun SetupDoneNightLandscape() = Setup(HlThemeVariant.NIGHT, SetupUiState(SetupStep.DONE, chosen = LandscapeMeter))
+
+@PreviewTest
+@Landscape
+@Composable
+fun SetupLinkingBentoLandscape() = Setup(HlThemeVariant.BENTO, SetupUiState(SetupStep.LINKING, chosen = LandscapeMeter))
+
+@PreviewTest
+@Landscape
+@Composable
+fun SetupDoneBentoLandscape() = Setup(HlThemeVariant.BENTO, SetupUiState(SetupStep.DONE, chosen = LandscapeMeter))
+
+// The in-app iPhone pairing (CarPlay tab), built from setup's panes: the cards share the heading's 24 dp line.
+
+@Composable
+private fun PairIphone(
+    variant: HlThemeVariant,
+    state: PairIphoneUiState,
+) = Panes(variant) { PairIphoneScreen(state, "CB350RS", PreviewPairActions) }
+
+@PreviewTest
+@Landscape
+@Composable
+fun PairIphoneStepsNightLandscape() = PairIphone(HlThemeVariant.NIGHT, PreviewPairSteps)
+
+@PreviewTest
+@Landscape
+@Composable
+fun PairIphoneWaitingBentoLandscape() = PairIphone(HlThemeVariant.BENTO, PreviewPairWaiting)
+
+@PreviewTest
+@Landscape
+@Composable
+fun PairIphonePairedNightLandscape() = PairIphone(HlThemeVariant.NIGHT, PreviewPairPaired)
 
 @PreviewTest
 @Landscape

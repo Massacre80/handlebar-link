@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -18,6 +19,7 @@ import androidx.compose.ui.draw.paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -30,6 +32,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ui.controls.actionIcon
 import com.abid.handlebarlink.ui.controls.actionName
+import kotlin.math.roundToInt
 
 /**
  * The switch with what its keys do: the render, a dot on each called-out key and a line from it to its callout
@@ -45,28 +48,19 @@ internal fun SwitchDiagram(
     val spacing = HlTheme.spacing
     val outline = HlTheme.strokes.outline
     val ends = remember(callouts.size) { Array(callouts.size) { Offset.Zero } }
-    val keys =
-        callouts.map {
-            val press = stringResource(actionName(it.action))
-            val hold = it.hold
-            if (hold == null) {
-                stringResource(R.string.handlebar_key_description, stringResource(it.key.label), press)
-            } else {
-                stringResource(
-                    R.string.handlebar_key_hold_description,
-                    stringResource(it.key.label),
-                    press,
-                    stringResource(actionName(hold)),
-                )
-            }
-        }
-    val description = stringResource(R.string.handlebar_diagram_description, keys.joinToString(" "))
+    val description = diagramDescription(callouts)
+    val photo = painterResource(R.drawable.handlebar_switch)
+    val photoPixels =
+        photo.intrinsicSize.width
+            .takeIf { it.isFinite() }
+            ?.roundToInt() ?: Constraints.Infinity
     Layout(
         content = { callouts.forEach { Callout(it) } },
         modifier =
             modifier
+                .squareUpTo(photoPixels)
                 .clip(RoundedCornerShape(HlTheme.radii.card))
-                .paint(painterResource(R.drawable.handlebar_switch), contentScale = ContentScale.Crop)
+                .paint(photo, contentScale = ContentScale.Crop)
                 .drawBehind {
                     val line = outline.toPx()
                     callouts.forEachIndexed { index, callout ->
@@ -101,6 +95,46 @@ internal fun SwitchDiagram(
         }
     }
 }
+
+/** What TalkBack reads for the diagram: each key and what it does. */
+@Composable
+private fun diagramDescription(callouts: List<KeyCallout>): String {
+    val keys =
+        callouts.map {
+            val press = stringResource(actionName(it.action))
+            val hold = it.hold
+            if (hold == null) {
+                stringResource(R.string.handlebar_key_description, stringResource(it.key.label), press)
+            } else {
+                stringResource(
+                    R.string.handlebar_key_hold_description,
+                    stringResource(it.key.label),
+                    press,
+                    stringResource(actionName(hold)),
+                )
+            }
+        }
+    return stringResource(R.string.handlebar_diagram_description, keys.joinToString(" "))
+}
+
+/** A square as large as the room allows but never past [photo] pixels ([diagramSide]), centred in the room. */
+private fun Modifier.squareUpTo(photo: Int): Modifier =
+    wrapContentSize().layout { measurable, constraints ->
+        val side = diagramSide(constraints.maxWidth, constraints.maxHeight, photo)
+        val square = measurable.measure(Constraints.fixed(side, side))
+        layout(side, side) { square.place(0, 0) }
+    }
+
+/**
+ * The diagram's side in pixels: the square as large as [width] and [height] allow, but never larger than the photo's
+ * own [photo] pixels. Blown up past them the 1024 px photo blurred (owner, 2026-11-20, on its side: the column's 570 dp
+ * made it about 1570 px). [height] may be unbounded ([Constraints.Infinity]) in a scrolling column.
+ */
+internal fun diagramSide(
+    width: Int,
+    height: Int,
+    photo: Int,
+): Int = minOf(width, height, photo)
 
 /** A key's callout: its press as an icon and a name (dimmed when nothing); the call key's in brand. */
 @Composable

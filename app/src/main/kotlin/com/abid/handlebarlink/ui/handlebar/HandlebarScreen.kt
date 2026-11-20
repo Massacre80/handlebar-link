@@ -4,7 +4,6 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,16 +59,12 @@ fun HandlebarScreen(
 ) {
     val callouts = remember(state) { keyCallouts(state.situation) { state.press(it).action } }
     if (LocalWindowLayout.current == WindowLayout.PANES) {
-        // On its side: the switch beside its settings, as large as the pane's height allows (it was the column's
+        // On its side: the switch beside its settings, as large as the pane's room allows (it was the column's
         // full width, 570 dp, and the 1024 px photo was blown up past its pixels), the rest scrolling next to it.
         SubPagePanes(
             stringResource(R.string.handlebar_title),
             onBack,
-            start = {
-                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                    SwitchDiagram(callouts, Modifier.size(minOf(maxWidth, maxHeight)))
-                }
-            },
+            start = { SwitchDiagram(callouts, Modifier.weight(1f).fillMaxWidth()) },
         ) {
             SituationBlock(state, onSituation)
             SwitchKey.entries.forEach { key -> KeyBlock(key, state, onPress) }

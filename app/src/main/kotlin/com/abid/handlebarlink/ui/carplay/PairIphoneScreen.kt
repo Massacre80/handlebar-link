@@ -43,6 +43,7 @@ import com.abid.handlebarlink.ui.setup.SetupTopBar
 import com.abid.handlebarlink.ui.setup.WaitingRing
 import com.abid.handlebarlink.ui.setup.setupListTop
 import com.abid.handlebarlink.ui.setup.setupPanes
+import com.abid.handlebarlink.ui.setup.setupSides
 import java.util.Locale
 
 /**
@@ -113,7 +114,7 @@ private fun StepsPage(
         },
     ) {
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
+            Modifier.padding(start = setupSides(), end = setupSides(), top = setupListTop()),
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
             PAIR_STEPS.forEachIndexed { index, (title, detail) ->
@@ -154,7 +155,7 @@ private fun WaitingPage(
             centered = true,
         )
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
+            Modifier.padding(start = setupSides(), end = setupSides(), top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
         ) {
             PhoneCard(
@@ -209,7 +210,7 @@ private fun PairingPage(
             state.otherName ?: stringResource(R.string.pair_a_phone),
             stringResource(R.string.pair_pairing),
             lit = true,
-            modifier = Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
+            modifier = Modifier.padding(start = setupSides(), end = setupSides(), top = spacing.s24),
         )
         // Android's dialog covers the lower half: the dial and the words sit above it (as setup's waiting screen).
         Spacer(Modifier.weight(if (panes) 1f else PAIRING_BOTTOM_WEIGHT))
@@ -249,7 +250,7 @@ private fun PairedPage(
             state.paired?.name.orEmpty(),
             stringResource(R.string.pair_paired_line),
             lit = true,
-            modifier = Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
+            modifier = Modifier.padding(start = setupSides(), end = setupSides(), top = spacing.s24),
         )
         Spacer(Modifier.weight(1f))
         Column(

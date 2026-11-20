@@ -126,7 +126,7 @@ internal fun ReadyPage(
         },
     ) {
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
+            Modifier.padding(start = setupSides(), end = setupSides(), top = setupListTop()),
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
             READY_STEPS.forEachIndexed { index, (title, detail) ->
@@ -162,7 +162,7 @@ internal fun ChoosePage(
         },
     ) {
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
+            Modifier.padding(start = setupSides(), end = setupSides(), top = setupListTop()),
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
             val (meters, others) = state.meters.partition { it.honda }
@@ -240,7 +240,7 @@ internal fun WaitingPage(
             ProblemRow(
                 it,
                 { actions.onFix(it) },
-                Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
+                Modifier.padding(start = setupSides(), end = setupSides(), top = spacing.s24),
             )
         }
         // Android's sheet covers the lower half: the ring and the words sit above it.
@@ -271,14 +271,14 @@ internal fun DonePage(
     ) {
         if (panes) Spacer(Modifier.weight(1f))
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
+            Modifier.padding(start = setupSides(), end = setupSides(), top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s20),
         ) {
             SetupHeading(
                 null,
                 stringResource(R.string.setup_done_title),
                 stringResource(R.string.setup_done_text, name),
-                Modifier.padding(horizontal = spacing.s8),
+                Modifier.padding(horizontal = spacing.s24 - setupSides()),
             )
             PermissionList(
                 listOf(
