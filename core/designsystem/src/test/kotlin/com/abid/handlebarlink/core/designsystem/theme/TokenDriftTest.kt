@@ -265,6 +265,7 @@ class TokenDriftTest {
             "size-tab-bar" to z.tabBar,
             "size-tab-rail" to z.tabRail,
             "size-content-max" to z.contentMax,
+            "size-hero-text" to z.heroText,
             "size-handle-width" to z.handleWidth,
             "size-handle-height" to z.handleHeight,
         )

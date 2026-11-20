@@ -64,6 +64,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.core.designsystem.theme.centred
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.heroTextMax
 import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
@@ -146,7 +147,7 @@ internal fun ColumnScope.HeroState(hero: CarPlayHero) {
         hero.detail.words(),
         HlTheme.typography.body.centred(),
         colors.inkMuted,
-        Modifier.padding(horizontal = spacing.s8),
+        Modifier.padding(horizontal = spacing.s8).widthIn(max = heroTextMax()),
     )
 }
 

@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -74,6 +75,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.core.designsystem.theme.centred
 import com.abid.handlebarlink.setup.FoundMeter
 import com.abid.handlebarlink.setup.SetupProblem
+import com.abid.handlebarlink.ui.frame.heroTextMax
 
 /** Back and the three step dots; [step] 1–3 lights the dots up to it. */
 @Composable
@@ -140,7 +142,11 @@ internal fun SetupHeading(
             colors.ink,
             Modifier.semantics { heading() },
         )
-        HlText(text, if (centered) setupLead().centred() else setupLead(), colors.inkMuted)
+        if (centered) {
+            HlText(text, setupLead().centred(), colors.inkMuted, Modifier.widthIn(max = heroTextMax()))
+        } else {
+            HlText(text, setupLead(), colors.inkMuted)
+        }
     }
 }
 

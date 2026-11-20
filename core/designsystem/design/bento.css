@@ -130,6 +130,7 @@
   --size-tab-bar: 64px;
   --size-tab-rail: 64px;       /* landscape tab rail: the bar on its side, the tab (52) and the 6 px inset each side */
   --size-content-max: 600px;   /* widest content column: the compact width class (< 600 dp) */
+  --size-hero-text: 260px;     /* a landscape hero's centred subtext, widest line (Paper "Tab 1L") */
   --size-handle-width: 40px;
   --size-handle-height: 5px;
   --stroke-hairline: 1px;

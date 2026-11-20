@@ -118,6 +118,11 @@ public data class HlSizes(
     val tabRail: Dp = 64.dp,
     /** The widest content column; wider windows centre it (the compact width class ends at 600 dp). */
     val contentMax: Dp = 600.dp,
+    /**
+     * The widest line of a hero's centred subtext on its side (Paper "Tab 1L — No iPhone yet, landscape (Night)": "Pair
+     * it once here. CarPlay then" over "connects by itself on every ride.").
+     */
+    val heroText: Dp = 260.dp,
     /** Sheet handle width. */
     val handleWidth: Dp = 40.dp,
     /** Sheet handle height. */

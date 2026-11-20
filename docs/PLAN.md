@@ -164,7 +164,11 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   Handlebar page (`SubPagePanes`: the switch as large as the pane's height allows | situations, keys, reset).
   The tab pages (Devices, Garage) fill the frame like Home (the same margins as Home's cards); Settings and
   its pages and Add device keep the 600 dp column, centred in the space left by the mirrored sides and the rail.
-  Sheets keep their centred 600 dp width. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
+  Sheets keep their centred 600 dp width. A hero's centred subtext keeps to `size-hero-text` (260 dp, `heroTextMax`;
+  Paper "Tab 1L — No iPhone yet, landscape (Night)": "Pair it once here. CarPlay then" over "connects by itself on
+  every ride.", balanced by `centred()`): the CarPlay tab's hero, the waiting screens' centred lines (setup and
+  iPhone pairing) and the empty Garage tab; upright the column sets the width as before. The Devices tab's empty
+  state is left-aligned, not a hero, so it is not limited. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
   side) and their panes scroll to the screen edge. The switch photo is never drawn past its own 1024 px
   (`diagramSide`), and its callouts frost it (`glassBlur`, the cards' glass).
 - **The bike never overlaps the header:** the header has its own band and the bike fits the space left (whole, not

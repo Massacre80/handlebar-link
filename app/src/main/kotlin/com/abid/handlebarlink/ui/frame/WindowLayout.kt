@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.unit.Dp
 import androidx.window.core.layout.WindowSizeClass
+import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 
 /**
  * How the app arranges its pages for the window (docs/PLAN.md "Landscape layout"), decided from the window size
@@ -46,6 +47,19 @@ fun currentWindowLayout(): WindowLayout = windowLayout(currentWindowAdaptiveInfo
  * unless they provide [WindowLayout.PANES] themselves (the landscape screenshots), so the portrait references hold.
  */
 val LocalWindowLayout = compositionLocalOf { WindowLayout.COLUMN }
+
+/**
+ * The widest line of a hero's centred subtext in [layout]: [heroText] (HlSizes.heroText, Paper "Tab 1L") on its side,
+ * where a pane would otherwise run it into two long lines; unbounded upright, where the column sets it.
+ */
+fun heroTextMax(
+    layout: WindowLayout,
+    heroText: Dp,
+): Dp = if (layout == WindowLayout.PANES) heroText else Dp.Unspecified
+
+/** [heroTextMax] for the current layout, for `Modifier.widthIn(max = …)`. */
+@Composable
+fun heroTextMax(): Dp = heroTextMax(LocalWindowLayout.current, HlTheme.sizes.heroText)
 
 /**
  * A tab page's end padding beside the rail, beyond the mirrored [side] every page already pads: the rail's [width],
