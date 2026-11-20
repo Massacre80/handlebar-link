@@ -41,6 +41,8 @@ import com.abid.handlebarlink.ui.setup.SetupHeading
 import com.abid.handlebarlink.ui.setup.SetupPage
 import com.abid.handlebarlink.ui.setup.SetupTopBar
 import com.abid.handlebarlink.ui.setup.WaitingRing
+import com.abid.handlebarlink.ui.setup.setupListTop
+import com.abid.handlebarlink.ui.setup.setupPanes
 import java.util.Locale
 
 /**
@@ -78,23 +80,8 @@ private fun StepsPage(
     actions: PairIphoneActions,
 ) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        SetupTopBar(1, actions.onBack)
-        SetupHeading(
-            1,
-            stringResource(R.string.pair_steps_title),
-            stringResource(R.string.pair_steps_text),
-            Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
-        )
-        Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s16 * 2),
-            verticalArrangement = Arrangement.spacedBy(spacing.s10),
-        ) {
-            PAIR_STEPS.forEachIndexed { index, (title, detail) ->
-                HlStepRow(index + 1, stringResource(title), stringResource(detail))
-            }
-        }
-        Spacer(Modifier.weight(1f))
+    val panes = setupPanes()
+    val visible: @Composable () -> Unit = {
         Column(
             Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
@@ -109,6 +96,35 @@ private fun StepsPage(
             Footnote(stringResource(R.string.pair_needs))
         }
     }
+    SetupPage(
+        start = {
+            SetupTopBar(1, actions.onBack)
+            SetupHeading(
+                1,
+                stringResource(R.string.pair_steps_title),
+                stringResource(R.string.pair_steps_text),
+                Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
+            )
+            // On its side the button stays under the heading, on screen while the steps fill the other pane.
+            if (panes) {
+                Spacer(Modifier.weight(1f))
+                visible()
+            }
+        },
+    ) {
+        Column(
+            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
+            verticalArrangement = Arrangement.spacedBy(spacing.s10),
+        ) {
+            PAIR_STEPS.forEachIndexed { index, (title, detail) ->
+                HlStepRow(index + 1, stringResource(title), stringResource(detail))
+            }
+        }
+        if (!panes) {
+            Spacer(Modifier.weight(1f))
+            visible()
+        }
+    }
 }
 
 /** iPhone 2a, "Waiting for your iPhone": the dial, this phone's name and the time it stays visible. */
@@ -120,10 +136,16 @@ private fun WaitingPage(
 ) {
     val spacing = HlTheme.spacing
     val visible = (state.secondsLeft ?: 0) > 0
-    SetupPage {
-        SetupTopBar(2, actions.onBack)
-        Spacer(Modifier.weight(1f))
-        WaitingRing(failed = state.problem != null, Modifier.align(Alignment.CenterHorizontally))
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            SetupTopBar(2, actions.onBack)
+            Spacer(Modifier.weight(1f))
+            WaitingRing(failed = state.problem != null, Modifier.align(Alignment.CenterHorizontally))
+            if (panes) Spacer(Modifier.weight(1f))
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         SetupHeading(
             2,
             stringResource(R.string.pair_waiting_title),
@@ -165,10 +187,16 @@ private fun PairingPage(
     actions: PairIphoneActions,
 ) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        SetupTopBar(2, actions.onBack)
-        Spacer(Modifier.weight(1f))
-        WaitingRing(failed = false, Modifier.align(Alignment.CenterHorizontally))
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            SetupTopBar(2, actions.onBack)
+            Spacer(Modifier.weight(1f))
+            WaitingRing(failed = false, Modifier.align(Alignment.CenterHorizontally))
+            if (panes) Spacer(Modifier.weight(1f))
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         SetupHeading(
             2,
             stringResource(R.string.pair_code_title),
@@ -184,7 +212,7 @@ private fun PairingPage(
             modifier = Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
         )
         // Android's dialog covers the lower half: the dial and the words sit above it (as setup's waiting screen).
-        Spacer(Modifier.weight(PAIRING_BOTTOM_WEIGHT))
+        Spacer(Modifier.weight(if (panes) 1f else PAIRING_BOTTOM_WEIGHT))
     }
 }
 
@@ -196,13 +224,19 @@ private fun PairedPage(
 ) {
     val spacing = HlTheme.spacing
     val colors = HlTheme.colors
-    SetupPage {
-        SetupTopBar(STEPS, actions.onBack)
-        Spacer(Modifier.weight(1f))
-        Box(Modifier.align(Alignment.CenterHorizontally), contentAlignment = Alignment.Center) {
-            SignalRing(colors.brand, colors.track, colors.raisedLo, progress = null, size = HlTheme.sizes.gauge)
-            HlIcon(HlIcons.Check, colors.brand, size = HlTheme.sizes.icon * 2)
-        }
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            SetupTopBar(STEPS, actions.onBack)
+            Spacer(Modifier.weight(1f))
+            Box(Modifier.align(Alignment.CenterHorizontally), contentAlignment = Alignment.Center) {
+                SignalRing(colors.brand, colors.track, colors.raisedLo, progress = null, size = HlTheme.sizes.gauge)
+                HlIcon(HlIcons.Check, colors.brand, size = HlTheme.sizes.icon * 2)
+            }
+            if (panes) Spacer(Modifier.weight(1f))
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         SetupHeading(
             STEPS,
             stringResource(R.string.pair_paired_title),

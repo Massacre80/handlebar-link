@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.requiredSize
+import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -119,6 +120,20 @@ fun WelcomeBike(modifier: Modifier = Modifier) {
 fun WholeBike(modifier: Modifier = Modifier) {
     BoxWithConstraints(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         BikeStage(width = maxWidth * WHOLE_WIDTH)
+    }
+}
+
+/**
+ * The whole bike as large as [modifier]'s box allows, centred: limited by the width or by the height, whichever is
+ * shorter, with room below for its floor reflection (landscape panes: Home's bike pane and setup's).
+ */
+@Composable
+fun FittedBike(modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
+        val reflected = RENDER_ASPECT * (1f + REFLECTION_DEPTH)
+        val width = minOf(maxWidth, maxHeight / reflected)
+        // The bike and its reflection are centred as one: the stage at the top, the reflection's room below.
+        Box(Modifier.size(width, width * reflected), contentAlignment = Alignment.TopCenter) { BikeStage(width) }
     }
 }
 

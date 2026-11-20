@@ -4,6 +4,7 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,7 +38,10 @@ import com.abid.handlebarlink.ui.controls.ActionChoice
 import com.abid.handlebarlink.ui.controls.actionName
 import com.abid.handlebarlink.ui.controls.isDestructive
 import com.abid.handlebarlink.ui.controls.unavailableText
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.settings.SubPage
+import com.abid.handlebarlink.ui.settings.SubPagePanes
 
 /**
  * Handlebar controls with smart buttons (Paper "Handlebar — Smart buttons"; like the earbuds apps' control
@@ -54,9 +58,27 @@ fun HandlebarScreen(
     onReset: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val callouts = remember(state) { keyCallouts(state.situation) { state.press(it).action } }
+    if (LocalWindowLayout.current == WindowLayout.PANES) {
+        // On its side: the switch beside its settings, as large as the pane's height allows (it was the column's
+        // full width, 570 dp, and the 1024 px photo was blown up past its pixels), the rest scrolling next to it.
+        SubPagePanes(
+            stringResource(R.string.handlebar_title),
+            onBack,
+            start = {
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
+                    SwitchDiagram(callouts, Modifier.size(minOf(maxWidth, maxHeight)))
+                }
+            },
+        ) {
+            SituationBlock(state, onSituation)
+            SwitchKey.entries.forEach { key -> KeyBlock(key, state, onPress) }
+            HlSecondaryButton(stringResource(R.string.handlebar_reset), onReset, Modifier.fillMaxWidth())
+        }
+        return
+    }
     SubPage(stringResource(R.string.handlebar_title), onBack) {
         SituationBlock(state, onSituation)
-        val callouts = remember(state) { keyCallouts(state.situation) { state.press(it).action } }
         SwitchDiagram(callouts, Modifier.fillMaxWidth())
         SwitchKey.entries.forEach { key -> KeyBlock(key, state, onPress) }
         HlSecondaryButton(stringResource(R.string.handlebar_reset), onReset, Modifier.fillMaxWidth())

@@ -50,16 +50,26 @@ import com.abid.handlebarlink.ui.permissions.PermissionList
 @Composable
 internal fun WelcomePage(onStart: () -> Unit) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        Wordmark {
-            HlText(
-                stringResource(R.string.setup_overline).uppercase(),
-                HlTheme.typography.overline,
-                HlTheme.colors.inkMuted,
-            )
-        }
-        Spacer(Modifier.weight(1f))
-        WelcomeBike()
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            Wordmark {
+                HlText(
+                    stringResource(R.string.setup_overline).uppercase(),
+                    HlTheme.typography.overline,
+                    HlTheme.colors.inkMuted,
+                )
+            }
+            // On its side the whole bike, fitted to its pane; upright it runs off the left like the artboard.
+            if (panes) {
+                FittedBike(Modifier.weight(1f).fillMaxWidth().padding(top = spacing.s16))
+            } else {
+                Spacer(Modifier.weight(1f))
+                WelcomeBike()
+            }
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         Column(
             Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s24),
@@ -77,6 +87,7 @@ internal fun WelcomePage(onStart: () -> Unit) {
                 chevron = true,
             )
         }
+        if (panes) Spacer(Modifier.weight(1f))
     }
 }
 
@@ -87,23 +98,8 @@ internal fun ReadyPage(
     actions: SetupActions,
 ) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        SetupTopBar(1, actions.onBack)
-        SetupHeading(
-            1,
-            stringResource(R.string.setup_ready_title),
-            stringResource(R.string.setup_ready_text),
-            Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
-        )
-        Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s16 * 2),
-            verticalArrangement = Arrangement.spacedBy(spacing.s10),
-        ) {
-            READY_STEPS.forEachIndexed { index, (title, detail) ->
-                HlStepRow(index + 1, stringResource(title), stringResource(detail))
-            }
-        }
-        Spacer(Modifier.weight(1f))
+    val panes = setupPanes()
+    val find: @Composable () -> Unit = {
         Column(
             Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
@@ -111,6 +107,35 @@ internal fun ReadyPage(
             ProblemRow(problem, actions.onFix)
             HlButton(stringResource(R.string.setup_find), actions.onFind, Modifier.fillMaxWidth(), brand = true)
             Footnote(stringResource(R.string.setup_needs))
+        }
+    }
+    SetupPage(
+        start = {
+            SetupTopBar(1, actions.onBack)
+            SetupHeading(
+                1,
+                stringResource(R.string.setup_ready_title),
+                stringResource(R.string.setup_ready_text),
+                Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
+            )
+            // On its side Find my bike stays under the heading, on screen while the steps fill the other pane.
+            if (panes) {
+                Spacer(Modifier.weight(1f))
+                find()
+            }
+        },
+    ) {
+        Column(
+            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
+            verticalArrangement = Arrangement.spacedBy(spacing.s10),
+        ) {
+            READY_STEPS.forEachIndexed { index, (title, detail) ->
+                HlStepRow(index + 1, stringResource(title), stringResource(detail))
+            }
+        }
+        if (!panes) {
+            Spacer(Modifier.weight(1f))
+            find()
         }
     }
 }
@@ -125,16 +150,19 @@ internal fun ChoosePage(
     actions: SetupActions,
 ) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        SetupTopBar(2, actions.onBack)
-        SetupHeading(
-            2,
-            stringResource(R.string.setup_choose_title),
-            stringResource(R.string.setup_choose_text),
-            Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
-        )
+    SetupPage(
+        start = {
+            SetupTopBar(2, actions.onBack)
+            SetupHeading(
+                2,
+                stringResource(R.string.setup_choose_title),
+                stringResource(R.string.setup_choose_text),
+                Modifier.padding(start = spacing.s24, end = spacing.s24, top = spacing.s24 + spacing.s12),
+            )
+        },
+    ) {
         Column(
-            Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s16 * 2),
+            Modifier.padding(start = spacing.s16, end = spacing.s16, top = setupListTop()),
             verticalArrangement = Arrangement.spacedBy(spacing.s10),
         ) {
             val (meters, others) = state.meters.partition { it.honda }
@@ -186,10 +214,17 @@ internal fun WaitingPage(
 ) {
     val spacing = HlTheme.spacing
     val name = state.chosen?.name.orEmpty()
-    SetupPage {
-        SetupTopBar(STEPS, actions.onBack)
-        Spacer(Modifier.weight(1f))
-        WaitingRing(failed = state.problem != null, Modifier.align(Alignment.CenterHorizontally))
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            SetupTopBar(STEPS, actions.onBack)
+            Spacer(Modifier.weight(1f))
+            WaitingRing(failed = state.problem != null, Modifier.align(Alignment.CenterHorizontally))
+            // On its side the ring stands in the middle of its pane, the words in the middle of theirs.
+            if (panes) Spacer(Modifier.weight(1f))
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         SetupHeading(
             STEPS,
             if (step == SetupStep.LINKING) {
@@ -209,7 +244,7 @@ internal fun WaitingPage(
             )
         }
         // Android's sheet covers the lower half: the ring and the words sit above it.
-        Spacer(Modifier.weight(WAITING_BOTTOM_WEIGHT))
+        Spacer(Modifier.weight(if (panes) 1f else WAITING_BOTTOM_WEIGHT))
     }
 }
 
@@ -221,11 +256,20 @@ internal fun DonePage(
     actions: SetupActions,
 ) {
     val spacing = HlTheme.spacing
-    SetupPage {
-        Wordmark { StatusPill(stringResource(R.string.pill_connected), on = true) }
-        Spacer(Modifier.weight(1f))
-        WholeBike()
-        Spacer(Modifier.weight(1f))
+    val panes = setupPanes()
+    SetupPage(
+        start = {
+            Wordmark { StatusPill(stringResource(R.string.pill_connected), on = true) }
+            if (panes) {
+                FittedBike(Modifier.weight(1f).fillMaxWidth().padding(top = spacing.s16))
+            } else {
+                Spacer(Modifier.weight(1f))
+                WholeBike()
+                Spacer(Modifier.weight(1f))
+            }
+        },
+    ) {
+        if (panes) Spacer(Modifier.weight(1f))
         Column(
             Modifier.padding(start = spacing.s16, end = spacing.s16, top = spacing.s24),
             verticalArrangement = Arrangement.spacedBy(spacing.s20),
@@ -260,6 +304,7 @@ internal fun DonePage(
                 Footnote(stringResource(R.string.setup_done_auto))
             }
         }
+        if (panes) Spacer(Modifier.weight(1f))
     }
 }
 

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredWidth
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -61,6 +62,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
+import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
@@ -79,7 +81,7 @@ internal fun HomeBento(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -90,67 +92,94 @@ internal fun HomeBento(
                 .padding(horizontal = spacing.s16),
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
         ) {
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = spacing.s8),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Pill(state.link)
-                Spacer(Modifier.weight(1f))
-                HlIconButton(HlIcons.Settings, stringResource(R.string.settings), actions.onSettings)
-            }
+            BentoTopRow(state.link, actions.onSettings)
             BentoBikeCard(state.rideData)
             if (state.rideData) BentoStats()
             CarPlayCard(state.carPlay)
-            CardRow {
-                val device = state.device
-                DeviceRow(
-                    device?.name ?: stringResource(R.string.intercom_none),
-                    bentoDeviceDetail(device),
-                    connected = device?.connected,
-                    modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
-                    // The device's page; with none added, Add device.
-                    onClick = if (device != null) actions.onDevice else actions.onAddDevice,
-                )
-                // Bento's slot has no second line in the artboard (it would not fit its narrow column).
-                // Grows into the Add device page; the slot keeps its own size inside (no stretching).
-                val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
-                Box(Modifier.weight(BENTO_ADD_WEIGHT).containerTransform(addDevice).fillMaxHeight()) {
-                    AddDeviceSlot(
-                        stringResource(R.string.add_device_short),
-                        detail = null,
-                        Modifier.containerContent(addDevice).fillMaxSize(),
-                        onClick = actions.onAddDevice,
-                    )
-                }
-            }
+            BentoDevices(state.device, actions)
             HandlebarCard(state.handlebar, actions.onHandlebar)
             Spacer(Modifier.height(spacing.s8))
         }
     }
 }
 
-/** The bike card: name and details, the render, and the odometer once the meter reports it ([rideData]). */
+/** The link pill and settings, above the bike card. */
 @Composable
-private fun BentoBikeCard(rideData: Boolean) {
+internal fun BentoTopRow(
+    link: LinkStatus,
+    onSettings: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = HlTheme.spacing.s8),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Pill(link)
+        Spacer(Modifier.weight(1f))
+        HlIconButton(HlIcons.Settings, stringResource(R.string.settings), onSettings)
+    }
+}
+
+/** The device row (the device's page, or Add device when none) and the Add device slot. */
+@Composable
+internal fun BentoDevices(
+    device: HomeDevice?,
+    actions: HomeActions,
+) {
+    CardRow {
+        DeviceRow(
+            device?.name ?: stringResource(R.string.intercom_none),
+            bentoDeviceDetail(device),
+            connected = device?.connected,
+            modifier = Modifier.weight(BENTO_DEVICE_WEIGHT).fillMaxHeight(),
+            // The device's page; with none added, Add device.
+            onClick = if (device != null) actions.onDevice else actions.onAddDevice,
+        )
+        // Bento's slot has no second line in the artboard (it would not fit its narrow column).
+        // Grows into the Add device page; the slot keeps its own size inside (no stretching).
+        val addDevice = rememberContainerTransform(ADD_DEVICE, expanded = false)
+        Box(Modifier.weight(BENTO_ADD_WEIGHT).containerTransform(addDevice).fillMaxHeight()) {
+            AddDeviceSlot(
+                stringResource(R.string.add_device_short),
+                detail = null,
+                Modifier.containerContent(addDevice).fillMaxSize(),
+                onClick = actions.onAddDevice,
+            )
+        }
+    }
+}
+
+/**
+ * The bike card: name and details, the render, and the odometer once the meter reports it ([rideData]). Upright it
+ * has the design's height; [fitted] (landscape) it fills [modifier]'s height and the bike shrinks to the room under
+ * the name, so the two never overlap.
+ */
+@Composable
+internal fun BentoBikeCard(
+    rideData: Boolean,
+    modifier: Modifier = Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard),
+    fitted: Boolean = false,
+) {
     val spacing = HlTheme.spacing
     val colors = HlTheme.colors
     val type = HlTheme.typography
-    HlCard(Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard)) {
-        // The bike stands on the design's ground shadow ("Home 2 — Minimal"): tyre contact shadows and a
-        // soft ambient one, scaled with the render and lifted off the card's edge so they stay visible.
-        Box(
-            Modifier
-                .align(Alignment.BottomEnd)
-                .padding(bottom = spacing.s12)
-                .fillMaxWidth(BENTO_BIKE_WIDTH)
-                .aspectRatio(BikeGroundShadow.boxWidth / BikeGroundShadow.boxHeight)
-                .groundShadow(BikeGroundShadow, colors.ink),
-        ) {
-            BikeImage(Modifier.fillMaxSize())
+    HlCard(modifier) {
+        val name: @Composable () -> Unit = {
+            Column(Modifier.padding(spacing.s16), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+                HlText(stringResource(R.string.bike_full_name), type.lead, colors.ink)
+                HlText(stringResource(R.string.bike_details), type.label, colors.inkMuted)
+            }
         }
-        Column(Modifier.padding(spacing.s16), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
-            HlText(stringResource(R.string.bike_full_name), type.lead, colors.ink)
-            HlText(stringResource(R.string.bike_details), type.label, colors.inkMuted)
+        if (fitted) {
+            Column(Modifier.fillMaxSize()) {
+                name()
+                BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomEnd) {
+                    val width = minOf(maxWidth * BENTO_BIKE_WIDTH, (maxHeight - spacing.s12) * GROUND_RATIO)
+                    BentoBike(Modifier, Modifier.width(width))
+                }
+            }
+        } else {
+            BentoBike(Modifier.align(Alignment.BottomEnd), Modifier.fillMaxWidth(BENTO_BIKE_WIDTH))
+            name()
         }
         if (rideData) {
             Column(
@@ -164,9 +193,29 @@ private fun BentoBikeCard(rideData: Boolean) {
     }
 }
 
+/**
+ * The bike on the design's ground shadow ("Home 2 — Minimal"): tyre contact shadows and a soft ambient one, scaled
+ * with the render and lifted off the card's edge so they stay visible; [width] sizes it.
+ */
+@Composable
+private fun BentoBike(
+    modifier: Modifier,
+    width: Modifier,
+) {
+    Box(
+        modifier
+            .padding(bottom = HlTheme.spacing.s12)
+            .then(width)
+            .aspectRatio(GROUND_RATIO)
+            .groundShadow(BikeGroundShadow, HlTheme.colors.ink),
+    ) {
+        BikeImage(Modifier.fillMaxSize())
+    }
+}
+
 /** Today's distance and the next service: empty until ride logging and the Garage exist. */
 @Composable
-private fun BentoStats() {
+internal fun BentoStats() {
     val spacing = HlTheme.spacing
     val colors = HlTheme.colors
     val type = HlTheme.typography
@@ -202,3 +251,6 @@ private fun BentoStats() {
 private const val BENTO_BIKE_WIDTH = 0.77f
 private const val BENTO_DEVICE_WEIGHT = 1.25f
 private const val BENTO_ADD_WEIGHT = 0.75f
+
+/** The ground shadow's box, which the render fills. */
+private val GROUND_RATIO = BikeGroundShadow.boxWidth / BikeGroundShadow.boxHeight

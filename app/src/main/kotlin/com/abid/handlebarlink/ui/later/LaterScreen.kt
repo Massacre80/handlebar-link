@@ -32,6 +32,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.frame.pageTop
 
 /**
  * A tab whose feature is not built yet: its title and what will live there. Empty on purpose; the tab
@@ -49,7 +50,7 @@ fun LaterScreen(
     Box(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
             .padding(horizontal = spacing.s24),
         contentAlignment = Alignment.Center,

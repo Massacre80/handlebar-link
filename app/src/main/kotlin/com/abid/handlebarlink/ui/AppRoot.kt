@@ -6,18 +6,24 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.VisibilityThreshold
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -43,8 +49,10 @@ import com.abid.handlebarlink.controls.ScreenRequest
 import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlStatusBarProtection
 import com.abid.handlebarlink.core.designsystem.component.HlTab
 import com.abid.handlebarlink.core.designsystem.component.HlTabBar
+import com.abid.handlebarlink.core.designsystem.component.HlTabRail
 import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -53,6 +61,10 @@ import com.abid.handlebarlink.startsRideOnResume
 import com.abid.handlebarlink.ui.carplay.carPlayEntries
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.currentWindowLayout
+import com.abid.handlebarlink.ui.frame.pageSides
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
@@ -96,7 +108,8 @@ import com.abid.handlebarlink.ui.setup.SetupRoute
 
 /**
  * The app's frame: the background, then first-time setup until a bike is saved (docs/PLAN.md "First-time
- * setup"), and the tabs after that. While the setting loads (a few milliseconds) only the background shows.
+ * setup"), and the tabs after that. While the setting loads (a few milliseconds) only the background shows. The
+ * window's [WindowLayout] (column upright, panes on its side) is decided here once for every page.
  */
 @Composable
 fun AppRoot() {
@@ -105,6 +118,17 @@ fun AppRoot() {
     val skipped by main.setupSkipped.collectAsStateWithLifecycle()
     // Skipping setup (temporary) shows the tabs without a bike; the ride still needs one.
     val showTabs = if (skipped) true else bikeChosen
+    CompositionLocalProvider(LocalWindowLayout provides currentWindowLayout()) {
+        Frame(showTabs, bikeChosen == true, main)
+    }
+}
+
+@Composable
+private fun Frame(
+    showTabs: Boolean?,
+    bikeChosen: Boolean,
+    main: MainViewModel,
+) {
     HlBackground(Modifier.fillMaxSize()) {
         Crossfade(showTabs, animationSpec = HlTheme.motion.fade(), label = "setup or tabs") { tabs ->
             when (tabs) {
@@ -115,7 +139,7 @@ fun AppRoot() {
                 }
 
                 true -> {
-                    RideAutoStart(main, bikeChosen == true)
+                    RideAutoStart(main, bikeChosen)
                     Tabs(main)
                 }
             }
@@ -141,13 +165,17 @@ private fun BoxScope.Tabs(main: MainViewModel) {
         }
     }
     val spacing = HlTheme.spacing
-    // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
+    val panes = LocalWindowLayout.current == WindowLayout.PANES
+    val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val barSpace =
-        PaddingValues(
-            bottom =
-                HlTheme.sizes.tabBar + spacing.s20 * 2 +
-                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-        )
+        if (panes) {
+            // On its side, room for the rail on the end edge (its width and a 16 dp gap either side) and the
+            // navigation bar below; the mirrored sides come from each page's insets (WindowInsets.pageTop).
+            PaddingValues(end = HlTheme.sizes.tabRail + spacing.s16 * 2, bottom = navigationBar)
+        } else {
+            // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
+            PaddingValues(bottom = HlTheme.sizes.tabBar + spacing.s20 * 2 + navigationBar)
+        }
     val motion = HlTheme.motion
     val entries =
         entryProvider {
@@ -181,7 +209,11 @@ private fun BoxScope.Tabs(main: MainViewModel) {
             }
         }
     }
-    FloatingTabBar(state, navigator, barBackdrop)
+    val onTabPage = state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route }
+    // On its side the tab pages' second pane scrolls behind the status bar; keep the clock readable (full pages
+    // such as Settings draw their own).
+    if (panes && onTabPage) HlStatusBarProtection(Modifier.align(Alignment.TopCenter))
+    if (panes) FloatingTabRail(state, navigator, barBackdrop) else FloatingTabBar(state, navigator, barBackdrop)
 }
 
 @Composable
@@ -229,6 +261,38 @@ private fun BoxScope.FloatingTabBar(
                     .navigationBarsPadding()
                     .padding(start = spacing.s16, end = spacing.s16, bottom = spacing.s20)
                     .widthIn(max = HlTheme.sizes.contentMax),
+            backdrop = backdrop,
+        )
+    }
+}
+
+/**
+ * The tab rail floating on the end edge on its side (where CarPlay keeps its dock), centred between the system bars
+ * and as far from the edge as the pages' content is from the other one (the mirrored sides, then 16 dp); it slides
+ * away on full pages like the bar.
+ */
+@Composable
+private fun BoxScope.FloatingTabRail(
+    state: NavigationState,
+    navigator: Navigator,
+    backdrop: Backdrop,
+) {
+    val motion = HlTheme.motion
+    AnimatedVisibility(
+        visible = state.currentPage in TOP_LEVEL_DESTINATIONS.map { it.route },
+        modifier = Modifier.align(Alignment.CenterEnd),
+        enter = slideInHorizontally(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeIn(motion.fade()),
+        exit = slideOutHorizontally(motion.layout(IntOffset.VisibilityThreshold)) { it } + fadeOut(motion.fade()),
+    ) {
+        HlTabRail(
+            tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
+            selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
+            onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
+            modifier =
+                Modifier
+                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
+                    .windowInsetsPadding(WindowInsets.pageSides)
+                    .padding(end = HlTheme.spacing.s16),
             backdrop = backdrop,
         )
     }

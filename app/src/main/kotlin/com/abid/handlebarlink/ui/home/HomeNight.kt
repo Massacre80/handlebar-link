@@ -67,6 +67,7 @@ import com.abid.handlebarlink.ui.BikeImage
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
+import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
@@ -101,9 +102,8 @@ internal fun HomeNight(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .heightIn(min = maxHeight)
-                .windowInsetsPadding(
-                    WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal),
-                ).padding(contentPadding),
+                .windowInsetsPadding(WindowInsets.pageTop)
+                .padding(contentPadding),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             NightHeader(state, actions.onSettings, column)
@@ -130,9 +130,9 @@ internal fun HomeNight(
 
 /** The device tile (the device's page, or Add device when none) and the Add device slot. */
 @Composable
-private fun NightDevices(
+internal fun NightDevices(
     device: HomeDevice?,
-    backdrop: Backdrop,
+    backdrop: Backdrop?,
     onAddDevice: () -> Unit,
     onDevice: () -> Unit,
     modifier: Modifier,
@@ -172,7 +172,7 @@ private fun NightDevices(
 
 /** The bike's wordmark and the link pill, centred; settings top right. */
 @Composable
-private fun NightHeader(
+internal fun NightHeader(
     state: HomeUiState,
     onSettings: () -> Unit,
     modifier: Modifier,
@@ -198,7 +198,7 @@ private fun NightHeader(
 
 /** Service and trip gauges: empty until the Garage and ride logging exist. */
 @Composable
-private fun NightGauges(modifier: Modifier) {
+internal fun NightGauges(modifier: Modifier) {
     val spacing = HlTheme.spacing
     Row(
         modifier.padding(top = spacing.s22, start = spacing.s16, end = spacing.s16),

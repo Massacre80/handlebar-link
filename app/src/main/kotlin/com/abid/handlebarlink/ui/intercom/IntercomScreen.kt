@@ -43,6 +43,7 @@ import com.abid.handlebarlink.ui.controls.actionName
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE_FROM_DEVICES
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
+import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
 import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
@@ -63,7 +64,7 @@ fun IntercomScreen(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
             .wrapContentWidth()
             .widthIn(max = HlTheme.sizes.contentMax)

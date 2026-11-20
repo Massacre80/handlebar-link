@@ -1,10 +1,13 @@
 package com.abid.handlebarlink.ui.setup
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -25,6 +28,9 @@ import com.abid.handlebarlink.setup.FoundMeter
 import com.abid.handlebarlink.setup.SetupProblem
 import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupUiState
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.pageAll
 import com.abid.handlebarlink.ui.navigation.Move
 import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.permissions.Access
@@ -54,28 +60,6 @@ fun SetupScreen(
             SetupStep.LINKING, SetupStep.PAIRING -> WaitingPage(step, state, actions)
             SetupStep.DONE -> DonePage(state.chosen?.name ?: state.linkedAddress.orEmpty(), access, actions)
         }
-    }
-}
-
-/**
- * A setup page: the full screen inside the system bars, at most the content width, scrolling when the text
- * or the screen does not fit (docs/LESSONS.md 22). Its height is at least the screen's, so a weighted
- * spacer pushes the actions to the bottom like the artboards.
- */
-@Composable
-internal fun SetupPage(content: @Composable ColumnScope.() -> Unit) {
-    BoxWithConstraints(Modifier.fillMaxSize()) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = maxHeight)
-                .windowInsetsPadding(WindowInsets.safeDrawing)
-                .wrapContentWidth()
-                .widthIn(max = HlTheme.sizes.contentMax)
-                .padding(bottom = HlTheme.spacing.s24),
-            content = content,
-        )
     }
 }
 

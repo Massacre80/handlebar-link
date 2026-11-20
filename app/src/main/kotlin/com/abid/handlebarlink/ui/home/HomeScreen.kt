@@ -53,8 +53,13 @@ import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.carplay.CarPlayLine
 import com.abid.handlebarlink.ui.carplay.words
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
 
-/** Home in the rider's look. [contentPadding]: room for the floating tab bar. */
+/**
+ * Home in the rider's look: one column upright, two panes on its side ([WindowLayout.PANES]: the bike, the cards).
+ * [contentPadding]: room for the floating tab bar or rail.
+ */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
@@ -65,10 +70,12 @@ fun HomeScreen(
     onHandlebar: () -> Unit = {},
 ) {
     val actions = HomeActions(onSettings, onAddDevice, onDevice, onHandlebar)
-    if (HlTheme.variant == HlThemeVariant.NIGHT) {
-        HomeNight(state, actions, contentPadding)
-    } else {
-        HomeBento(state, actions, contentPadding)
+    val panes = LocalWindowLayout.current == WindowLayout.PANES
+    when {
+        panes && HlTheme.variant == HlThemeVariant.NIGHT -> HomeNightPanes(state, actions, contentPadding)
+        panes -> HomeBentoPanes(state, actions, contentPadding)
+        HlTheme.variant == HlThemeVariant.NIGHT -> HomeNight(state, actions, contentPadding)
+        else -> HomeBento(state, actions, contentPadding)
     }
 }
 

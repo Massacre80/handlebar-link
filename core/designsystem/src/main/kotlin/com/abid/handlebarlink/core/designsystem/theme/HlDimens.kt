@@ -104,6 +104,8 @@ public data class HlSizes(
     val statCard: Dp = 186.dp,
     /** The floating tab bar. */
     val tabBar: Dp = 64.dp,
+    /** The floating tab rail's width (landscape): the selected tab's width and the bar's 6 dp inset on each side. */
+    val tabRail: Dp = 86.dp,
     /** The widest content column; wider windows centre it (the compact width class ends at 600 dp). */
     val contentMax: Dp = 600.dp,
     /** Sheet handle width. */

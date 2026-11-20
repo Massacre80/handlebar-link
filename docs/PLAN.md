@@ -96,6 +96,40 @@ through it (Back from another tab's root goes to Home); switching tabs replaces 
 each page gets saved UI state and its own ViewModel scope (entry decorators). Settings opens on Home's
 stack as a full page without the tab bar. Tabs without a feature show an empty page.
 
+### Landscape layout (owner, 2026-11-20: "the width overall is very bad, fix it properly")
+
+The Poco rides on its side (2246 x 1080, about 817 x 393 dp, notch on one short edge). Portrait stays exactly as
+approved; landscape gets its own arrangement, decided once in `AppRoot` and read by pages from `LocalWindowLayout`.
+
+- **When:** `ui/frame/WindowLayout.kt`: `WindowLayout.PANES` when the window's height is compact (< 480 dp) and its
+  width at least medium (≥ 600 dp), from `currentWindowAdaptiveInfoV2().windowSizeClass` (Android docs "Use window
+  size classes"; `androidx.compose.material3.adaptive:adaptive`, added with `addLibrary`). Phones upright, tablets and
+  small split-screen windows keep `COLUMN`. Previews and screenshot tests default to `COLUMN`, so the portrait
+  references hold; the landscape ones provide `PANES` (`LandscapeScreenshots.kt`, `@Landscape`: 914 x 411 emulator,
+  817 x 393 Poco, and the Poco at font 1.5).
+- **One frame, centred (owner: "not centred"):** on its side the cutout (or a three-button navigation bar) sits on one
+  short edge only. Pages, the rail and full pages pad both sides by the larger side (`MirroredSides`,
+  `WindowInsets.pageTop`/`pageAll`), so everything is centred on the screen, never pushed by the cutout on one side.
+  Upright the sides are zero: no change.
+- **Navigation:** the floating tab bar becomes `HlTabRail` (design system, next to `HlTabBar`: the same glass pill,
+  tabs, labels, chip spring and backdrop blur, stacked; `size-tab-rail` 86 dp = the chip and the bar's 6 dp inset each
+  side) on the **end edge**, where CarPlay keeps its dock (owner, 2026-11-20), centred between the system bars, 16 dp
+  in from the mirrored side. Tab pages get the rail's room as end padding (`barSpace`: rail + 16 dp each side) and the
+  navigation bar as bottom padding instead of the bar's room. Tab pages' second pane is clipped below the status bar
+  and a status-bar protection is drawn over tab pages, so nothing runs under the clock.
+- **Two panes** (equal width, 16 dp gutter, each scrolling on its own when it runs out of height): Home Night (the
+  wordmark, pill and settings in their own band over the whole bike on its ground, `FittedBike`; the cards: device tile
+  and Add device side by side, Handlebar, CarPlay), Home Bento (pill and settings over the bike card filling the pane,
+  its bike sized to the room under the name; the cards in portrait order), setup and in-app iPhone pairing (bike, ring
+  or heading in the first pane, the step's words and actions in the second; Find my bike and Make visible stay under
+  the heading so they are on screen), the CarPlay tab (dial, tag, title, detail | actions and the status rows), the
+  Handlebar page (`SubPagePanes`: the switch as large as the pane's height allows | situations, keys, reset).
+  Single-column pages (Devices, Rides, Garage, Settings and its pages, Add device) keep the 600 dp column, centred in
+  the space left by the mirrored sides and the rail. Sheets keep their centred 600 dp width.
+- **The bike never overlaps the header:** the header has its own band and the bike fits the space left (whole, not
+  cropped); the Handlebar card is no longer laid over the bike (it showed the bike through its unblurred glass), and the
+  switch photo on the Handlebar page is no longer blown up to 570 dp (1024 px source).
+
 ### First-time setup (M4.1, started 2026-11-17 at the owner's request)
 
 Design: Paper "CB350RS", page "Setup" (6 screens). Every rule below is from the official docs (research

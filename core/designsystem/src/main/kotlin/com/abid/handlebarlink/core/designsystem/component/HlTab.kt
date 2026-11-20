@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -96,9 +97,53 @@ public fun HlTabBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 tabs.forEachIndexed { index, tab ->
-                    TabItem(tab, index == selected, this@LookaheadScope) { onSelect(index) }
+                    BarItem(tab, index == selected, this@LookaheadScope) { onSelect(index) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * The floating tab rail ("Component · Tab bar" stood on its end, for landscape): the same glass pill, tabs, labels
+ * and raised chip as [HlTabBar], stacked from the top. Every tab keeps the chip's size, so the chip only slides
+ * (the same spring) and nothing resizes. The app floats it on the screen's end edge, centred vertically, where
+ * CarPlay keeps its dock (owner, 2026-11-20); it is [HlSizes.tabRail] wide.
+ */
+@Composable
+public fun HlTabRail(
+    tabs: List<HlTab>,
+    selected: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    backdrop: Backdrop? = null,
+) {
+    val colors = HlTheme.colors
+    val sizes = HlTheme.sizes
+    val bar = HlTheme.shadows.bar
+    val inset = HlTheme.spacing.s6
+    val gap = HlTheme.spacing.s4
+    Box(
+        modifier
+            .width(sizes.tabRail)
+            .dropShadow(
+                CircleShape,
+                Shadow(radius = bar.blur, color = colors.shadow, offset = DpOffset(0.dp, bar.offsetY)),
+            ).clip(CircleShape)
+            .then(backdrop?.let { Modifier.backdropBlur(it, GLASS_BLUR, GLASS_SATURATION) } ?: Modifier)
+            .background(colors.glass)
+            .border(HlTheme.strokes.hairline, colors.glassEdge, CircleShape),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        val target = with(LocalDensity.current) { (inset + (sizes.tab + gap) * selected).toPx() }
+        val chipY by animateFloatAsState(target, HlTheme.motion.layout(), label = "tab chip")
+        Chip(Modifier.offset { IntOffset(0, chipY.roundToInt()) })
+        Column(
+            Modifier.padding(vertical = inset).selectableGroup(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(gap),
+        ) {
+            tabs.forEachIndexed { index, tab -> RailItem(tab, index == selected) { onSelect(index) } }
         }
     }
 }
@@ -125,29 +170,52 @@ private fun Chip(modifier: Modifier) {
     )
 }
 
+/** A tab of the bar: the active one takes the chip's width, the others share the rest (both animated). */
 @Composable
-private fun RowScope.TabItem(
+private fun RowScope.BarItem(
     tab: HlTab,
     active: Boolean,
     lookahead: LookaheadScope,
     onClick: () -> Unit,
 ) {
-    val colors = HlTheme.colors
     val sizes = HlTheme.sizes
     val motion = HlTheme.motion
     val bounds = BoundsTransform { _: Rect, _: Rect -> motion.layout() }
-    val iconTint by animateColorAsState(if (active) colors.ink else colors.inkSoft, motion.fade(), label = "tab icon")
-    val labelTint by animateColorAsState(
-        if (active) colors.ink else colors.inkMuted,
-        motion.fade(),
-        label = "tab label",
-    )
     val size =
         if (active) {
             Modifier.animateBounds(lookahead, Modifier.size(sizes.tabWidth, sizes.tab), bounds)
         } else {
             Modifier.weight(1f).animateBounds(lookahead, Modifier.height(sizes.tab), bounds)
         }
+    TabItem(tab, active, size, onClick)
+}
+
+/** A tab of the rail: the chip's size, active or not. */
+@Composable
+private fun RailItem(
+    tab: HlTab,
+    active: Boolean,
+    onClick: () -> Unit,
+) {
+    TabItem(tab, active, Modifier.size(HlTheme.sizes.tabWidth, HlTheme.sizes.tab), onClick)
+}
+
+/** A tab's icon and label in [size], recoloured when it becomes [active]; shared by the bar and the rail. */
+@Composable
+private fun TabItem(
+    tab: HlTab,
+    active: Boolean,
+    size: Modifier,
+    onClick: () -> Unit,
+) {
+    val colors = HlTheme.colors
+    val motion = HlTheme.motion
+    val iconTint by animateColorAsState(if (active) colors.ink else colors.inkSoft, motion.fade(), label = "tab icon")
+    val labelTint by animateColorAsState(
+        if (active) colors.ink else colors.inkMuted,
+        motion.fade(),
+        label = "tab label",
+    )
     val press = remember { MutableInteractionSource() }
     Column(
         size

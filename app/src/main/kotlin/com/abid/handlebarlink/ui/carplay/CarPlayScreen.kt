@@ -8,9 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -26,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
@@ -56,6 +61,9 @@ import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.ui.frame.LocalWindowLayout
+import com.abid.handlebarlink.ui.frame.WindowLayout
+import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
 
@@ -74,10 +82,14 @@ fun CarPlayScreen(
     onScreen: () -> Unit = {},
 ) {
     val spacing = HlTheme.spacing
+    if (LocalWindowLayout.current == WindowLayout.PANES) {
+        CarPlayPanes(state, onAction, onIphone, onScreen, contentPadding)
+        return
+    }
     BoxWithConstraints(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Top + WindowInsetsSides.Horizontal))
+            .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding),
     ) {
         Column(
@@ -101,42 +113,55 @@ private fun Hero(
     onAction: (TabAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = HlTheme.colors
-    val spacing = HlTheme.spacing
     Column(
         modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(spacing.s12),
+        verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
     ) {
-        HeroDial(hero.tone, hero.progress)
-        HlTag(stringResource(hero.tag), Modifier.padding(top = spacing.s4), tagTone(hero.tone), dot = true)
-        // The hero changes by itself (starting, running, needs you): TalkBack reads the new title politely. Not the
-        // detail, whose retry countdown ticks every second.
-        HlText(
-            stringResource(hero.title),
-            HlTheme.typography.headline.copy(textAlign = TextAlign.Center),
-            colors.ink,
-            Modifier.semantics {
-                heading()
-                liveRegion = LiveRegionMode.Polite
-            },
-        )
-        HlText(
-            hero.detail.words(),
-            HlTheme.typography.body.copy(textAlign = TextAlign.Center),
-            colors.inkMuted,
-            Modifier.padding(horizontal = spacing.s8),
-        )
-        if (hero.primary != null || hero.ghost != null) {
-            Column(
-                Modifier.fillMaxWidth().padding(top = spacing.s8),
-                verticalArrangement = Arrangement.spacedBy(spacing.s8),
-            ) {
-                hero.primary?.let {
-                    HlButton(stringResource(actionLabel(it)), { onAction(it) }, Modifier.fillMaxWidth(), brand = true)
-                }
-                hero.ghost?.let { HlSecondaryButton(stringResource(actionLabel(it)), { onAction(it) }) }
+        HeroState(hero)
+        HeroActions(hero, onAction, Modifier.padding(top = HlTheme.spacing.s8))
+    }
+}
+
+/** The dial, the state tag, the title and the detail line. */
+@Composable
+internal fun ColumnScope.HeroState(hero: CarPlayHero) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    HeroDial(hero.tone, hero.progress)
+    HlTag(stringResource(hero.tag), Modifier.padding(top = spacing.s4), tagTone(hero.tone), dot = true)
+    // The hero changes by itself (starting, running, needs you): TalkBack reads the new title politely. Not the
+    // detail, whose retry countdown ticks every second.
+    HlText(
+        stringResource(hero.title),
+        HlTheme.typography.headline.copy(textAlign = TextAlign.Center),
+        colors.ink,
+        Modifier.semantics {
+            heading()
+            liveRegion = LiveRegionMode.Polite
+        },
+    )
+    HlText(
+        hero.detail.words(),
+        HlTheme.typography.body.copy(textAlign = TextAlign.Center),
+        colors.inkMuted,
+        Modifier.padding(horizontal = spacing.s8),
+    )
+}
+
+/** The hero's primary and ghost actions, when it has any. */
+@Composable
+internal fun HeroActions(
+    hero: CarPlayHero,
+    onAction: (TabAction) -> Unit,
+    modifier: Modifier,
+) {
+    if (hero.primary != null || hero.ghost != null) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
+            hero.primary?.let {
+                HlButton(stringResource(actionLabel(it)), { onAction(it) }, Modifier.fillMaxWidth(), brand = true)
             }
+            hero.ghost?.let { HlSecondaryButton(stringResource(actionLabel(it)), { onAction(it) }) }
         }
     }
 }
@@ -177,7 +202,7 @@ internal fun tagTone(tone: SignalTone): HlTagTone =
 
 /** The iPhone, the Link and the CarPlay screen, in one group. */
 @Composable
-private fun StatusList(
+internal fun StatusList(
     state: CarPlayUiState,
     onIphone: () -> Unit,
     onScreen: () -> Unit,

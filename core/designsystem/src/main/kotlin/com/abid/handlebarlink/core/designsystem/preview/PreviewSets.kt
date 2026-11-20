@@ -28,3 +28,13 @@ public annotation class LargeText
 @Preview(name = "normal text", widthDp = 411)
 @Preview(name = "large text", widthDp = 411, fontScale = 1.5f)
 public annotation class FontScales
+
+/**
+ * A phone on its side, where the app shows the tab rail and two panes (compact height): the emulator's 2400 x 1080
+ * at 420 dpi and the Poco F1's 2246 x 1080 at 440 dpi, in dp, and the Poco with large text (font scale 1.5).
+ * Previews draw no system bars or cutout.
+ */
+@Preview(name = "914x411", widthDp = 914, heightDp = 411)
+@Preview(name = "817x393", widthDp = 817, heightDp = 393)
+@Preview(name = "817x393 large text", widthDp = 817, heightDp = 393, fontScale = 1.5f)
+public annotation class Landscape
