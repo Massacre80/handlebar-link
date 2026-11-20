@@ -119,7 +119,9 @@ had none, so the counts hold, but every image with the tab bar or rail (four tab
 rail and component sheet, Settings, Permissions and setup's "You're set" (one row) change and are recorded again; the same day every row with a subtext and a trailing element moved its text 4 dp
 further from it and balanced its lines, so most page images change too; then +10 for the Devices tab's empty hero:
 `IntercomNone` now over the tab bar, `IntercomNoneBento` at the artboard and font 1.5, and Devices none Night and Bento
-at `@Landscape`). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+at `@Landscape`; the same day the feature became BikePlay on screen, so every image with the tab bar or rail, the
+CarPlay tab, pairing, the iPhone sheet, Home's card, Settings › Permissions, the handlebar pages and setup's welcome
+change and are recorded again). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

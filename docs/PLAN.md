@@ -173,7 +173,8 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   its pages and Add device keep the 600 dp column, centred in the space left by the mirrored sides and the rail.
   Sheets keep their centred 600 dp width. A hero's centred subtext keeps to `size-hero-text` (260 dp, `heroTextMax`;
   Paper "Tab 1L — No iPhone yet, landscape (Night)": "Pair it once here. CarPlay then" over "connects by itself on
-  every ride.", balanced by `centred()`): the CarPlay tab's hero, the Devices tab's empty hero, the waiting screens'
+  every ride." (the text is BikePlay's two sentences since 2026-11-20, see "BikePlay on screen"), balanced by
+  `centred()`): the CarPlay tab's hero, the Devices tab's empty hero, the waiting screens'
   centred lines (setup and iPhone pairing) and the empty Garage tab; upright the column sets the width as before. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
   side) and their panes scroll to the screen edge. The switch photo is never drawn past its own 1024 px
   (`diagramSide`), and its callouts frost it (`glassBlur`, the cards' glass).
@@ -401,6 +402,22 @@ No milestone starts before the previous one is done.
 
 Our own wireless CarPlay receiver in the app (replacing CarLink), started 2026-11-18 at the owner's request.
 The owner's MFi identity comes from their old CarPlay display (`~/.carlink-private/offline-mfi`, never in git).
+
+### BikePlay on screen (owner decision, 2026-11-20: "rename CarPlay to BikePlay, properly so it's clearer")
+
+- **On screen our feature is BikePlay:** the tab, Home's card, the hero's titles and statuses ("BikePlay is running",
+  "Starting BikePlay", "BikePlay needs your OK"), the buttons (Open BikePlay, Start BikePlay), the "BikePlay screen"
+  row, sheet and display, the iPhone rows and sheet, pairing's "BikePlay connects to it…", the ride notification's
+  "Handlebar controls BikePlay", setup's welcome, Settings › Permissions' "BikePlay" row and the overlay's reason, the
+  handlebar actions (Open BikePlay, Skips in BikePlay…) and the Devices tab's "BikePlay plays through the intercom".
+  The tab's empty hero introduces it: "BikePlay shows your iPhone's CarPlay on the bike." over "Pair it once here; it
+  then connects by itself on every ride."
+- **CarPlay stays only for Apple's side on the iPhone,** so the words match what the rider sees there and what the
+  iPhone checks: "Checking CarPlay" (the iPhone's CarPlay check, step 2 of 4), "Loading the CarPlay identity", "Proving
+  it is a CarPlay receiver", "CarPlay identity files are missing", "CarPlay authentication failed", "The iPhone didn't
+  start CarPlay", and "your iPhone's CarPlay" in the introduction.
+- **Text only:** code identifiers, packages, modules, routes, string resource names, log keys and the engine keep
+  CarPlay; these docs keep CarPlay for the receiver and the protocol.
 
 ### Our CarPlay replaces CarLink (owner decision, 2026-11-20; worktree `carplay-only-app`)
 
