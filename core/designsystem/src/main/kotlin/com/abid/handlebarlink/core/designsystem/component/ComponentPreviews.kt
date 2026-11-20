@@ -162,8 +162,8 @@ internal fun SmartButtons() {
     )
     HlNotice(
         HlIcons.Info,
-        "Coming with Handlebar Link CarPlay",
-        "CarLink can't tell the app a call is ringing. Until our own CarPlay runs, your riding buttons stay on.",
+        "Answer from the handlebar",
+        "Press left to answer and hold left to decline. Every other press does nothing while it rings.",
     )
     HlGroup {
         HlValueRow("Press", "Mute or unmute", onClick = {}, container = Color.Transparent, chevron = true)

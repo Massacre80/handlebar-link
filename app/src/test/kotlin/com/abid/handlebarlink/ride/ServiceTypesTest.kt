@@ -11,7 +11,7 @@ import com.abid.handlebarlink.carplay.engine.ConnectStep
 import org.junit.Test
 import java.time.Instant
 
-/** The ride service's foreground types: the microphone while CarPlay may record, the call while one is held. */
+/** The ride service's foreground types: connectedDevice, and the microphone while CarPlay may record. */
 class ServiceTypesTest {
     private val connected = CarPlayState.Connected("phone", Instant.EPOCH, 36)
     private val recovering = CarPlayState.Recovering(CarPlayError.PhoneDisconnected("gone"), 1, Instant.EPOCH)
@@ -39,19 +39,11 @@ class ServiceTypesTest {
     }
 
     @Test
-    fun `the types always keep connectedDevice and add the call and the microphone`() {
+    fun `the types always keep connectedDevice and add the microphone, never a phone call`() {
         val device = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-        assertThat(rideServiceTypes(holdingCall = false, microphone = false)).isEqualTo(device)
-        assertThat(rideServiceTypes(holdingCall = false, microphone = true))
-            .isEqualTo(device or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        assertThat(rideServiceTypes(holdingCall = true, microphone = true)).isEqualTo(
-            device or ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE,
-        )
-    }
-
-    @Test
-    fun `a call of our own connected CarPlay is not held through Telecom, CarLink's is`() {
-        assertThat(holdsTelecomCall(ourCarPlayConnected = true)).isFalse()
-        assertThat(holdsTelecomCall(ourCarPlayConnected = false)).isTrue()
+        assertThat(rideServiceTypes(microphone = false)).isEqualTo(device)
+        assertThat(
+            rideServiceTypes(microphone = true),
+        ).isEqualTo(device or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
     }
 }

@@ -84,7 +84,7 @@ internal fun Pill(status: LinkStatus) {
     StatusPill(stringResource(pillText(status)), on = status == LinkStatus.CONNECTED)
 }
 
-/** CarPlay's card: CarLink's interim line while the beta switch is off, else our receiver's status; no button. */
+/** CarPlay's card: our receiver's status line; no button. */
 @Composable
 internal fun CarPlayCard(
     line: CarPlayLine,

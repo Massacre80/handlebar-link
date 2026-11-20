@@ -10,39 +10,28 @@ import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.controls.allowedActions
 
 /**
- * One choice of an action chooser: the [action], why it cannot work with today's CarPlay ([unavailable], null
- * when it works) and whether it may be chosen at all. An unavailable action may still be chosen
- * ([choosable]): the handlebar defaults themselves include Siri, answer, decline and end call, which wait for
- * our own CarPlay; such a press does nothing until then, and the page says so.
+ * One choice of an action chooser: the [action], why it can never work on this phone ([unavailable], null when it
+ * can: only muting the microphone, when Android does not let the app change it) and whether it may be chosen at all
+ * ([choosable]).
  */
 @Immutable
 data class ActionChoice(
     val action: RiderAction,
     val unavailable: Unavailable? = null,
     val choosable: Boolean = true,
-) {
-    /** Marked "Soon": it works once Handlebar Link runs CarPlay itself. */
-    val soon: Boolean get() = unavailable == Unavailable.NEEDS_OUR_CARPLAY
-}
+)
 
-/** The handlebar choices in [situation] ([allowedActions]), each with what [availability] says of it today. */
+/** The handlebar choices in [situation] ([allowedActions]), each with what [availability] says of it. */
 fun handlebarChoices(
     situation: CallSituation,
     availability: ActionAvailability,
 ): List<ActionChoice> = allowedActions(situation).map { ActionChoice(it, availability.whyUnavailable(it)) }
 
 /**
- * The intercom's assistant button: the riding actions; Siri shown for our own CarPlay but not choosable (the
- * button's handler cannot start it).
+ * The intercom's assistant button: the riding actions, Siri included (the button's handler does it through our own
+ * CarPlay, as a handlebar press: AssistantButtonActivity, RiderActions).
  */
-val ASSISTANT_CHOICES: List<ActionChoice> =
-    allowedActions(CallSituation.RIDING).map {
-        if (it == RiderAction.SIRI) {
-            ActionChoice(it, Unavailable.NEEDS_OUR_CARPLAY, choosable = false)
-        } else {
-            ActionChoice(it)
-        }
-    }
+val ASSISTANT_CHOICES: List<ActionChoice> = allowedActions(CallSituation.RIDING).map { ActionChoice(it) }
 
 /** A heading of the chooser; the choices come in this order (Paper "Handlebar 5": Call, Sound, then Nothing). */
 enum class ActionGroup(

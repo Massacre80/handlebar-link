@@ -8,15 +8,16 @@ import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.CarPlayStatus
 import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.IphonePairing
+import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.core.common.time.TimeProvider
+import com.abid.handlebarlink.setup.SetupConditions
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** CarPlay's status line for Home and the CarPlay page, counting down on the app's clock (carPlayLines). */
@@ -31,9 +32,9 @@ class CarPlayStatusLines
     }
 
 /**
- * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4): the hero for CarPlay's state, the iPhone, Link and beta switch
- * rows, then the CarPlay screen row; Cancel and Disconnect stop CarPlay ([CarPlayCoordinator.hold]) until
- * Start CarPlay.
+ * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4, without the switch row): the hero for CarPlay's state, the
+ * iPhone and Link rows, then the CarPlay screen row; Cancel and Disconnect stop CarPlay ([CarPlayCoordinator.hold])
+ * until Start CarPlay. Whether Bluetooth is on is read only when the engine reports it unavailable (the hero's fix).
  */
 @HiltViewModel
 class CarPlayViewModel
@@ -44,22 +45,24 @@ class CarPlayViewModel
         pairing: IphonePairing,
         lines: CarPlayStatusLines,
         video: CarPlayVideoStatsSource,
+        private val conditions: SetupConditions,
     ) : ViewModel() {
-        /** The page's state; off until loaded. */
+        /** The page's state; Ready until loaded. */
         val uiState: StateFlow<CarPlayUiState> =
             combine(
-                settings.enabled,
                 coordinator.status,
                 pairing.iphones(),
                 pairing.chosen(),
                 combine(lines.lines, video.stats(), settings.orientation, ::Triple),
-            ) { enabled, status, iphones, chosen, (line, stats, orientation) ->
-                carPlayTab(enabled, status, iphones, chosen, line, stats, orientation)
+            ) { status, iphones, chosen, (line, stats, orientation) ->
+                carPlayTab(status, iphones, chosen, line, stats, orientation, bluetoothOn(status))
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
 
-        /** Turns our own receiver on or off; a running ride follows at once (CarPlayCoordinator). */
-        fun setEnabled(enabled: Boolean) {
-            viewModelScope.launch { settings.setEnabled(enabled) }
+        /** Bluetooth's state, read only when the engine says it is unavailable (a Binder call, not on every update). */
+        private fun bluetoothOn(status: CarPlayStatus): Boolean {
+            val state = (status as? CarPlayStatus.Engine)?.state
+            val unavailable = state is CarPlayState.Recovering && state.error is CarPlayError.BluetoothUnavailable
+            return !unavailable || conditions.bluetoothOn()
         }
 
         /**
@@ -70,10 +73,9 @@ class CarPlayViewModel
             settings.setOrientation(orientation)
         }
 
-        /** Start CarPlay: the switch on (if it was off) and a stop lifted; the caller starts the ride service. */
+        /** Start CarPlay: a stop lifted, or a failed engine started again; the caller starts the ride service. */
         fun start() {
-            coordinator.resume()
-            viewModelScope.launch { settings.setEnabled(true) }
+            coordinator.start()
         }
 
         /** Cancel (while connecting) or Disconnect (while connected): CarPlay stops until started again. */

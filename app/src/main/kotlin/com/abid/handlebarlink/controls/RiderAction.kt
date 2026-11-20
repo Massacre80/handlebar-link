@@ -4,7 +4,7 @@ import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 
 /**
  * What a button can do: a handlebar press or the intercom's assistant button. Which actions each
- * [CallSituation] offers: [allowedActions]; which work with today's CarPlay: [ActionAvailability].
+ * [CallSituation] offers: [allowedActions]; which can never work on this phone: [ActionAvailability].
  */
 enum class RiderAction {
     /** Play or pause CarPlay. */
@@ -31,10 +31,10 @@ enum class RiderAction {
     /** The screen a step dimmer, as [BRIGHTNESS_UP]. */
     BRIGHTNESS_DOWN,
 
-    /** CarPlay when this app is in front, else this app. */
+    /** Our CarPlay display when another page of this app is in front, back to that page from it, else this app. */
     SWITCH_SCREEN,
 
-    /** CarPlay (CarLink) in front. */
+    /** Our CarPlay display (the CarPlay tab's full screen) in front. */
     OPEN_CARPLAY,
 
     /** This app in front. */
@@ -46,19 +46,19 @@ enum class RiderAction {
     /** Speaks the time in the helmet. */
     TIME,
 
-    /** Picks up a ringing call (needs our own CarPlay: [Unavailable.NEEDS_OUR_CARPLAY]). */
+    /** Picks up a ringing call (through our CarPlay). */
     ANSWER_CALL,
 
-    /** Turns a ringing call down (needs our own CarPlay). */
+    /** Turns a ringing call down (through our CarPlay). */
     DECLINE_CALL,
 
-    /** Hangs up the call (needs our own CarPlay). */
+    /** Hangs up the call (through our CarPlay). */
     END_CALL,
 
     /** Mutes or unmutes the phone's microphone during a call; unmuted again when the call ends ([CarPlayControls]). */
     MUTE_MIC,
 
-    /** Starts Siri on the iPhone (needs our own CarPlay). */
+    /** Starts Siri on the iPhone (through our CarPlay). */
     SIRI,
 
     /** Nothing. */

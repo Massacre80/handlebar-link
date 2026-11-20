@@ -32,8 +32,7 @@ import javax.inject.Singleton
 import kotlin.random.Random
 
 /**
- * Our own CarPlay receiver (docs/PLAN.md "CarPlay in the app", C2): the engine, its platform ports and the beta
- * switch.
+ * Our own CarPlay receiver (docs/PLAN.md "CarPlay in the app", C2): the engine, its platform ports and its settings.
  */
 @Module
 @InstallIn(SingletonComponent::class)

@@ -39,22 +39,20 @@ import com.abid.handlebarlink.data.AppTheme
 import com.abid.handlebarlink.data.SelectedBike
 import com.abid.handlebarlink.ui.permissions.Access
 
-/** Where the four permissions stand, and what tapping each does. */
+/** Where each permission stands, and what tapping each does. */
 data class SettingsAccess(
     /** Nearby devices (Bluetooth). */
     val nearby: Access,
     /** Notifications. */
     val notifications: Access,
-    /** Notification access (CarLink's media session). */
-    val media: Access,
     /** Location (recording rides). */
     val location: Access,
     /** Display over other apps (what a press did, shown over CarPlay). */
     val overlay: Access,
     /** Modify system settings (screen brightness from the handlebar). */
     val brightness: Access,
-    /** CarPlay's Wi-Fi and local network (Handlebar Link CarPlay); null while its beta switch is off. */
-    val carPlay: Access? = null,
+    /** CarPlay's Bluetooth, Wi-Fi Direct, local network and microphone. */
+    val carPlay: Access,
 )
 
 /** Settings' actions. */
@@ -175,9 +173,8 @@ private fun BikeSection(
     }
 }
 
-/** The permissions in Settings' order (CarPlay's last, only while its beta switch is on). */
-internal fun SettingsAccess.all(): List<Access> =
-    listOfNotNull(nearby, notifications, media, location, overlay, brightness, carPlay)
+/** The permissions in Settings' order (CarPlay's last). */
+internal fun SettingsAccess.all(): List<Access> = listOf(nearby, notifications, location, overlay, brightness, carPlay)
 
 /** Sample state for previews and screenshot tests. */
 internal val PreviewSettings =

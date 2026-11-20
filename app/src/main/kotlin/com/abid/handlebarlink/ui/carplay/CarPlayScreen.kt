@@ -4,14 +4,11 @@ import android.Manifest
 import androidx.annotation.StringRes
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -20,11 +17,9 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,9 +27,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
@@ -52,7 +48,8 @@ import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
-import com.abid.handlebarlink.core.designsystem.component.HlSwitchRow
+import com.abid.handlebarlink.core.designsystem.component.HlTag
+import com.abid.handlebarlink.core.designsystem.component.HlTagTone
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.component.SignalRing
@@ -64,15 +61,14 @@ import java.time.Instant
 
 /**
  * The CarPlay tab (Paper "CarPlay — flow v2", Tab 1–4): a hero (the dial, a state tag, a big title, a detail line,
- * one primary and one ghost action), then the status list: the iPhone (opens the iPhone sheet), the Link, the
- * "Handlebar Link CarPlay · Beta · instead of CarLink" switch and, under it, "CarPlay screen" (opens its picker,
- * [onScreen]). The page scrolls when it runs out of height (docs/LESSONS.md 22).
+ * one primary and one ghost action), then the status list: the iPhone (opens the iPhone sheet), the Link and
+ * "CarPlay screen" (opens its picker, [onScreen]). No switch: our CarPlay replaced CarLink and always runs with the
+ * ride (owner, 2026-11-20). The page scrolls when it runs out of height (docs/LESSONS.md 22).
  */
 @Composable
 fun CarPlayScreen(
     state: CarPlayUiState,
     onAction: (TabAction) -> Unit,
-    onToggle: () -> Unit,
     onIphone: () -> Unit,
     contentPadding: PaddingValues,
     onScreen: () -> Unit = {},
@@ -94,7 +90,7 @@ fun CarPlayScreen(
             verticalArrangement = Arrangement.spacedBy(spacing.s24, Alignment.CenterVertically),
         ) {
             Hero(state.hero, onAction, Modifier.widthIn(max = HlTheme.sizes.contentMax))
-            StatusList(state, onToggle, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
+            StatusList(state, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
         }
     }
 }
@@ -113,12 +109,17 @@ private fun Hero(
         verticalArrangement = Arrangement.spacedBy(spacing.s12),
     ) {
         HeroDial(hero.tone, hero.progress)
-        StateTag(stringResource(hero.tag), hero.tone, Modifier.padding(top = spacing.s4))
+        HlTag(stringResource(hero.tag), Modifier.padding(top = spacing.s4), tagTone(hero.tone), dot = true)
+        // The hero changes by itself (starting, running, needs you): TalkBack reads the new title politely. Not the
+        // detail, whose retry countdown ticks every second.
         HlText(
             stringResource(hero.title),
             HlTheme.typography.headline.copy(textAlign = TextAlign.Center),
             colors.ink,
-            Modifier.semantics { heading() },
+            Modifier.semantics {
+                heading()
+                liveRegion = LiveRegionMode.Polite
+            },
         )
         HlText(
             hero.detail.words(),
@@ -164,51 +165,20 @@ private fun HeroDial(
 }
 
 /**
- * The hero's state tag (Paper "CarPlay — flow v2"): a 6 dp dot before the words, both in the tag's ink, on a tinted
- * pill. Night: running and starting lime on lime 12 % with a lime 28 % edge, needs you the same in danger, the quiet
- * states (Ready, Not set up, Off) muted on white 7 % with a white 10 % edge. Bento fills instead, since lime and danger
- * text vanish on white (docs/LESSONS.md 31): brand with brand ink, danger with white ink, raisedLo with muted ink.
+ * The hero's state tag tone (Paper "CarPlay — flow v2"): running and starting brand, needs you danger, the quiet states
+ * (Ready, Not set up, Stopped) muted; drawn by the design system's [HlTag] with its dot.
  */
-@Composable
-private fun StateTag(
-    text: String,
-    tone: SignalTone,
-    modifier: Modifier = Modifier,
-) {
-    val colors = HlTheme.colors
-    val night = HlTheme.variant == HlThemeVariant.NIGHT
-    val accent =
-        when (tone) {
-            SignalTone.ON, SignalTone.PROGRESS -> colors.brand
-            SignalTone.ERROR -> colors.danger
-            SignalTone.IDLE -> null
-        }
-    val (fill, edge, ink) =
-        when {
-            accent != null && night -> Triple(accent.copy(alpha = TAG_FILL), accent.copy(alpha = TAG_EDGE), accent)
-            accent == colors.brand -> Triple(colors.brand, Color.Transparent, colors.brandInk)
-            accent != null -> Triple(accent, Color.Transparent, colors.inkInverse)
-            night -> Triple(colors.panel, colors.line, colors.inkMuted)
-            else -> Triple(colors.raisedLo, colors.line, colors.inkMuted)
-        }
-    Row(
-        modifier
-            .background(fill, CircleShape)
-            .border(HlTheme.strokes.hairline, edge, CircleShape)
-            .padding(horizontal = HlTheme.spacing.s8, vertical = HlTheme.spacing.s4),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s6),
-    ) {
-        Box(Modifier.size(HlTheme.sizes.dotSmall).background(ink, CircleShape))
-        HlText(text.uppercase(), HlTheme.typography.caps.copy(fontWeight = FontWeight.SemiBold), ink, maxLines = 1)
+internal fun tagTone(tone: SignalTone): HlTagTone =
+    when (tone) {
+        SignalTone.ON, SignalTone.PROGRESS -> HlTagTone.BRAND
+        SignalTone.ERROR -> HlTagTone.DANGER
+        SignalTone.IDLE -> HlTagTone.QUIET
     }
-}
 
-/** The iPhone, the Link, the beta switch and the CarPlay screen, in one group. */
+/** The iPhone, the Link and the CarPlay screen, in one group. */
 @Composable
 private fun StatusList(
     state: CarPlayUiState,
-    onToggle: () -> Unit,
     onIphone: () -> Unit,
     onScreen: () -> Unit,
     modifier: Modifier = Modifier,
@@ -234,16 +204,6 @@ private fun StatusList(
             icon = HlIcons.Wifi,
         )
         HlGroupDivider()
-        // A real switch; the whole row toggles it (Role.Switch reads "on"/"off").
-        HlSwitchRow(
-            value = stringResource(R.string.carplay_switch),
-            checked = state.enabled,
-            onCheckedChange = { onToggle() },
-            detail = stringResource(R.string.carplay_switch_detail),
-            container = Color.Transparent,
-            icon = HlIcons.CarPlay,
-        )
-        HlGroupDivider()
         HlValueRow(
             value = stringResource(R.string.carplay_screen_row),
             hint = stringResource(orientationName(state.orientation)),
@@ -261,7 +221,6 @@ private fun actionLabel(action: TabAction): Int =
     when (action) {
         TabAction.ADD_IPHONE -> R.string.carplay_action_add
         TabAction.CHOOSE_IPHONE -> R.string.carplay_action_choose
-        TabAction.TURN_ON_BETA -> R.string.carplay_action_beta
         TabAction.START_CARPLAY -> R.string.carplay_action_start
         TabAction.OPEN_CARPLAY -> R.string.carplay_open
         TabAction.CANCEL -> R.string.cancel
@@ -272,20 +231,15 @@ private fun actionLabel(action: TabAction): Int =
         TabAction.TURN_ON_BLUETOOTH -> R.string.carplay_action_bluetooth
     }
 
-/** The danger tag's faint fill and edge on Night, as HlTag's brand ones (Paper: 12 % and 28 %). */
-private const val TAG_FILL = 0.12f
-private const val TAG_EDGE = 0.28f
-
 /** Sample states for previews and screenshot tests (Paper "Tab 1–4"). */
 internal val PreviewIphone = PairedIphone("20:00:00:00:00:01", "Abid's iPhone")
 private val PreviewLine = CarPlayLine(R.string.carplay_status_connected, tone = SignalTone.ON)
 
 internal val PreviewCarPlayNotSetUp =
-    carPlayTab(true, CarPlayStatus.Engine(CarPlayState.Idle), emptyList(), null, PreviewLine)
+    carPlayTab(CarPlayStatus.Engine(CarPlayState.Idle), emptyList(), null, PreviewLine)
 
 internal val PreviewCarPlayConnecting =
     carPlayTab(
-        true,
         CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.IDENTIFYING)),
         listOf(PreviewIphone),
         null,
@@ -294,7 +248,6 @@ internal val PreviewCarPlayConnecting =
 
 internal val PreviewCarPlayConnected =
     carPlayTab(
-        true,
         CarPlayStatus.Engine(CarPlayState.Connected("phone", Instant.EPOCH, wifiChannel = 36)),
         listOf(PreviewIphone),
         PreviewIphone.address,
@@ -304,7 +257,6 @@ internal val PreviewCarPlayConnected =
 
 internal val PreviewCarPlayWifiOff =
     carPlayTab(
-        true,
         CarPlayStatus.Engine(CarPlayState.Recovering(CarPlayError.WifiOff, 1, Instant.EPOCH)),
         listOf(PreviewIphone),
         null,
@@ -315,12 +267,16 @@ internal val PreviewCarPlayWifiOff =
 internal val PreviewCarPlayConnectingLine =
     carPlayLine(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.DIALING_PHONE)), Instant.EPOCH)
 
-internal val PreviewCarPlayOff = carPlayTab(false, CarPlayStatus.Off, listOf(PreviewIphone), null, PreviewLine)
+/** No ride running: Ready, with Start CarPlay. */
+internal val PreviewCarPlayReady =
+    carPlayTab(CarPlayStatus.Engine(CarPlayState.Stopped), listOf(PreviewIphone), null, PreviewLine)
+
+/** Stopped after an error: Needs you with Start CarPlay. */
+internal val PreviewCarPlayFailed = carPlayTab(CarPlayStatus.Failed, listOf(PreviewIphone), null, PreviewLine)
 
 /** The microphone refused for good: Needs you with Open settings, the screen row in portrait. */
 internal val PreviewCarPlayMicrophone =
     carPlayTab(
-        true,
         CarPlayStatus.NeedsPermission(listOf(Manifest.permission.RECORD_AUDIO)),
         listOf(PreviewIphone),
         null,
@@ -332,7 +288,7 @@ internal val PreviewCarPlayMicrophone =
 @Composable
 private fun CarPlayNightPreview() {
     HlTheme(HlThemeVariant.NIGHT) {
-        HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayConnected, {}, {}, {}, PaddingValues()) }
+        HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayConnected, {}, {}, PaddingValues()) }
     }
 }
 
@@ -340,6 +296,6 @@ private fun CarPlayNightPreview() {
 @Composable
 private fun CarPlayBentoPreview() {
     HlTheme(HlThemeVariant.BENTO) {
-        HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayWifiOff, {}, {}, {}, PaddingValues()) }
+        HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayWifiOff, {}, {}, PaddingValues()) }
     }
 }

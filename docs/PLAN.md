@@ -12,8 +12,9 @@ One app of our own on the Poco F1 (Android 17) mounted on the Honda CB350:
 
 1. **Now:** a rock-solid link to the bike's meter. It starts by itself when the ignition turns on,
    survives the whole ride, and sends handlebar presses to CarPlay.
-2. **Later:** our own CarPlay receiver inside the same app, replacing CarLink. CarLink/DiPlay is a
-   reference only (`docs/research/05-carlink-reference.md`), never a dependency or a fork.
+2. **Now too (owner, 2026-11-20):** our own CarPlay receiver inside the same app, which has replaced CarLink: no
+   switch, no CarLink path left (see "Our CarPlay replaces CarLink"). CarLink/DiPlay is a reference only
+   (`docs/research/05-carlink-reference.md`), never a dependency or a fork.
 
 Fixed decisions: everything plays on the iPhone through CarPlay; the Poco never plays its own media
 and has no internet connection of its own: everything online comes from the iPhone through CarPlay.
@@ -255,14 +256,12 @@ and picks that layer of `HandlebarMapping`.
 - **Storage.** Riding keeps the keys from before (`handlebar_<SWITCH>`), so riders keep their settings;
   `handlebar_ringing_<SWITCH>` and `handlebar_call_<SWITCH>` for the others. Unknown or disallowed stored
   names fall back to the default.
-- **Routing (C5 controls, 2026-11-19):** `RoutedControlTarget` and `RoutedCallSituations` choose per press: our own
-  CarPlay while it is `Connected`, CarLink otherwise (see "C5 controls" below).
-- **With CarLink** (`AudioCallSituations`, `MediaSessionControlTarget`): the situation comes from the
-  phone's audio (`VoipCallWatcher`), so it is riding or on a call, never ringing (`seesRinging = false`;
-  presses while a call rings use the riding layer). Answer, decline, end and Siri come back
-  `NEEDS_OUR_CARPLAY`: CarLink takes call keys only from a car's key events or a broadcast that needs the
-  system DUMP permission (CarLink `CarPlayCallKeys.kt:52`; docs/LESSONS.md 44). The banner says so
-  (`PressFeedback.unavailable`). Music keys, volume and **mute microphone** work.
+- **Routing (2026-11-20, our CarPlay replaced CarLink):** every press goes to our own CarPlay
+  (`OurCarPlayControlTarget`); while it is not `Connected` a press does nothing, is logged
+  (`control.carplay.not_connected`) and the banner says "CarPlay isn't connected" (`NO_CARPLAY_SESSION`). The
+  situation comes from our CarPlay's iAP2 calls while connected and is riding otherwise (`CarPlayCallSituations`).
+  The CarLink route (`RoutedControlTarget`, `MediaSessionControlTarget`, `AudioCallSituations` and its
+  `VoipCallWatcher`, `NEEDS_OUR_CARPLAY`, "Soon") is gone.
 - **With our CarPlay connected** (`OurCarPlayControlTarget`, `situationOfCalls`): the situation from iAP2
   CallStateUpdate 0x4155 (0 disconnected, 1 sending, 2 ringing, 3 connecting, 4 active, 5 held,
   6 disconnecting; DiPlay `BydCarPlayCall.kt:22-24`; a ringing call wins), so ringing is seen; answer = telephony
@@ -270,33 +269,31 @@ and picks that layer of `HandlebarMapping`.
   (siriAction 2 then 3, DiPlay `AirPlaySession.kt:390-393`); the music keys as media HID keys. Nothing is "Soon".
 - **Mute microphone** = `AudioManager.setMicrophoneMute` (MODIFY_AUDIO_SETTINGS, a normal permission; AOSP
   `AudioService.setMicrophoneMute` has no API-level gate and refuses only unmuting under the OP_MUTE_MICROPHONE
-  app op; not part of Android 17's background audio hardening). The mute is global (it also mutes CarLink's
-  call) and outlives our process. Safety: it works only on a call, is read back after each change
+  app op; not part of Android 17's background audio hardening). The mute is global and outlives our process. Safety: it works only on a call, is read back after each change
   (`MIC_REFUSED` if Android ignored it), and if we muted it, it is unmuted as soon as the situation leaves
   `ON_CALL` (`control.mic.unmuted_after_call`). A "we muted it" flag (`mic_muted_by_app` in the app's
   DataStore) is stored before muting and cleared once unmuted; at every process start
   (`HandlebarLinkApp` → `CarPlayControls.start`) a set flag with no call unmutes
-  (`control.mic.unmuted_after_restart`), and a set flag mid-call keeps the mute until that call ends. The
-  audio situation is seeded with one synchronous read, so a restart mid-call is not taken for riding. A mic we
-  did not mute is never touched. A flag that cannot be stored stops the mute; a failed flag read or write is
+  (`control.mic.unmuted_after_restart`), and a set flag mid-call keeps the mute until that call ends. Since
+  2026-11-20 the only call source is our CarPlay, which is not connected right after a process start, so a restart
+  always unmutes (the safe side); the CarLink-era seeding from the audio state is gone. A mic we did not mute is never
+  touched. A flag that cannot be stored stops the mute; a failed flag read or write is
   logged and never ends the watch (docs/LESSONS.md 59). **Our CarPlay's uplink (2026-11-19):** whether the audio HAL
   also silences an app's own `AudioRecord` on every input is not promised (`AudioFlinger::setMicMute` is per HAL), so
   `MicrophoneCapture` sends silence of the same length while `AudioManager.isMicrophoneMute()` is on (read at the
   capture's start and on each `ACTION_MICROPHONE_MUTE_CHANGED`, `carplay.audio.microphone_muted`); the flag and its
-  safety rules above are unchanged. Our own CarPlay's calls no longer hold a Telecom call (see "C5 audio", "Routes"),
-  so the open question about Telecom changing the mute is left to CarLink's calls; on-bike check.
+  safety rules above are unchanged. Our own CarPlay's calls hold no Telecom call (see "C5 audio", "Routes"), and the
+  Telecom call held for CarLink's calls is gone with CarLink.
 - **Handlebar page** (`ui/handlebar/`, Paper "Handlebar — Smart buttons", artboards 2–5): a Riding / Ringing /
   On a call switch (`HlSegmentedControl`) chooses the layer shown; under it a line on the situation (its
-  defaults while the layer is unchanged, else just what it is) and, where today's CarPlay limits it, a notice
-  (`HlNotice`: ringing needs our CarPlay; on a call, hanging up does). The switch's callouts follow the
+  defaults while the layer is unchanged, else just what it is). The CarLink-era notices ("ringing needs our
+  CarPlay", "hanging up does") and "Soon" tags are gone (2026-11-20). The switch's callouts follow the
   situation: riding calls out every key; ringing and on a call only the keys that do something, the call key as
-  a brand chip with its hold on a second line ("Answer · Hold to decline"). Each row says why its action cannot
-  work today: "Soon" (`HlTag`) for `NEEDS_OUR_CARPLAY`, with a footnote under the key when no notice says it.
+  a brand chip with its hold on a second line ("Answer · Hold to decline"). A key whose action can never work here
+  (the microphone Android does not let the app change) gets a footnote saying so.
   The chooser (`HandlebarPressRoute(switch, situation)`) lists `allowedActions(situation)` under Call, Music,
   Sound, Voice and Screen headings, Nothing last, the chosen one in brand, with a line on what each situation
-  leaves out. **An action that needs our own CarPlay may be chosen** (`HandlebarMapping.assign` accepts it and
-  the defaults already use Siri, answer, decline and end): it is tagged "Soon" and does nothing until then; the
-  intercom's assistant button keeps Siri shown but not choosable. Reset to default (`HlSecondaryButton`) only
+  leaves out. The intercom's assistant button offers Siri too (through our CarPlay, as a press). Reset to default (`HlSecondaryButton`) only
   opens a "Reset all buttons?" dialog (`HandlebarResetRoute`, Paper "Handlebar 7"); its Reset puts all three
   layers back.
 
@@ -319,6 +316,40 @@ No milestone starts before the previous one is done.
 
 Our own wireless CarPlay receiver in the app (replacing CarLink), started 2026-11-18 at the owner's request.
 The owner's MFi identity comes from their old CarPlay display (`~/.carlink-private/offline-mfi`, never in git).
+
+### Our CarPlay replaces CarLink (owner decision, 2026-11-20; worktree `carplay-only-app`)
+
+The owner: "Remove the text beta instead of carlink, we are replacing carlink, that's the goal, so no need of toggle
+etc, it should be used." **Make our CarPlay the default instead of CarLink: done ✅ (2026-11-20).**
+- **No switch.** The "Handlebar Link CarPlay · Beta · instead of CarLink" row, its DataStore key `carplay_beta`,
+  `CarPlayStatus.Off`, the CarLink hero (`TabPhase.CARLINK`, `TabAction.TURN_ON_BETA`) and "Runs in CarLink for now"
+  are gone. `CarPlayCoordinator` runs the engine in every ride while CarPlay's permissions are granted and the rider
+  has not stopped it (Cancel, Disconnect). Settings › Permissions always lists CarPlay's row ("CarPlay"), and Allow all
+  asks for it. A stored `carplay_beta` from an older build is ignored.
+- **When the ride starts** (`RideAutoStart`, `startsRideOnResume`): as before when the bike appears (companion-device
+  presence, from the background) or the app comes to the front with a bike set up; and now also when the app comes to
+  the front with an iPhone paired, all of CarPlay's permissions granted and CarPlay not stopped by the rider, bike or
+  not (started from the visible activity, so the foreground-service start is allowed; a stopped CarPlay would end such
+  a ride at once, so none is started for it). This replaces the switch's own `RideService.start`.
+- **Start CarPlay** is the hero's action for Ready (no ride), Stopped by the rider and, new, "CarPlay stopped" after an
+  error (`CarPlayCoordinator.start`: lifts the hold and, after a failure, starts the engine again in the running ride).
+- **CarLink paths removed:** `MediaSessionControlTarget` and `CARLINK_PACKAGES` (and the manifest `<queries>` for
+  `com.carlink.app(.hudtest)`), the notification listener `MediaAccessListener` (its manifest entry, the
+  `BIND_NOTIFICATION_LISTENER_SERVICE` guard and Settings' "Notification read, reply & control" row, which existed only
+  to reach CarLink's media session), `RoutedControlTarget`'s CarLink branch (presses go to our CarPlay; not connected,
+  a press does nothing and is logged), `RoutedCallSituations`' audio source (`AudioCallSituations`), `NEEDS_OUR_CARPLAY`
+  and `NO_MEDIA_ACCESS` with the Handlebar page's "Soon" tags and CarLink notices, and the CarLink call route:
+  `VoipCallWatcher`, `IntercomCallRoute` (the held self-managed Telecom call), its call notification and the
+  `phoneCall` service type, `MANAGE_OWN_CALLS`, `FOREGROUND_SERVICE_PHONE_CALL` and the `core-telecom` dependency use.
+  Each was used only for CarLink (callers checked one by one); our CarPlay's calls route themselves through
+  `CallAudio` (`setCommunicationDevice`, :carplay:engine-android) and never used them. `MODIFY_AUDIO_SETTINGS` stays
+  (the handlebar's microphone mute).
+- **Open CarPlay and Switch screen** from the handlebar (`ScreenSwitcher`) show our CarPlay display: they start
+  `MainActivity` with `EXTRA_SCREEN` (and the ride's lock-screen flags), and the tabs' navigation opens
+  `CarPlayDisplayRoute` on the CarPlay tab (`Navigator.openCarPlayDisplay`; Switch screen goes back from it when it is
+  shown, `Navigator.switchScreen`); with the app not in front, Switch screen brings the app as before.
+- **Test hooks:** MainActivity's `skip_setup` and `start_ride` extras act only in debug builds (`BuildConfig.DEBUG`;
+  the launcher activity is exported), and `onNewIntent` calls `setIntent` (android-intent-security).
 
 **Source of truth for bytes:** DiPlay's working receiver (github.com/shihabal3amri/DiPlay, read through
 CarLink's `vendor/diplay` on `upstream/main`, which carries four DiPlay hardening PRs). The specs with
@@ -345,7 +376,7 @@ merged manifest keeps one of each), requested in the app's existing permission f
 | `INTERNET` | Any socket: the AirPlay listener, the iPhone's streams. The Poco has no internet connection; nothing leaves the bike. | normal |
 | `ACCESS_LOCAL_NETWORK` | Android 17 blocks the local network for apps targeting SDK 37 (ours) unless granted; covers inbound connections from the iPhone and mDNS. | runtime (API 37+), *Nearby devices* group |
 | `NEARBY_WIFI_DEVICES` with `neverForLocation` | `WifiP2pManager.createGroup()` and group info on API 33+. | runtime, *Nearby devices* group |
-| `ACCESS_FINE_LOCATION` (already declared) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). | runtime |
+| `ACCESS_FINE_LOCATION` with `ACCESS_COARSE_LOCATION` (already declared) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). Asked together (2026-11-20): "If you try to request only ACCESS_FINE_LOCATION, the system ignores the request on some releases of Android 12" (location permissions guide); precise must be chosen. Location *services* need not be on: the Wi-Fi Direct guide asks for Location Mode only for `discoverPeers`, `discoverServices` and `requestPeers`, which the port never calls (it only creates and reads its own group). **Limit (12/12L only):** the group is created only while the app is in the foreground (review of AOSP android12, 2026-11-20: Wi-Fi Direct checks the fine-location app op, which a background `connectedDevice` service does not hold; unverified on a device), so a ride woken on ignition with the screen off retries until the rider opens the app. A while-visible `location` service type would lift it; not added (Android 12 only, the Poco runs 17). | runtime |
 | `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | Wi-Fi Direct (required by the Wi-Fi Direct guide). | normal |
 | ~~`ACCESS_NETWORK_STATE`, `CHANGE_WIFI_MULTICAST_STATE`~~ | Dropped in C2: mDNS goes through `NsdManager`, which needs only `INTERNET` (AOSP `NsdService.connect`, Connectivity main :2310) and advertises on the group interface itself; no socket binds to a `Network`. | — |
 | `BLUETOOTH_SCAN` (`neverForLocation`, already declared by the app) | `cancelDiscovery()` before the RFCOMM dial when granted ("Connect Bluetooth devices"); the app's pairing flow runs a classic discovery. Not required for CarPlay. | runtime |
@@ -392,13 +423,15 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
 - **Engine:** `CarPlayLink?` is a `@Singleton` from `createCarPlayLink(...)` on its own single-threaded dispatcher
   (`@CarPlayDispatcher`, `limitedParallelism(1, "carplay")`, separate from the bike link's), the app's
   `TimeProvider` and `Logger` (`child("carplay")`), `Random.Default` (as the bike engine), and `CarPlayConfig()`.
-- **Beta switch:** "Handlebar Link CarPlay (beta)", key `carplay_beta` in the app's settings DataStore, default off.
+- ~~**Beta switch:** "Handlebar Link CarPlay (beta)", key `carplay_beta`, default off.~~ Removed 2026-11-20 (see "Our
+  CarPlay replaces CarLink"): CarPlay runs in every ride.
 - **Coordinator** (`CarPlayCoordinator`, a `RideCompanion`): `RideService` passes it to `RideCoordinator.ride(presentHint,
   beside)`, which runs it in its own child job beside the bike link (a parameter, not a seventh constructor argument: detekt LongParameterList).
-  While the switch is on, the permissions are granted and ports exist, it runs `CarPlayLink.run()` in a child job and
-  calls `start()`; switch off (or a permission withdrawn) calls `stop()` and cancels that job, which releases the
-  radio, Bluetooth and sockets. Its `run()` never throws: any failure (also a `CancellationException` that is not
-  our own cancellation, docs/LESSONS.md 54) is logged as `carplay.failed` and shown as "Stopped after an error";
+  While the permissions are granted, ports exist and the rider has not stopped it, it runs `CarPlayLink.run()` in a
+  child job and calls `start()`; a permission withdrawn or the rider's Cancel/Disconnect (`hold`) calls `stop()` and
+  cancels that job, which releases the radio, Bluetooth and sockets. Its `run()` never throws: any failure (also a
+  `CancellationException` that is not our own cancellation, docs/LESSONS.md 54) is logged as `carplay.failed` and
+  shown as "Stopped after an error" until Start CarPlay (`start()`, which starts the engine again in the same ride);
   the bike link is untouched. Ending a ride (`RideCoordinator.stop`) stops CarPlay too.
 - **keepAlive:** the ride (and so `RideService`: `connectedDevice`, whose prerequisite `CHANGE_WIFI_STATE` and
   `BLUETOOTH_CONNECT` both meet, plus `microphone` while CarPlay runs, see "C5 audio") lasts while the bike link **or**
@@ -406,20 +439,22 @@ Code: `app/.../carplay/` (coordinator, settings, permissions, seam), `ui/carplay
   counts from the start of its run until it knows it will not start, while it is meant to run, and until the
   engine's own `keepAlive` ends after a stop.
 - **Permissions:** `carPlayPermissions(sdk)`: `BLUETOOTH_CONNECT`; `NEARBY_WIFI_DEVICES` on API 33+ (else
-  `ACCESS_FINE_LOCATION`); `ACCESS_LOCAL_NETWORK` on API 37+. The engine has no permission error on this base, so a
+  `ACCESS_FINE_LOCATION` with `ACCESS_COARSE_LOCATION`); `ACCESS_LOCAL_NETWORK` on API 37+; `RECORD_AUDIO`. The engine has no permission error on this base, so a
   missing one is app-side (`CarPlayStatus.NeedsPermission`), checked fresh on every resume and permission answer. The
   line names what is missing (`permissionLine`): "Needs Nearby devices: allow it in Settings › Permissions", "Allow
-  the microphone for Siri and calls" (RECORD_AUDIO only), or both; the hero likewise ("Allow the microphone"). Asked through the existing flow: a "CarPlay
-  (beta)" row on the Permissions page and in Allow all, shown only while the switch is on (least privilege), and the
-  dialog when the switch is turned on. `ACCESS_NETWORK_STATE` and `CHANGE_WIFI_MULTICAST_STATE` are left to the
+  the microphone for Siri and calls" (RECORD_AUDIO only), or both; the hero likewise ("Allow the microphone"). Asked through the existing flow: a "CarPlay"
+  row on the Permissions page and in Allow all (always shown since 2026-11-20), and the dialog before Start CarPlay.
+  `ACCESS_NETWORK_STATE` and `CHANGE_WIFI_MULTICAST_STATE` are left to the
   Android ports' NSD-or-raw-mDNS choice.
-- **UI:** the CarPlay tab (was an empty page) shows the switch as an `HlSwitchRow` (a real `HlSwitch`, 44 x 26, the row
-  toggles it with `Role.Switch`; status rows carry `HlRowIcon` tiles: iPhone, Wi-Fi, CarPlay; the state tag has a 6 dp
-  dot; Paper "CarPlay — flow v2") and, off, today's "CarPlay runs in CarLink until our own receiver is ready"; Home's CarPlay card keeps "Runs in
-  CarLink for now" while off, else shows the status line. Status line: Off → "Runs in CarLink for now"; Starts with
-  the next ride (no ride); Starting; "Connecting · <step>"; Connected; "<error> · Retrying in N s" (ticking each
-  second); the error alone when only the rider can fix it. On-bike check (owner): with the Android ports merged,
-  turn the switch on and watch the line reach Connected, as the C2 row says.
+- **UI:** the CarPlay tab (was an empty page; Paper "CarPlay — flow v2" without the switch row since 2026-11-20): the
+  hero (its state tag is the design system's `HlTag` with a tone and its 6 dp dot; the title is a polite TalkBack live
+  region, so the hero's changes are announced, not the ticking detail), then the status rows with `HlRowIcon` tiles
+  (iPhone, Link, CarPlay screen). Home's CarPlay card shows the status line. Status line: Starts with the next ride (no
+  ride); Starting; "Connecting · <step>"; Connected; "<error> · Retrying in N s" (ticking each second); the error alone
+  when only the rider can fix it. While CarPlay starts or runs, the hero follows it even when the app's own choice of
+  iPhone names none (two paired, none chosen: the engine dials the one with the live link), so Open CarPlay stays.
+  Bluetooth unavailable offers Turn on Bluetooth only while Bluetooth is off; with it on, the engine found no iPhone it
+  may use, so the hero says "Choose your iPhone" with Choose iPhone (read only then, `SetupConditions.bluetoothOn`).
 
 ### C4 video: the screen decoder (2026-11-19, worktree `carplay-c4-video`)
 
@@ -495,7 +530,8 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   times the canvas, rounded half up, u16 little-endian (AirPlayHid.kt:44-55). The queue holds 128 touches and drops the
   oldest; touches made before an event channel connects are dropped (`carplay.touch.stale_dropped`), never sent late.
   Logs: `carplay.touch.first`, `carplay.touch.dropped` (once), `carplay.touch.ended sent= failed=`.
-- **App.** "Open CarPlay" (`HlPillButton`) on the CarPlay tab while connected pushes `CarPlayDisplayRoute` on the tab's
+- **App.** "Open CarPlay" (the hero's primary, a full-width brand `HlButton`, 52 dp) on the CarPlay tab while connected
+  pushes `CarPlayDisplayRoute` on the tab's
   stack (a full page, no tab bar). The display hides the system bars (immersive, transient by swipe), locks the screen
   to the canvas's orientation (see "CarPlay screen"), runs in the cutout (set explicitly below API 35; a landscape
   picture pads itself out of it), keeps the screen on, shows the status line over the last picture while not
@@ -503,8 +539,8 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   key `carplay_display_hint_shown`). Back pops to the tab; CarPlay keeps running.
 - **Screenshots:** the beta note changed ("shows CarPlay full screen"), so `CarPlayConnectingNight/Bento` need new
   references from Linux CI (`[record screenshots]`); no new screenshot tests (references are recorded on CI only).
-- **Device check (coordinator, release build):** turn the beta switch on, start a ride (`--ez start_ride true` away from
-  the bike), connect the iPhone, wait for "Connected", tap "Open CarPlay". Expect in the log: `carplay.config width=2246
+- **Device check (coordinator, release build):** open the app (with an iPhone paired the ride starts by itself;
+  `--ez start_ride true` on a debug build away from the bike), connect the iPhone, wait for "Connected", tap "Open CarPlay". Expect in the log: `carplay.config width=2246
   height=1080 width_mm=141 fps=60` (landscape, less any cutout strip; portrait: 1080 x 2246, 68 mm) and `carplay.canvas`, then per session `carplay.screen.configure`,
   `carplay.video.display`, `carplay.video.decoder … prewarmed=true`, `carplay.screen.receiving`,
   `carplay.video.first_output`, `carplay.video.first_frame`, `carplay.screen.force_key_frame sent=true` after each
@@ -516,7 +552,7 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
 ### CarPlay screen and the microphone (2026-11-19, owner decisions, worktree `carplay-c5`)
 
 - **CarPlay screen: Landscape (default) / Portrait.** `CarPlaySettings.orientation` (DataStore key
-  `carplay_orientation`, stored by name, an unknown name reads Landscape), a row under the beta switch on the CarPlay
+  `carplay_orientation`, stored by name, an unknown name reads Landscape), a row on the CarPlay
   tab ("CarPlay screen", the phone icon turned the way the picture stands) opening a sheet with the design system's
   option rows (`CanvasSheets.kt`, laid out as the Handlebar picker) and the footnote "If CarPlay is running, it
   reconnects to apply it."
@@ -540,17 +576,20 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   leaves the strip out and the display pads by `WindowInsets.displayCutout`; `userLandscape` lets a phone mounted
   either way up show the picture upright, the padding following the notch. Portrait keeps C4's edge-to-edge picture.
 - **The microphone is required (owner).** CarPlay does not run while any CarPlay permission is missing,
-  `RECORD_AUDIO` included (`carPlayPermissions`, the coordinator's `missing.isEmpty()`). The switch and Start CarPlay
-  open "CarPlay needs your OK" (`CarPlayAccessRoute`): one line per missing permission ("Microphone: Siri and calls use
+  `RECORD_AUDIO` included (`carPlayPermissions`, the coordinator's `missing.isEmpty()`). Start CarPlay opens "CarPlay
+  needs your OK" (`CarPlayAccessRoute`): one line per missing permission ("Microphone: Siri and calls use
   the microphone."), then Android's dialog on Continue. Refused, the hero says NEEDS YOU with the permission's title
   ("Allow the microphone", "Allow Nearby devices", "Allow Local network", or "Allow CarPlay's permissions" naming them
   all) and one action: Allow while Android still asks, Open settings (`ACTION_APPLICATION_DETAILS_SETTINGS`) once it
   no longer does (`CarPlayHero.withAccess`). Whether it still asks is "asked before and no rationale"
-  (android-permissions-security §6); the asked set is shared in the process (`AskedPermissions`) so asking on one
+  (android-permissions-security §6), decided per permission (`accessOf`, fixed 2026-11-20: a list counted as asked when
+  any one of its permissions was, so CarPlay showed Open settings after the pairing had asked only for Bluetooth, before
+  Android ever asked for the microphone); the asked set is shared in the process (`AskedPermissions`) so asking on one
   screen updates the others. The status line and Home's card name the missing permission too. The Permissions page's
-  "CarPlay (beta)" row and Allow all ask `carPlayPermissions()`, which holds `RECORD_AUDIO` on every release.
+  "CarPlay" row and Allow all ask `carPlayPermissions()`, which holds `RECORD_AUDIO` on every release.
 - **Screenshots** (record on Linux CI, docs/LESSONS.md 26): changed `CarPlayNotSetUp*`, `CarPlayConnecting*`,
-  `CarPlayConnected*`, `CarPlayWifiOff*`, `CarPlayOff*` (Night and Bento: the new row); new `CarPlayMicrophoneNight`,
+  `CarPlayConnected*`, `CarPlayWifiOff*` (Night and Bento: the new row; again 2026-11-20 without the switch row);
+  `CarPlayOff*` removed 2026-11-20 for `CarPlayReady*` and `CarPlayFailed*`; new `CarPlayMicrophoneNight`,
   `CarPlayMicrophoneBento`, `CarPlayScreenSheetNight`, `CarPlayScreenSheetBento`.
 
 ### CarPlay picture: DiPlay's negotiation (2026-11-19, worktree `carplay-c5`)
@@ -610,15 +649,16 @@ The iPhone's CarPlay picture on the Poco, full screen, touchable. Code: `spi/Por
   one-byte status is ignored, as DiPlay `BydCarPlayCall.kt:34-51`). Disconnected and disconnecting remove a call, an
   unknown status too (DiPlay keeps but never shows it). The calls are cleared when the Bluetooth link or the attempt
   ends. Logs never carry the number or the name.
-- **App:** `OurCarPlay` (connected = `CarPlayState.Connected`), `RoutedControlTarget` (ours while connected, else
-  `MediaSessionControlTarget`), `RoutedCallSituations` (`situationOfCalls` of the iAP2 calls while connected, else
-  `AudioCallSituations`; `seesRinging` = connected), `ActionAvailability.changes` so the Handlebar page refreshes
-  when our CarPlay connects or goes. MUTE_MIC and its safety rules are unchanged: the persisted flag, unmute when the
+- **App:** `OurCarPlay` (connected = `CarPlayState.Connected`), `OurCarPlayControlTarget` (the only target since
+  2026-11-20; not connected, a press does nothing and is logged), `CarPlayCallSituations` (`situationOfCalls` of the
+  iAP2 calls while connected, else riding). Until 2026-11-20 `RoutedControlTarget`/`RoutedCallSituations` fell back to
+  CarLink's media session and the phone's audio, and `ActionAvailability.changes` refreshed the Handlebar page's "Soon"
+  marks; all gone with CarLink. MUTE_MIC and its safety rules are unchanged: the persisted flag, unmute when the
   situation leaves ON_CALL (also when our CarPlay drops mid-call, or a waiting call rings over a muted one: unmuting is
   the safe side), never touch a mute we did not make.
 - **Logs:** `carplay.hid.key {key, sent}`, `carplay.siri.requested {sent}`, `carplay.hid.stale_dropped {requests}`,
   `carplay.calls.update {status, calls, changed}`, `carplay.calls.ignored`, `carplay.calls.unknown_status`,
-  `carplay.calls.cleared {reason}`, `control.route {action, to}`, `control.carplay {action, key}`,
+  `carplay.calls.cleared {reason}`, `control.carplay {action, key}`, `control.carplay.not_connected {action}`,
   `control.situation.routed {situation, source}`.
 - **Open (device):** whether the iPhone keeps sending CallStateUpdates on Bluetooth while we decline the type-130
   iAP2 tunnel (DiPlay forwards them from both links; `CarPlayController.kt:1796, 1927`). If it moves them to the
@@ -721,9 +761,8 @@ does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `Micr
   - *Music and directions*: plain `USAGE_MEDIA` / `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE` tracks with no preferred device
     and no communication device: Android plays them over A2DP to the connected headset. Nothing in the app overrides
     that (no `setSpeakerphoneOn`, no preferred device for them; the loudspeaker fallback is for calls only).
-  - *The held Telecom call* (callaudio/IntercomCallRoute) stays for CarLink's calls only: `RideService` skips it while
-    our CarPlay is connected (`holdsTelecomCall`, `callaudio.call.ours`), since a Telecom call would take over the same
-    communication route and the audio mode.
+  - ~~*The held Telecom call* (callaudio/IntercomCallRoute) for CarLink's calls~~: removed with CarLink (2026-11-20).
+    A Telecom call would have taken over the same communication route and the audio mode our calls use.
 - **Calls** (`CallAudio`, AndroidMediaSink.kt:581-678): the call's microphone enters `MODE_IN_COMMUNICATION` before
   it records and leaves with `MODE_NORMAL` (Siri keeps the normal mode); see "Routes" for where it plays. AudioService
   drops the mode and the communication device when the process dies, so no persisted undo flag
@@ -731,22 +770,34 @@ does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `Micr
   platform's AEC and NS, Siri `VOICE_RECOGNITION` (`VOICE_COMMUNICATION` where refused), else `MIC`; one restart after
   a read error, then the microphone ends (only it). Bodies wait in a 25-entry buffer that drops the oldest.
 - **Permissions:** `RECORD_AUDIO` joins `carPlayPermissions` (app) and `CarPlayPermissions.runtime` (engine-android),
-  declared in both manifests; engine-android also declares `MODIFY_AUDIO_SETTINGS`. The Permissions page's "CarPlay
-  (beta)" row asks for it with the rest and says so ("…and the microphone for Siri and calls").
+  declared in both manifests; engine-android also declares `MODIFY_AUDIO_SETTINGS`. The Permissions page's "CarPlay"
+  row asks for it with the rest and says so ("…and the microphone for Siri and calls"). The app requests only its own
+  list; the engine's `CarPlayPermissions.runtime` is used by nothing but its own test (left for the engine side to
+  drop or align; it still lacks `ACCESS_COARSE_LOCATION` on 12/12L).
 - **Microphone in the background (2026-11-19).** `RECORD_AUDIO` is a while-in-use permission: a `microphone` service
   type may only be started or added while the app is visible (Android 14+ throws a SecurityException otherwise; no
   listed exemption covers a companion-device app; "Restrictions on starting foreground services that need while-in-use
   permissions"), and types are added by calling `startForeground` again with all of them ("Launch a foreground
-  service"). `RideService` declares `connectedDevice|phoneCall|microphone` and `FOREGROUND_SERVICE_MICROPHONE`, and
+  service"). `RideService` declares `connectedDevice|microphone` (`phoneCall` went with CarLink's held call,
+  2026-11-20) and `FOREGROUND_SERVICE_MICROPHONE`, and
   `keepsMicrophone` decides: added when our CarPlay is Connected, RECORD_AUDIO is granted and the app is visible
   (checked at every CarPlay state change with `ActivityManager.getMyMemoryState`, and at every resume, when the app
   starts the ride service again); kept across screen-off and CarPlay's drops and retries; given back when CarPlay
   stops (Idle/Stopped) or the permission goes (`service.microphone_type`). A refused upgrade is logged
   (`service.foreground_denied`) and retried at the next change. **Limit:** a ride that wakes on ignition with the
   screen off gets no microphone until the rider opens the app once; nothing safe can add a while-in-use type from the
-  background. The same upgrade, made while visible, also gives the service the while-in-use capability that Android
-  17's background audio hardening asks of apps targeting API 37 that play from the background ("Background audio
-  hardening").
+  background. **Android 17's background audio hardening (2026-11-20)** goes further for apps targeting API 37: in the
+  background, playback and volume changes "fail silently" and audio focus returns `AUDIOFOCUS_REQUEST_FAILED` unless
+  the app runs a foreground service with while-in-use capabilities, which a service gets when "started ... while the
+  app is visible" ("Background audio hardening"). So the same limit covers CarPlay's **sound, audio focus and volume**:
+  a ride started only from the background (ignition, screen off, the app never shown) plays nothing until the app is
+  opened once. What the doc asks is done: every start of the ride from the visible app (`RideAutoStart` on every
+  resume, the CarPlay tab's Start CarPlay) posts the foreground state again even when nothing changed, so a ride begun
+  in the background is re-promoted while visible; at ignition `RideStarter.showOnScreen` brings the app over the lock
+  screen, which makes it visible. Still open for a device run: `adb shell cmd audio set-enable-hardening throw` and the
+  `AudioHardening` lines in `dumpsys audio` (`level: full` = an FGS without WIU) for a ride started with the screen
+  off; and a rider-facing hint when focus is refused in the background (it is logged by the engine's `AudioFocus`; the
+  app has no signal for it yet).
 - **Link row (2026-11-19).** `CarPlayState.Connected.wifiChannel` (the group's channel, as offered over iAP2) and
   `CarPlayScreen.stats` (each `carplay.video.stats` window as `CarPlayVideoStats`, reset at a new screen stream) give
   "Wi-Fi Direct · 5 GHz ch 36 · Strong". `linkQuality`: Weak at 5 % pictures lost on the way to the decoder (queue
@@ -774,7 +825,7 @@ does. Code: `spi/Ports.kt` (`AudioPort`, `AudioPlayer`, `AudioStreamInfo`, `Micr
   device=<intercom> type=7 channel=ASSISTANT routed=true`, `track_device … set=true`, `microphone_device … set=true`,
   `microphone_capture … headset=<intercom>`; Siri is heard in the helmet and hears the helmet's microphone; after it,
   `headset_route … cleared=true` and music comes back over A2DP. A call: the same with `channel=PHONE`, `mode to=3`, no
-  `call_route loudspeaker`, no `callaudio.telecom.*` but `callaudio.call.ours`. Switch the intercom off mid-call:
+  `call_route loudspeaker`. Switch the intercom off mid-call:
   `headset_lost`, then `call_route loudspeaker=true`. Mute the microphone from the handlebar mid-call:
   `microphone_muted muted=true`, the far end hears nothing; unmute: `muted=false`. Background: open the CarPlay display
   once after Connected (`service.microphone_type on=true visible=true applied=true`), turn the screen off, hold Siri:
@@ -788,7 +839,8 @@ Each one is a named test in the research docs; we run them in the milestone that
 - How fast Android notices the meter with the screen off (02 §6.5 D4/D5): decides "presence-driven"
   vs "always armed" as the default (checklist under "Auto-start on ignition").
 - Whether the meter uses a fixed address (02 D2), and what force-stop does (02 D11).
-- Volume changes from a background service on Android 17 (01 §4.4).
+- Volume changes, playback and audio focus from a background service on Android 17 (01 §4.4; "Microphone in the
+  background" above: a ride started only from the background needs the app opened once).
 - The Poco's real screen density, glove use and sunlight readability (03 §9).
-- Intercom: the 15-minute bench test of "iPhone owns all sound" (04 §7.1). This can be done any
-  time with today's CarLink, independent of the milestones.
+- Intercom: the 15-minute bench test of "iPhone owns all sound" (04 §7.1), now with our own CarPlay (CarLink is no
+  longer used, 2026-11-20), independent of the milestones.

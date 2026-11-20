@@ -8,6 +8,7 @@ import assertk.assertions.containsExactly
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
+import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.carplay.FakeCarPlayPermissions
 import com.abid.handlebarlink.carplay.InMemoryCarPlaySettings
 import com.abid.handlebarlink.carplay.carPlayCoordinator
@@ -37,19 +38,20 @@ class PairIphoneViewModelTest {
 
     private val abid = PairedIphone("20:00:00:00:00:01", "Abid's iPhone")
     private val pairing = FakeIphonePairing()
-    private val settings = InMemoryCarPlaySettings(enabled = false)
+    private val settings = InMemoryCarPlaySettings()
     private lateinit var collector: Job
+    private lateinit var coordinator: CarPlayCoordinator
 
     private fun TestScope.viewModel(): PairIphoneViewModel {
         val time = TestTimeProvider(testScheduler)
-        val coordinator =
+        coordinator =
             carPlayCoordinator(
                 FakeCarPlayLink(),
                 settings,
                 FakeCarPlayPermissions(),
                 testLogger(RecordingLogSink(), time),
             )
-        val viewModel = PairIphoneViewModel(pairing, coordinator, settings, time)
+        val viewModel = PairIphoneViewModel(pairing, coordinator, time)
         collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         runCurrent()
         return viewModel
@@ -165,13 +167,14 @@ class PairIphoneViewModelTest {
         }
 
     @Test
-    fun `Start CarPlay turns the switch on, and rename asks for the bike's name`() =
+    fun `Start CarPlay lifts the rider's stop, and rename asks for the bike's name`() =
         runTest {
             val viewModel = viewModel()
+            coordinator.hold()
             viewModel.startCarPlay()
             viewModel.rename("CB350RS")
             runCurrent()
-            assertThat(settings.enabled.value).isEqualTo(true)
+            assertThat(coordinator.stoppedByRider.value).isEqualTo(false)
             assertThat(pairing.renamed).containsExactly("CB350RS")
         }
 

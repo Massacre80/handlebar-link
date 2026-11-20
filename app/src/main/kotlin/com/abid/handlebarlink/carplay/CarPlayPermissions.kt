@@ -12,7 +12,9 @@ import javax.inject.Inject
 /**
  * The runtime permissions our CarPlay receiver needs on Android [sdk] (docs/PLAN.md "CarPlay receiver",
  * permissions table decided 2026-11-19): Bluetooth for the RFCOMM dial to the iPhone; Nearby Wi-Fi for the
- * Wi-Fi Direct group from Android 13 (Android 12/12L ask for precise location instead, wifi-direct guide); local
+ * Wi-Fi Direct group from Android 13 (Android 12/12L need precise location instead, wifi-direct guide, asked together
+ * with approximate: "If you try to request only ACCESS_FINE_LOCATION, the system ignores the request on some releases
+ * of Android 12", location permissions guide; the rider must pick precise, since Wi-Fi Direct checks it); local
  * network from Android 17, where apps targeting SDK 37 (ours) are blocked from it without the grant
  * (local-network-permission guide); the microphone for Siri and calls (C5). Bluetooth, Nearby Wi-Fi and local network
  * are in the Nearby devices group, so a rider who allowed Bluetooth is not asked again for them ("Pre-granted
@@ -27,6 +29,7 @@ internal fun carPlayPermissions(sdk: Int): List<String> =
             add(Manifest.permission.NEARBY_WIFI_DEVICES)
         } else {
             add(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }
         if (sdk >= ANDROID_17) add(Manifest.permission.ACCESS_LOCAL_NETWORK)
         add(Manifest.permission.RECORD_AUDIO)

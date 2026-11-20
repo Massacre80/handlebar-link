@@ -2,7 +2,6 @@ package com.abid.handlebarlink.ui.permissions
 
 import android.Manifest
 import android.app.Activity
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,10 +19,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.ActivityCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LifecycleResumeEffect
-import com.abid.handlebarlink.controls.MediaAccessListener
 
 /** Where a permission stands (android-permissions-security §6: check, explain, request; never loop). */
 enum class Access {
@@ -54,16 +51,17 @@ internal sealed interface AccessRequest {
 }
 
 /**
- * The runtime permissions this process has asked for, shared by every screen: Android shows no dialog for one refused
- * for good, and only after it was asked once does "no rationale" mean that (android-permissions-security §6). Shared so
- * that asking on one screen (the CarPlay tab's explanation dialog) turns Allow into Open settings on another at once.
- * Kept in memory only; [rememberRuntimeAccess] also saves its own across process death.
+ * The runtime permissions this process has asked for, each on its own, shared by every screen: Android shows no
+ * dialog for one refused for good, and only after it was asked once does "no rationale" mean that
+ * (android-permissions-security §6). Shared so that asking on one screen (the CarPlay tab's explanation dialog) turns
+ * Allow into Open settings on another at once. Kept in memory only; [rememberRuntimeAccess] also saves its own across
+ * process death.
  */
 internal object AskedPermissions {
     private val asked = HashSet<String>()
 
-    /** Whether any of [permissions] was asked for. */
-    fun any(permissions: List<String>): Boolean = synchronized(asked) { permissions.any { it in asked } }
+    /** Whether [permission] itself was asked for. */
+    fun contains(permission: String): Boolean = synchronized(asked) { permission in asked }
 
     /** [permissions] were asked for. */
     fun add(permissions: List<String>) {
@@ -96,10 +94,28 @@ class AccessState internal constructor(
 }
 
 /**
+ * Where runtime permissions stand from the [missing] ones: GRANTED when none is; BLOCKED when Android would show no
+ * dialog for any of them, that is every missing permission was itself [asked] before and has no [rationale] now
+ * (refused for good: android-permissions-security §6); else ASK. Decided per permission: one permission of a list
+ * asked on another screen (Bluetooth by the pairing) says nothing about the others (the microphone, never asked), so
+ * the list is still asked for. Without an activity ([rationale] null) nothing counts as refused for good.
+ */
+internal fun accessOf(
+    missing: List<String>,
+    asked: (String) -> Boolean,
+    rationale: ((String) -> Boolean)?,
+): Access =
+    when {
+        missing.isEmpty() -> Access.GRANTED
+        rationale != null && missing.all { asked(it) && !rationale(it) } -> Access.BLOCKED
+        else -> Access.ASK
+    }
+
+/**
  * Runtime permissions asked together (one system dialog when they share a group, as Nearby devices does).
  * Granted only when all are. Asking twice after a refusal shows nothing, so once the system says no rationale
- * can be shown after the rider was asked, the state is BLOCKED and the action opens the app's settings.
- * [onResult] reports each answer (true: all granted).
+ * can be shown for each missing permission after the rider was asked for it, the state is BLOCKED and the action
+ * opens the app's settings ([accessOf]). [onResult] reports each answer (true: all granted).
  */
 @Composable
 fun rememberRuntimeAccess(
@@ -110,17 +126,18 @@ fun rememberRuntimeAccess(
     val activity = LocalActivity.current
     var asked by rememberSaveable(permissions) { mutableStateOf(false) }
 
-    fun read(): Access {
-        val missing = permissions.filterNot { granted(context, it) }
-        val blocked =
-            (asked || AskedPermissions.any(permissions)) && activity != null &&
-                missing.none { ActivityCompat.shouldShowRequestPermissionRationale(activity, it) }
-        return when {
-            missing.isEmpty() -> Access.GRANTED
-            blocked -> Access.BLOCKED
-            else -> Access.ASK
-        }
-    }
+    fun read(): Access =
+        accessOf(
+            missing = permissions.filterNot { granted(context, it) },
+            // Asked here (saved across process death: this list was asked as a whole), or on another screen.
+            asked = { asked || AskedPermissions.contains(it) },
+            rationale =
+                activity?.let {
+                    { permission ->
+                        ActivityCompat.shouldShowRequestPermissionRationale(it, permission)
+                    }
+                },
+        )
     val state = remember(permissions) { AccessState(read()) }
     val launcher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { answers ->
@@ -185,31 +202,6 @@ fun rememberNotificationAccess(): AccessState =
         remember { AccessState(Access.GRANTED) }
     }
 
-/**
- * Notification access, which lets the handlebar reach CarLink's media session (interim, controls/). Not a
- * runtime permission: the rider switches it on in Android's settings page for our listener.
- */
-@Composable
-fun rememberMediaAccess(): AccessState {
-    val context = LocalContext.current
-
-    fun read() =
-        if (NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)) {
-            Access.GRANTED
-        } else {
-            Access.ASK
-        }
-    val state = remember { AccessState(read()) }
-    state.request = AccessRequest.Screen { listenerSettings(context) }
-    state.read = ::read
-    state.onAct = { context.startActivity(listenerSettings(context)) }
-    LifecycleResumeEffect(Unit) {
-        state.status = read()
-        onPauseOrDispose {}
-    }
-    return state
-}
-
 private fun granted(
     context: Context,
     permission: String,
@@ -218,10 +210,3 @@ private fun granted(
 private fun appSettings(context: Context): Intent =
     Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", context.packageName, null))
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK.takeIf { context !is Activity } ?: 0)
-
-private fun listenerSettings(context: Context): Intent =
-    Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS)
-        .putExtra(
-            Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,
-            ComponentName(context, MediaAccessListener::class.java).flattenToString(),
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK.takeIf { context !is Activity } ?: 0)

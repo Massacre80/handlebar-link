@@ -21,8 +21,7 @@ import javax.inject.Singleton
 /**
  * Where the rider sends calls (the Intercom page), as our CarPlay's calls and Siri see it: null when the rider chose
  * [PHONE]; else the chosen device, or the primary one (the first intercom unless the rider picked another), by its
- * address and its own Bluetooth name; with no device added, any connected headset. The same choice the held Telecom
- * call follows for CarLink's calls (callaudio/IntercomCallRoute).
+ * address and its own Bluetooth name; with no device added, any connected headset.
  */
 internal fun carPlayHeadset(
     devices: List<SavedDevice>,

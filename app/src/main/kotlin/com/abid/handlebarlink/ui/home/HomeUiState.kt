@@ -45,8 +45,8 @@ enum class LinkStatus {
 }
 
 /**
- * Home's state. Odometer, trip, service and intercom have no data source yet: empty states. CarPlay's card shows
- * CarLink's interim line while the beta switch is off, else our own receiver's status.
+ * Home's state. Odometer, trip, service and intercom have no data source yet: empty states. CarPlay's card shows our
+ * own receiver's status.
  */
 data class HomeUiState(
     /** The pill. */
@@ -60,8 +60,8 @@ data class HomeUiState(
     val rideData: Boolean = false,
     /** What each handlebar press does (the Handlebar card). */
     val handlebar: Map<HandlebarSwitch, RiderAction> = HANDLEBAR_DEFAULTS.getValue(CallSituation.RIDING),
-    /** The CarPlay card's line ("Runs in CarLink for now" while the beta switch is off). */
-    val carPlay: CarPlayLine = CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE),
+    /** The CarPlay card's line ("Starts with the next ride" until the status arrives). */
+    val carPlay: CarPlayLine = CarPlayLine(R.string.carplay_status_waiting, tone = SignalTone.IDLE),
 )
 
 /** An added device on Home. [battery] in percent, null until it reports one. */

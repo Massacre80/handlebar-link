@@ -10,16 +10,10 @@ import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 
 /**
- * The "Handlebar Link CarPlay (beta)" switch (our own receiver instead of CarLink; off until the rider turns it on) and
- * the "CarPlay screen" setting (landscape until the rider chooses portrait).
+ * The "CarPlay screen" setting (landscape until the rider chooses portrait). Our own receiver has no on/off setting:
+ * it replaced CarLink and runs with every ride (owner, 2026-11-20; docs/PLAN.md "CarPlay in the app").
  */
 interface CarPlaySettings {
-    /** Whether our own CarPlay receiver may run during rides. */
-    val enabled: Flow<Boolean>
-
-    /** Turns our own receiver on or off. */
-    suspend fun setEnabled(enabled: Boolean)
-
     /** Which way CarPlay's picture stands ([CarPlayOrientation.DEFAULT] until chosen). */
     val orientation: Flow<CarPlayOrientation>
 
@@ -33,12 +27,6 @@ class DataStoreCarPlaySettings
     constructor(
         private val store: DataStore<Preferences>,
     ) : CarPlaySettings {
-        override val enabled: Flow<Boolean> = store.data.map { it[ENABLED] ?: false }
-
-        override suspend fun setEnabled(enabled: Boolean) {
-            store.edit { it[ENABLED] = enabled }
-        }
-
         /** Stored by name; a name this version does not know reads as the default. */
         override val orientation: Flow<CarPlayOrientation> =
             store.data.map { prefs ->
@@ -50,7 +38,6 @@ class DataStoreCarPlaySettings
         }
 
         private companion object {
-            val ENABLED = booleanPreferencesKey("carplay_beta")
             val ORIENTATION = stringPreferencesKey("carplay_orientation")
         }
     }

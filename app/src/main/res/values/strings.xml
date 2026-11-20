@@ -6,8 +6,6 @@
     <string name="channel_ride">Ride</string>
     <string name="channel_problems">Problems</string>
     <string name="ride_notification_title">Ride</string>
-    <string name="call_audio_title">CarPlay call in your helmet</string>
-    <string name="call_audio_person">CarPlay call</string>
     <string name="ride_stop">Stop</string>
     <string name="status_stopped">Stopped</string>
     <string name="status_waiting">Waiting for the bike (turn the ignition on)</string>
@@ -104,12 +102,6 @@
     <string name="handlebar_hint_ringing_set">Your buttons while a call rings.</string>
     <string name="handlebar_hint_on_call">On a call, the phone key mutes your mic. Hold it to hang up. Up and down set the call volume.</string>
     <string name="handlebar_hint_on_call_set">Your buttons while you\'re on a call.</string>
-    <string name="handlebar_notice_ringing_title">Coming with Handlebar Link CarPlay</string>
-    <string name="handlebar_notice_ringing_body">CarLink can\'t tell the app a call is ringing. Until our own CarPlay runs, your riding buttons stay on while it rings.</string>
-    <string name="handlebar_notice_call_title">Works today: mute and call volume</string>
-    <string name="handlebar_notice_call_body">Hanging up comes with Handlebar Link CarPlay. Until then, hang up on the iPhone.</string>
-    <string name="handlebar_soon">Soon</string>
-    <string name="handlebar_soon_footnote">Soon: works once Handlebar Link runs CarPlay itself. Until then this press does nothing.</string>
     <string name="handlebar_sheet_subtitle">%1$s · %2$s</string>
     <string name="handlebar_key_up_name">the speaker key</string>
     <string name="handlebar_key_right_name">the plus key</string>
@@ -157,14 +149,12 @@
     <string name="action_mute_mic_detail">Your mic. Unmutes by itself when the call ends</string>
     <string name="action_mic_muted">Muted</string>
     <string name="action_mic_unmuted">Unmuted</string>
-    <string name="unavailable_no_media_access">Allow notification access first</string>
-    <string name="unavailable_no_carplay_session">Play something in CarPlay first</string>
-    <string name="unavailable_needs_our_carplay">Needs Handlebar Link CarPlay</string>
+    <string name="unavailable_no_carplay_session">CarPlay isn\'t connected</string>
     <string name="unavailable_no_call">Only during a call</string>
     <string name="unavailable_mic_refused">Android didn\'t change the microphone</string>
     <string name="action_brightness_not_allowed">Allow Modify system settings in Handlebar Link\'s permissions first</string>
     <string name="action_switch_screen">Switch screen</string>
-    <string name="action_switch_screen_detail">CarPlay or Handlebar Link, whichever is not showing</string>
+    <string name="action_switch_screen_detail">CarPlay or the app\'s other pages, whichever is not showing</string>
     <string name="action_open_carplay">Open CarPlay</string>
     <string name="action_open_carplay_detail">Brings CarPlay to the front</string>
     <string name="action_open_app">Open Handlebar Link</string>
@@ -243,7 +233,6 @@
     <string name="device_kind_other">Other</string>
     <string name="device_kind_other_detail">Any other Bluetooth device</string>
     <string name="carplay_title">CarPlay</string>
-    <string name="carplay_interim">Runs in CarLink for now</string>
     <string name="settings">Settings</string>
     <string name="back">Back</string>
 
@@ -256,12 +245,9 @@
     <string name="later_rides">Your rides appear here once ride logging exists.</string>
     <string name="later_garage">Odometer, service and bike details will live here.</string>
 
-    <!-- CarPlay page and Home's CarPlay card: our own receiver behind the beta switch (ui/carplay/) -->
-    <string name="carplay_switch">Handlebar Link CarPlay</string>
-    <string name="carplay_switch_detail">Beta · instead of CarLink</string>
+    <!-- CarPlay page and Home's CarPlay card: our own receiver (ui/carplay/) -->
     <!-- The CarPlay tab's hero (Paper "CarPlay — flow v2", Tab 1–4): tag, title, detail and its actions. -->
     <string name="carplay_tag_not_set_up">Not set up</string>
-    <string name="carplay_tag_carlink">CarLink</string>
     <string name="carplay_tag_ready">Ready</string>
     <string name="carplay_tag_connecting">Connecting</string>
     <string name="carplay_tag_connected">Connected</string>
@@ -269,8 +255,6 @@
     <string name="carplay_tag_needs_you">Needs you</string>
     <string name="carplay_tab_add_title">Add your iPhone</string>
     <string name="carplay_tab_add_detail">Pair it once here. CarPlay then connects by itself on every ride.</string>
-    <string name="carplay_tab_carlink_title">CarPlay runs in CarLink</string>
-    <string name="carplay_tab_carlink_detail">Turn on Handlebar Link CarPlay to connect to your iPhone without CarLink. Close CarLink first: only one can reach the iPhone.</string>
     <string name="carplay_tab_ready_title">Ready for your ride</string>
     <string name="carplay_tab_ready_detail">Connects to %1$s when the ride starts</string>
     <string name="carplay_tab_any_iphone">Connects to your iPhone when the ride starts</string>
@@ -286,6 +270,7 @@
     <string name="carplay_tab_held_detail">Start it again to connect to %1$s</string>
     <string name="carplay_tab_needs_you_detail">CarPlay waits until this is fixed</string>
     <string name="carplay_tab_wifi_off_title">Wi-Fi is off</string>
+    <string name="carplay_tab_bluetooth_off_title">Bluetooth is off</string>
     <string name="carplay_tab_permission_title">Allow Nearby devices</string>
     <string name="carplay_tab_permission_detail">CarPlay needs it to reach your iPhone over Bluetooth and Wi-Fi Direct</string>
     <string name="carplay_tab_microphone_title">Allow the microphone</string>
@@ -313,7 +298,6 @@
     <string name="carplay_tab_unavailable_detail">This build of the app has no CarPlay receiver</string>
     <string name="carplay_action_add">Add iPhone</string>
     <string name="carplay_action_choose">Choose iPhone</string>
-    <string name="carplay_action_beta">Turn on Handlebar Link CarPlay</string>
     <string name="carplay_action_start">Start CarPlay</string>
     <string name="carplay_action_disconnect">Disconnect</string>
     <string name="carplay_action_allow">Allow</string>
@@ -407,7 +391,7 @@
     <string name="carplay_status_permission_microphone">Needs the microphone for Siri and calls</string>
     <string name="carplay_status_permission_local_network">Needs Local network to reach your iPhone</string>
     <string name="carplay_status_permission_several">Needs %1$s</string>
-    <string name="carplay_status_failed">Stopped after an error. Turn it off and on to try again</string>
+    <string name="carplay_status_failed">Stopped after an error. Start CarPlay to try again</string>
     <string name="carplay_status_held">Stopped. Start it on the CarPlay tab</string>
     <string name="carplay_status_waiting">Starts with the next ride</string>
     <string name="carplay_status_starting">Starting</string>
@@ -469,7 +453,6 @@
     <string name="permission_nearby_why">Connects to your bike\'s meter</string>
     <string name="permission_notifications">Notifications</string>
     <string name="permission_notifications_why">Shows the ride and asks for help when needed</string>
-    <string name="permission_media">Notification read, reply &amp; control</string>
     <string name="permission_location">Location</string>
     <string name="permission_location_why">Records your rides: speed, distance and route</string>
     <string name="permission_overlay">Display over other apps</string>
@@ -479,11 +462,10 @@
         <item quantity="one">Allow the last one</item>
         <item quantity="other">Allow all %d</item>
     </plurals>
-    <string name="permission_carplay">CarPlay (beta)</string>
-    <string name="permission_carplay_why">Wi-Fi Direct and the local network to your iPhone, and the microphone for Siri and calls, for Handlebar Link CarPlay. Nothing is located with it</string>
+    <string name="permission_carplay">CarPlay</string>
+    <string name="permission_carplay_why">Bluetooth, Wi-Fi Direct and the local network to your iPhone, and the microphone for Siri and calls. Nothing is located with it</string>
     <string name="permission_brightness">Modify system settings</string>
     <string name="permission_brightness_why">Only for screen brightness: lets the handlebar make the screen brighter or dimmer</string>
-    <string name="permission_media_why">Lets the handlebar play, pause and skip songs in CarPlay. Your notifications are never read</string>
     <string name="access_granted">Allowed</string>
     <string name="access_ask">Allow</string>
     <string name="access_blocked">Open settings</string>

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -38,6 +39,7 @@ import androidx.navigation3.scene.DialogSceneStrategy
 import androidx.navigation3.ui.NavDisplay
 import com.abid.handlebarlink.MainViewModel
 import com.abid.handlebarlink.R
+import com.abid.handlebarlink.controls.ScreenRequest
 import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
@@ -47,6 +49,7 @@ import com.abid.handlebarlink.core.designsystem.component.backdropSource
 import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ride.RideService
+import com.abid.handlebarlink.startsRideOnResume
 import com.abid.handlebarlink.ui.carplay.carPlayEntries
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
@@ -79,7 +82,6 @@ import com.abid.handlebarlink.ui.permissions.rememberAllowAll
 import com.abid.handlebarlink.ui.permissions.rememberBrightnessAccess
 import com.abid.handlebarlink.ui.permissions.rememberCarPlayAccess
 import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
-import com.abid.handlebarlink.ui.permissions.rememberMediaAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
 import com.abid.handlebarlink.ui.permissions.rememberOverlayAccess
@@ -113,8 +115,8 @@ fun AppRoot() {
                 }
 
                 true -> {
-                    if (bikeChosen == true) RideAutoStart(main)
-                    Tabs()
+                    RideAutoStart(main, bikeChosen == true)
+                    Tabs(main)
                 }
             }
         }
@@ -123,12 +125,21 @@ fun AppRoot() {
 
 /**
  * The tabs: the pages (one Navigation 3 back stack per tab) and the floating tab bar, shown on the tabs'
- * pages and hidden on full pages such as Settings.
+ * pages and hidden on full pages such as Settings. A handlebar press's page ([MainViewModel.screens]: our CarPlay
+ * display, or switching to and from it) opens here.
  */
 @Composable
-private fun BoxScope.Tabs() {
+private fun BoxScope.Tabs(main: MainViewModel) {
     val state = rememberNavigationState(TOP_LEVEL_DESTINATIONS)
     val navigator = remember(state) { Navigator(state) }
+    LaunchedEffect(navigator) {
+        main.screens.collect { request ->
+            when (request) {
+                ScreenRequest.OPEN_CARPLAY -> navigator.openCarPlayDisplay()
+                ScreenRequest.SWITCH -> navigator.switchScreen()
+            }
+        }
+    }
     val spacing = HlTheme.spacing
     // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
     val barSpace =
@@ -234,9 +245,7 @@ private fun EntryProviderScope<NavKey>.settingsEntries(navigator: Navigator) {
         )
     }
     entry<PermissionsRoute> {
-        val viewModel: SettingsViewModel = hiltViewModel()
-        val settings by viewModel.uiState.collectAsStateWithLifecycle()
-        val access = rememberAllAccess(carPlay = settings.carPlay)
+        val access = rememberAllAccess()
         val allowAll = rememberAllowAll(access.inOrder)
         PermissionsScreen(
             access.statuses(),
@@ -267,7 +276,7 @@ private fun SettingsEntry(
 ) {
     val viewModel: SettingsViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val access = rememberAllAccess(carPlay = state.carPlay)
+    val access = rememberAllAccess()
     val nearby = access.nearby.status
     // The meters can only be listed with Nearby devices; read them again whenever that or the page resumes.
     LifecycleResumeEffect(nearby) {
@@ -288,10 +297,7 @@ private fun SettingsEntry(
     )
 }
 
-/**
- * The permissions Settings shows (each re-read on every resume); [carPlay] only while the CarPlay beta switch is on,
- * so nothing is asked for a receiver that does not run (least privilege).
- */
+/** The permissions Settings shows (each re-read on every resume), CarPlay's last. */
 private class AllAccess(
     /** In Settings' order, the index [PermissionsScreen] acts on: SettingsAccess.all(). */
     val inOrder: List<AccessState>,
@@ -302,52 +308,62 @@ private class AllAccess(
         SettingsAccess(
             inOrder[NEARBY].status,
             inOrder[NOTIFICATIONS].status,
-            inOrder[MEDIA].status,
             inOrder[LOCATION].status,
             inOrder[OVERLAY].status,
             inOrder[BRIGHTNESS].status,
-            inOrder.getOrNull(CARPLAY)?.status,
+            inOrder[CARPLAY].status,
         )
 
-    /** Positions in [inOrder]; CarPlay's only while its beta switch is on. */
+    /** Positions in [inOrder]. */
     private companion object {
         const val NEARBY = 0
         const val NOTIFICATIONS = 1
-        const val MEDIA = 2
-        const val LOCATION = 3
-        const val OVERLAY = 4
-        const val BRIGHTNESS = 5
-        const val CARPLAY = 6
+        const val LOCATION = 2
+        const val OVERLAY = 3
+        const val BRIGHTNESS = 4
+        const val CARPLAY = 5
     }
 }
 
 @Composable
-private fun rememberAllAccess(carPlay: Boolean) =
+private fun rememberAllAccess() =
     AllAccess(
-        listOfNotNull(
+        listOf(
             rememberNearbyAccess(),
             rememberNotificationAccess(),
-            rememberMediaAccess(),
             rememberLocationAccess(),
             rememberOverlayAccess(),
             rememberBrightnessAccess(),
-            if (carPlay) rememberCarPlayAccess() else null,
+            rememberCarPlayAccess(),
         ),
     )
 
 /**
- * Starts the ride while the app is on screen (a foreground service may only start then): it is shown once a
- * bike is set up, and starts when Nearby devices is allowed; a running ride ignores the second start. Each
- * resume also re-reads the permission for the link (Android sends no broadcast when it changes). Waking on
- * ignition, with the app closed, is Android's companion-device presence (autostart/).
+ * Starts the ride while the app is on screen (a foreground service may only start then; [startsRideOnResume]): for
+ * the bike once one is set up ([bikeChosen]) and Nearby devices is allowed, and for CarPlay once an iPhone is paired
+ * and CarPlay's permissions are allowed, bike or not; a running ride ignores the second start. Each resume also
+ * re-reads the permissions (Android sends no broadcast when they change). Waking on ignition, with the app closed, is
+ * Android's companion-device presence (autostart/).
  */
 @Composable
-private fun RideAutoStart(viewModel: MainViewModel) {
+private fun RideAutoStart(
+    viewModel: MainViewModel,
+    bikeChosen: Boolean,
+) {
     val context = LocalContext.current
     val nearby = rememberNearbyAccess()
-    LifecycleResumeEffect(nearby.status) {
+    val carPlay = rememberCarPlayAccess()
+    val carPlayWantsRide by viewModel.carPlayWantsRide.collectAsStateWithLifecycle()
+    LifecycleResumeEffect(nearby.status, carPlay.status, carPlayWantsRide, bikeChosen) {
         viewModel.onResumed()
-        if (nearby.status == Access.GRANTED) RideService.start(context)
+        val start =
+            startsRideOnResume(
+                bikeChosen = bikeChosen,
+                nearbyGranted = nearby.status == Access.GRANTED,
+                carPlayWantsRide = carPlayWantsRide,
+                carPlayGranted = carPlay.status == Access.GRANTED,
+            )
+        if (start) RideService.start(context)
         onPauseOrDispose {}
     }
 }

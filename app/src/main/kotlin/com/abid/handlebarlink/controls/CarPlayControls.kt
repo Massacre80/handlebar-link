@@ -12,7 +12,6 @@ import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.di.ApplicationScope
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -23,8 +22,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The phone's microphone mute ([AndroidMicrophone]; a fake in tests). It is one switch for the whole phone,
- * so muting it also mutes CarLink's CarPlay call, which records from the phone (callaudio/VoipCallWatcher).
+ * The phone's microphone mute ([AndroidMicrophone]; a fake in tests). It is one switch for the whole phone; our
+ * CarPlay's uplink also sends silence while it is on (MicrophoneCapture, docs/PLAN.md "Smart buttons").
  */
 interface Microphone {
     /** Whether this app may change the mute at all. */
@@ -102,8 +101,7 @@ class DataStoreMicMuteRecord
 
 /**
  * What a press asks of CarPlay and the call: the music keys, answer, decline, end and Siri through
- * [ControlTarget] (our own CarPlay while it is connected; otherwise CarLink, which takes only the music keys and
- * returns [Unavailable.NEEDS_OUR_CARPLAY] for the rest), and the microphone mute, which stays Android's
+ * [ControlTarget] (our own CarPlay; nothing while it is not connected), and the microphone mute, which stays Android's
  * (`AudioManager.setMicrophoneMute`) with our CarPlay too: DiPlay never sends the telephony Phone Mute key.
  *
  * Safety: the microphone mutes only during a call ([CallSituation.ON_CALL]). Before muting, the [MicMuteRecord]
@@ -243,33 +241,19 @@ class CarPlayControls
     }
 
 /**
- * Which actions work with the CarPlay we have now, and which situations can be told apart: for the Handlebar
- * page, to show what works today and what needs our own CarPlay. While our own CarPlay is connected everything
- * works and ringing is seen; otherwise answer, decline, end, Siri and the ringing layer need it. Momentary problems
- * (no music session yet, notification access off) are not here: they come back from the press itself.
+ * Which actions can never work on this phone, for the Handlebar page. With our own CarPlay every action and every
+ * situation works (answer, decline, end and Siri as CarPlay keys, ringing from its call states); only muting the
+ * microphone depends on Android letting this app change it. Momentary problems (CarPlay not connected) are not here:
+ * they come back from the press itself.
  */
 class ActionAvailability
     @Inject
     constructor(
-        private val target: ControlTarget,
         private val microphone: Microphone,
-        private val situations: CallSituations,
-        carPlay: OurCarPlay,
     ) {
-        /** Emits whenever the answers may have changed (our CarPlay connecting or going); the page reads them again. */
-        val changes: Flow<Boolean> = carPlay.connected
-
         /** Why [action] can never work now, or null when it can. */
         fun whyUnavailable(action: RiderAction): Unavailable? =
-            when {
-                action == RiderAction.MUTE_MIC -> if (microphone.canMute) null else Unavailable.MIC_REFUSED
-                CONTROLS[action].let { it != null && it !in target.supported } -> Unavailable.NEEDS_OUR_CARPLAY
-                else -> null
-            }
-
-        /** Why the [situation] layer is never used now (ringing needs our own CarPlay), or null when it is. */
-        fun whyUnavailable(situation: CallSituation): Unavailable? =
-            if (situation == CallSituation.RINGING && !situations.seesRinging) Unavailable.NEEDS_OUR_CARPLAY else null
+            if (action == RiderAction.MUTE_MIC && !microphone.canMute) Unavailable.MIC_REFUSED else null
     }
 
 /** The call and Siri actions, and what each asks CarPlay to do. */

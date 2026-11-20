@@ -15,40 +15,72 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 
 /**
- * A small status tag beside a value or a title ("SOON": works once our own CarPlay runs; Paper "Handlebar —
- * Smart buttons"), upper-cased here. Night: brand text on a faint brand pill with a brand edge, as drawn. Bento:
- * brand text would vanish on white (docs/LESSONS.md 31), so the pill is brand with brand ink.
+ * A small status tag beside a value or a title, upper-cased here: "SOON" (Paper "Handlebar — Smart buttons") or the
+ * CarPlay tab's state (Paper "CarPlay — flow v2", with [dot]: a 6 dp dot before the words in the tag's ink).
+ * Night: the [tone]'s colour as text on a faint pill of it with an edge of it, as drawn (brand and danger: 12 % fill,
+ * 28 % edge); [HlTagTone.QUIET] muted text on the panel with a hairline. Bento: brand or danger text would vanish on
+ * white (docs/LESSONS.md 31), so the pill is filled: brand with brand ink, danger with inverse ink, quiet raisedLo with
+ * muted ink and a hairline.
  */
 @Composable
 public fun HlTag(
     text: String,
     modifier: Modifier = Modifier,
+    tone: HlTagTone = HlTagTone.BRAND,
+    dot: Boolean = false,
 ) {
     val colors = HlTheme.colors
     val night = HlTheme.variant == HlThemeVariant.NIGHT
-    Box(
+    val accent =
+        when (tone) {
+            HlTagTone.BRAND -> colors.brand
+            HlTagTone.DANGER -> colors.danger
+            HlTagTone.QUIET -> null
+        }
+    val fill: Color
+    val edge: Color
+    val ink: Color
+    when {
+        accent != null && night -> {
+            fill = accent.copy(alpha = TAG_FILL)
+            edge = accent.copy(alpha = TAG_EDGE)
+            ink = accent
+        }
+
+        tone == HlTagTone.BRAND -> {
+            fill = colors.brand
+            edge = Color.Transparent
+            ink = colors.brandInk
+        }
+
+        accent != null -> {
+            fill = accent
+            edge = Color.Transparent
+            ink = colors.inkInverse
+        }
+
+        else -> {
+            fill = if (night) colors.panel else colors.raisedLo
+            edge = colors.line
+            ink = colors.inkMuted
+        }
+    }
+    Row(
         modifier
-            .background(if (night) colors.brand.copy(alpha = TAG_FILL) else colors.brand, CircleShape)
-            .then(
-                if (night) {
-                    Modifier.border(HlTheme.strokes.hairline, colors.brand.copy(alpha = TAG_EDGE), CircleShape)
-                } else {
-                    Modifier
-                },
-            ).padding(horizontal = HlTheme.spacing.s8, vertical = HlTheme.spacing.s4),
-        contentAlignment = Alignment.Center,
+            .background(fill, CircleShape)
+            .border(HlTheme.strokes.hairline, edge, CircleShape)
+            .padding(horizontal = HlTheme.spacing.s8, vertical = HlTheme.spacing.s4),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HlTheme.spacing.s6),
     ) {
-        HlText(
-            text.uppercase(),
-            HlTheme.typography.caps.copy(fontWeight = FontWeight.SemiBold),
-            if (night) colors.brand else colors.brandInk,
-            maxLines = 1,
-        )
+        if (dot) Box(Modifier.size(HlTheme.sizes.dotSmall).background(ink, CircleShape))
+        HlText(text.uppercase(), HlTheme.typography.caps.copy(fontWeight = FontWeight.SemiBold), ink, maxLines = 1)
     }
 }
 
@@ -94,10 +126,10 @@ public fun HlNotice(
     }
 }
 
-/** The tag's and the notice icon's faint brand fill (Paper: #C8F03C1F). */
+/** The tag's and the notice icon's faint fill (Paper: brand #C8F03C1F; the danger tag the same 12 %). */
 private const val TAG_FILL = 0.12f
 
-/** The tag's brand edge (Paper: #C8F03C47). */
+/** The tag's edge (Paper: brand #C8F03C47; the danger tag the same 28 %). */
 private const val TAG_EDGE = 0.28f
 
 /** The notice's brand edge (Paper: #C8F03C33). */

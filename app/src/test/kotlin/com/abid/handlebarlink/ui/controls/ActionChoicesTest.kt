@@ -7,7 +7,6 @@ import assertk.assertions.isFalse
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.controls.CallSituation
 import com.abid.handlebarlink.controls.RiderAction
-import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.controls.allowedActions
 import org.junit.Test
 
@@ -32,18 +31,9 @@ class ActionChoicesTest {
     }
 
     @Test
-    fun `soon means needs our own CarPlay, not any other reason`() {
-        assertThat(ActionChoice(RiderAction.SIRI, Unavailable.NEEDS_OUR_CARPLAY).soon).isTrue()
-        assertThat(ActionChoice(RiderAction.MUTE_MIC, Unavailable.MIC_REFUSED).soon).isFalse()
-        assertThat(ActionChoice(RiderAction.NEXT).soon).isFalse()
-    }
-
-    @Test
-    fun `the intercom's assistant button shows Siri as soon but not choosable`() {
-        val siri = ASSISTANT_CHOICES.first { it.action == RiderAction.SIRI }
-
-        assertThat(siri.soon).isTrue()
-        assertThat(siri.choosable).isFalse()
-        assertThat(ASSISTANT_CHOICES.filter { !it.choosable }.map { it.action }).containsExactly(RiderAction.SIRI)
+    fun `the intercom's assistant button offers every riding action, Siri included, all choosable`() {
+        assertThat(ASSISTANT_CHOICES.map { it.action }).isEqualTo(allowedActions(CallSituation.RIDING))
+        assertThat(ASSISTANT_CHOICES.any { !it.choosable || it.unavailable != null }).isFalse()
+        assertThat(ASSISTANT_CHOICES.map { it.action }.contains(RiderAction.SIRI)).isTrue()
     }
 }

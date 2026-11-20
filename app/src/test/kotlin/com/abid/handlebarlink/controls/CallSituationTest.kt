@@ -1,63 +1,24 @@
-// Virtual-time controls of kotlinx-coroutines-test (runCurrent).
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package com.abid.handlebarlink.controls
 
 import assertk.assertThat
-import assertk.assertions.containsExactly
-import assertk.assertions.doesNotContain
 import assertk.assertions.isEqualTo
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.test.runCurrent
-import kotlinx.coroutines.test.runTest
+import com.abid.handlebarlink.carplay.engine.CarPlayCall
+import com.abid.handlebarlink.carplay.engine.CarPlayCallStatus
 import org.junit.Test
 
 class CallSituationTest {
     @Test
-    fun `the audio source follows the call, on a call while it runs and riding after`() =
-        runTest {
-            val inCall = MutableSharedFlow<Boolean>()
-            val seen = mutableListOf<CallSituation>()
-            val situation = situationsFrom(inCall, backgroundScope) { seen += it }
-            runCurrent()
-            assertThat(situation.value).isEqualTo(CallSituation.RIDING)
+    fun `the situation is the iPhone's calls while our CarPlay is connected, else riding`() {
+        val ringing = listOf(CarPlayCall(CarPlayCallStatus.RINGING))
+        val active = listOf(CarPlayCall(CarPlayCallStatus.ACTIVE))
 
-            inCall.emit(true)
-            runCurrent()
-            assertThat(situation.value).isEqualTo(CallSituation.ON_CALL)
-
-            inCall.emit(false)
-            runCurrent()
-            assertThat(situation.value).isEqualTo(CallSituation.RIDING)
-            assertThat(seen).containsExactly(CallSituation.ON_CALL, CallSituation.RIDING)
-        }
-
-    @Test
-    fun `a source started during a call is on a call from the first read`() =
-        runTest {
-            // A process restarted mid-call: the seed comes from one read of the audio state.
-            val situation = situationsFrom(MutableSharedFlow(), backgroundScope, CallSituation.ON_CALL)
-
-            assertThat(situation.value).isEqualTo(CallSituation.ON_CALL)
-        }
-
-    @Test
-    fun `the audio source never reports ringing, whatever the audio does`() =
-        runTest {
-            val inCall = MutableSharedFlow<Boolean>()
-            val seen = mutableListOf<CallSituation>()
-            val situation = situationsFrom(inCall, backgroundScope) { seen += it }
-            runCurrent()
-
-            repeat(20) { i ->
-                inCall.emit(i % 3 != 0)
-                runCurrent()
-                seen += situation.value
-            }
-
-            assertThat(seen).doesNotContain(CallSituation.RINGING)
-        }
+        assertThat(carPlaySituation(connected = true, ringing)).isEqualTo(CallSituation.RINGING)
+        assertThat(carPlaySituation(connected = true, active)).isEqualTo(CallSituation.ON_CALL)
+        assertThat(carPlaySituation(connected = true, emptyList())).isEqualTo(CallSituation.RIDING)
+        // Not connected: no call reaches the handlebar (calls the engine kept are not trusted).
+        assertThat(carPlaySituation(connected = false, ringing)).isEqualTo(CallSituation.RIDING)
+        assertThat(carPlaySituation(connected = false, active)).isEqualTo(CallSituation.RIDING)
+    }
 
     @Test
     fun `iAP2 call statuses give the situation, ringing first (DiPlay BydCarPlayCall)`() {

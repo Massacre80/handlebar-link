@@ -6,11 +6,6 @@
          BLUETOOTH_CONNECT comes from :bike:link-android. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
-    <!-- Intercom call audio (callaudio/): a held self-managed call while CarLink's CarPlay call runs, so
-         Android carries it over the intercom's hands-free link (Core-Telecom guide: MANAGE_OWN_CALLS, and
-         the phoneCall foreground type while a call is held). -->
-    <uses-permission android:name="android.permission.MANAGE_OWN_CALLS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
     <!-- Mute microphone from the handlebar during a call (controls/CarPlayControls): AudioService needs this for
          AudioManager.setMicrophoneMute; a normal (install-time) permission. -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
@@ -36,12 +31,12 @@
          that type's runtime prerequisite, and BLUETOOTH_CONNECT does too (FGS service types), so no type changes.
          BLUETOOTH_CONNECT: the RFCOMM dial to the iPhone (also declared by :bike:link-android for the meter).
          NEARBY_WIFI_DEVICES: the Wi-Fi Direct group on API 33+; nothing is located with it, so neverForLocation
-         (API 31-32 use ACCESS_FINE_LOCATION, declared below). ACCESS_LOCAL_NETWORK: Android 17 blocks the local
+         (API 31-32 use ACCESS_FINE_LOCATION, asked with ACCESS_COARSE_LOCATION, both declared above). ACCESS_LOCAL_NETWORK: Android 17 blocks the local
          network for apps targeting SDK 37 without it (local-network-permission guide); unknown, so ignored,
          before. INTERNET: Android requires it for every socket, also the local ones to the iPhone; the Poco has
          no internet connection of its own. ACCESS_WIFI_STATE and CHANGE_WIFI_STATE: Wi-Fi Direct (wifi-direct
          guide). The runtime ones are asked for in the app's permission flow (Permissions page, Allow all, the
-         CarPlay page's switch). -->
+         CarPlay page's Start CarPlay). -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
@@ -73,9 +68,6 @@
     <!-- Package visibility: the intercom maker's app, opened from the Intercom page. -->
     <queries>
         <package android:name="com.ejeas.ejeasapp" />
-        <!-- CarLink, opened from the handlebar (Open CarPlay, Switch screen; controls/CARLINK_PACKAGES). -->
-        <package android:name="com.carlink.app" />
-        <package android:name="com.carlink.app.hudtest" />
         <!-- Who gets a headset's assistant button now (the Devices page says so). -->
         <intent>
             <action android:name="android.intent.action.VOICE_COMMAND" />
@@ -105,7 +97,7 @@
         <service
             android:name=".ride.RideService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|phoneCall|microphone" />
+            android:foregroundServiceType="connectedDevice|microphone" />
 
         <!-- Android binds it when the linked meter comes or goes (CompanionDeviceService reference: exported,
              guarded by BIND_COMPANION_DEVICE_SERVICE, which only the system holds). -->
@@ -127,18 +119,6 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
-
-        <!-- Interim: lets the app reach CarLink's CarPlay media session (controls/). The system binds it
-             only with BIND_NOTIFICATION_LISTENER_SERVICE; the user grants notification access. -->
-        <service
-            android:name=".controls.MediaAccessListener"
-            android:exported="true"
-            android:label="@string/app_name"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
-            <intent-filter>
-                <action android:name="android.service.notification.NotificationListenerService" />
-            </intent-filter>
-        </service>
 
         <!-- A headset's assistant button (HFP AT+BVRA makes Android start ACTION_VOICE_COMMAND): does what the
              rider chose and closes, nothing on screen, also over the lock screen while riding. Exported for

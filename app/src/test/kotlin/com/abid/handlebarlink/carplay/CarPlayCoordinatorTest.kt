@@ -50,7 +50,7 @@ class CarPlayCoordinatorTest {
     private val bikeLink = FakeBikeLink()
     private val carPlayLink = FakeCarPlayLink()
     private val settings = InMemoryCarPlaySettings()
-    private var switch: CarPlaySettings = settings
+    private var stored: CarPlaySettings = settings
     private val permissions = FakeCarPlayPermissions()
     private val logs = RecordingLogSink()
     private val canvas = RecordingCanvas()
@@ -59,7 +59,7 @@ class CarPlayCoordinatorTest {
 
     private fun TestScope.ride(link: CarPlayLink? = carPlayLink): Pair<RideCoordinator, Deferred<*>> {
         val logger = testLogger(logs, TestTimeProvider(testScheduler))
-        carPlay = carPlayCoordinator(link, switch, permissions, logger, canvas)
+        carPlay = carPlayCoordinator(link, stored, permissions, logger, canvas)
         val coordinator =
             RideCoordinator(
                 settings = Bikes(bike),
@@ -85,21 +85,20 @@ class CarPlayCoordinatorTest {
     }
 
     @Test
-    fun `with the switch off CarPlay never runs and the ride is the bike's alone`() =
+    fun `without CarPlay's permissions it never runs and the ride is the bike's alone`() =
         runTest {
+            permissions.missing = listOf(Manifest.permission.RECORD_AUDIO)
             val (_, ride) = ride()
 
             assertThat(carPlayLink.isRunning).isFalse()
             assertThat(carPlayLink.commands).isEmpty()
-            assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Off)
             bikeDone()
             assertThat(ride.isCompleted).isTrue()
         }
 
     @Test
-    fun `with the switch on CarPlay runs beside the bike link and is started`() =
+    fun `CarPlay runs beside the bike link in every ride and is started, with no switch to turn on`() =
         runTest {
-            settings.enabled.value = true
             ride()
 
             assertThat(carPlayLink.isRunning).isTrue()
@@ -113,7 +112,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `the CarPlay screen setting reaches the canvas before the start, landscape by default`() =
         runTest {
-            settings.enabled.value = true
             ride()
 
             assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE)
@@ -123,7 +121,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a stored portrait choice is what the first attempt reports`() =
         runTest {
-            settings.enabled.value = true
             settings.orientation.value = CarPlayOrientation.PORTRAIT
             ride()
 
@@ -133,7 +130,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a new orientation while CarPlay runs stops it, ends its run and starts it again with the new canvas`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
 
             settings.orientation.value = CarPlayOrientation.PORTRAIT
@@ -150,24 +146,25 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
-    fun `a new orientation while CarPlay is off or held starts nothing, and applies at the next start`() =
+    fun `a new orientation while CarPlay is held starts nothing, and applies at the next start`() =
         runTest {
             ride()
+            carPlay.hold()
+            runCurrent()
 
             settings.orientation.value = CarPlayOrientation.PORTRAIT
             runCurrent()
 
-            assertThat(carPlayLink.commands).isEmpty()
-            assertThat(canvas.used).isEmpty()
-            settings.enabled.value = true
+            assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.Stop)
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE)
+            carPlay.start()
             runCurrent()
-            assertThat(canvas.used).containsExactly(CarPlayOrientation.PORTRAIT)
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE, CarPlayOrientation.PORTRAIT)
         }
 
     @Test
     fun `the keep-alive holds across a restart for a new orientation`() =
         runTest {
-            settings.enabled.value = true
             ride()
             val seen = mutableListOf<Boolean>()
             backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { carPlay.keepAlive.collect { seen += it } }
@@ -179,24 +176,11 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
-    fun `turning the switch on mid-ride starts CarPlay`() =
+    fun `the rider's stop ends CarPlay's run, releasing everything, and Start CarPlay restarts it`() =
         runTest {
-            ride()
-
-            settings.enabled.value = true
-            runCurrent()
-
-            assertThat(carPlayLink.isRunning).isTrue()
-            assertThat(carPlayLink.commands).containsExactly(Command.Start)
-        }
-
-    @Test
-    fun `turning the switch off stops CarPlay and ends its run, releasing everything, and on again restarts it`() =
-        runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
 
-            settings.enabled.value = false
+            carPlay.hold()
             runCurrent()
 
             assertThat(carPlayLink.commands).containsExactly(Command.Start, Command.Stop)
@@ -204,7 +188,7 @@ class CarPlayCoordinatorTest {
             assertThat(bikeLink.isRunning).isTrue()
             assertThat(ride.isActive).isTrue()
 
-            settings.enabled.value = true
+            carPlay.start()
             runCurrent()
 
             assertThat(carPlayLink.isRunning).isTrue()
@@ -214,7 +198,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a CarPlay crash never touches the bike link or the ride, and shows as failed`() =
         runTest {
-            settings.enabled.value = true
             val failing = FailingCarPlayLink(IllegalStateException("bug in the engine"))
             val (_, ride) = ride(failing)
             bikeLink.setKeepAlive(true)
@@ -234,7 +217,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a cancellation from inside the engine is a failure, not the ride's end`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride(FailingCarPlayLink(CancellationException("a timeout inside the engine")))
             bikeLink.setKeepAlive(true)
             bikeLink.setState(LinkState.WaitingForBike)
@@ -248,33 +230,44 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
-    fun `after a crash, switching off and on runs CarPlay again`() =
+    fun `after a crash, Start CarPlay runs the engine again in the same ride`() =
         runTest {
-            settings.enabled.value = true
             val failing = FailingCarPlayLink(IllegalStateException("bug in the engine"), afterMillis = 1_000)
-            ride(failing)
+            val (_, ride) = ride(failing)
             advanceTimeBy(1_500)
+            assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Failed)
 
-            settings.enabled.value = false
-            runCurrent()
-            settings.enabled.value = true
+            carPlay.start()
             runCurrent()
 
             assertThat(carPlay.status.first()).isInstanceOf(CarPlayStatus.Engine::class)
-            assertThat(failing.fake.commands.last()).isEqualTo(Command.Start)
+            // The failed session is stopped (the engine's state reset) before the new start.
+            assertThat(failing.fake.commands).containsExactly(Command.Start, Command.Stop, Command.Start)
+            assertThat(canvas.used).containsExactly(CarPlayOrientation.LANDSCAPE, CarPlayOrientation.LANDSCAPE)
+            assertThat(ride.isActive).isTrue()
+        }
+
+    @Test
+    fun `Start CarPlay without a failure or a stop restarts nothing`() =
+        runTest {
+            ride()
+
+            carPlay.start()
+            runCurrent()
+
+            assertThat(carPlayLink.commands).containsExactly(Command.Start)
         }
 
     @Test
     fun `the ride stays while CarPlay needs the service, and ends once neither does`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
             carPlayLink.setKeepAlive(true)
 
             bikeDone()
             assertThat(ride.isActive).isTrue()
 
-            settings.enabled.value = false
+            carPlay.hold()
             runCurrent()
             // The engine's keepAlive outlasts the stop until its teardown is done (CarPlayLink.keepAlive).
             assertThat(ride.isActive).isTrue()
@@ -289,13 +282,12 @@ class CarPlayCoordinatorTest {
     @Test
     fun `the ride stays while the bike needs the service, whatever CarPlay does`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
             bikeLink.setKeepAlive(true)
             bikeLink.setState(LinkState.WaitingForBike)
             runCurrent()
 
-            settings.enabled.value = false
+            carPlay.hold()
             carPlayLink.setKeepAlive(false)
             runCurrent()
 
@@ -305,7 +297,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `CarPlay keeps the service from the moment it is started, before the engine reports anything`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
 
             // The engine has not taken the start yet: its own keepAlive is still false.
@@ -316,12 +307,12 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
-    fun `the ride waits for the switch to load before it can end, then CarPlay runs`() =
+    fun `the ride waits for the settings to load before it can end, then CarPlay runs`() =
         runTest {
-            switch = SlowCarPlaySettings(enabled = true, loadMillis = 100)
+            stored = SlowCarPlaySettings(loadMillis = 100)
             val (_, ride) = ride()
 
-            // The bike is done before the stored switch has been read.
+            // The bike is done before the stored settings have been read.
             bikeDone()
             assertThat(ride.isActive).isTrue()
 
@@ -331,9 +322,10 @@ class CarPlayCoordinatorTest {
         }
 
     @Test
-    fun `with the switch loading off, the ride ends once it is read`() =
+    fun `with a permission missing, the ride ends once the settings are read`() =
         runTest {
-            switch = SlowCarPlaySettings(enabled = false, loadMillis = 100)
+            stored = SlowCarPlaySettings(loadMillis = 100)
+            permissions.missing = listOf(Manifest.permission.RECORD_AUDIO)
             val (_, ride) = ride()
             bikeDone()
 
@@ -348,7 +340,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `stopping the ride stops CarPlay too, and the ride ends`() =
         runTest {
-            settings.enabled.value = true
             val (coordinator, ride) = ride()
             carPlayLink.setKeepAlive(true)
             bikeLink.setKeepAlive(true)
@@ -369,7 +360,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `without platform ports CarPlay is not available, never holds the ride, and the bike rides alone`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride(link = null)
 
             assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.NotAvailable)
@@ -381,7 +371,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a missing permission keeps CarPlay from running and says so, until it is allowed`() =
         runTest {
-            settings.enabled.value = true
             permissions.missing = listOf(Manifest.permission.NEARBY_WIFI_DEVICES)
             ride()
 
@@ -400,7 +389,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `a permission withdrawn mid-ride stops CarPlay`() =
         runTest {
-            settings.enabled.value = true
             ride()
 
             permissions.missing = listOf(Manifest.permission.BLUETOOTH_CONNECT)
@@ -414,7 +402,6 @@ class CarPlayCoordinatorTest {
     @Test
     fun `when the ride ends a start the engine had not taken yet is cancelled by a stop`() =
         runTest {
-            settings.enabled.value = true
             val (_, ride) = ride()
             carPlayLink.setKeepAlive(true)
             bikeDone()

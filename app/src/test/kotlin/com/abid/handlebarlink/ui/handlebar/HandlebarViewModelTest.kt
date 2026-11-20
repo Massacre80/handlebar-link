@@ -12,27 +12,15 @@ import assertk.assertions.isFalse
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
-import com.abid.handlebarlink.carplay.engine.CarPlayState
-import com.abid.handlebarlink.carplay.engine.test.FakeCarPlayLink
 import com.abid.handlebarlink.controls.ActionAvailability
-import com.abid.handlebarlink.controls.CARLINK_SUPPORTED
 import com.abid.handlebarlink.controls.CallSituation
-import com.abid.handlebarlink.controls.FakeCallSituations
-import com.abid.handlebarlink.controls.FakeControlTarget
 import com.abid.handlebarlink.controls.FakeMicrophone
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.InMemoryHandlebarMapping
-import com.abid.handlebarlink.controls.OurCarPlay
-import com.abid.handlebarlink.controls.OurCarPlayControlTarget
 import com.abid.handlebarlink.controls.RiderAction
-import com.abid.handlebarlink.controls.RoutedCallSituations
-import com.abid.handlebarlink.controls.RoutedControlTarget
 import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.controls.allowedActions
 import com.abid.handlebarlink.core.testing.MainDispatcherRule
-import com.abid.handlebarlink.core.testing.RecordingLogSink
-import com.abid.handlebarlink.core.testing.TestTimeProvider
-import com.abid.handlebarlink.core.testing.testLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -41,7 +29,6 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import org.junit.Rule
 import org.junit.Test
-import java.time.Instant
 
 class HandlebarViewModelTest {
     @get:Rule
@@ -49,21 +36,11 @@ class HandlebarViewModelTest {
 
     private val mapping = InMemoryHandlebarMapping()
 
-    /** What CarLink can do today: the music keys only, no ringing seen. */
-    private val carLink =
-        ActionAvailability(
-            FakeControlTarget(CARLINK_SUPPORTED),
-            FakeMicrophone(),
-            FakeCallSituations(seesRinging = false),
-            OurCarPlay(null),
-        )
-
-    /** Our own CarPlay: everything, ringing included. */
-    private val ourCarPlay =
-        ActionAvailability(FakeControlTarget(), FakeMicrophone(), FakeCallSituations(), OurCarPlay(null))
+    /** Our own CarPlay: every action and situation works. */
+    private val ourCarPlay = ActionAvailability(FakeMicrophone())
 
     /** A view model whose page is collected (as the screen does), so [HandlebarViewModel.uiState] is live. */
-    private fun TestScope.viewModel(availability: ActionAvailability = carLink): HandlebarViewModel {
+    private fun TestScope.viewModel(availability: ActionAvailability = ourCarPlay): HandlebarViewModel {
         val viewModel = HandlebarViewModel(mapping, availability)
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { viewModel.uiState.collect {} }
         return viewModel
@@ -143,7 +120,7 @@ class HandlebarViewModelTest {
         }
 
     @Test
-    fun `an action that needs our own CarPlay may be chosen and is then marked soon`() =
+    fun `a call action may be chosen for another key and works there`() =
         runTest {
             val viewModel = viewModel()
             viewModel.select(CallSituation.ON_CALL)
@@ -152,128 +129,42 @@ class HandlebarViewModelTest {
                 .isTrue()
 
             val press = viewModel.uiState.value.press(HandlebarSwitch.HOLD_DOWN)
-            assertThat(press.unavailable).isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-            assertThat(press.soon).isTrue()
+            assertThat(press.action).isEqualTo(RiderAction.END_CALL)
+            assertThat(press.unavailable).isNull()
         }
 
     @Test
-    fun `with CarLink, Siri is marked soon with its reason and the music keys work`() =
-        runTest {
-            val state = viewModel().uiState.value
-
-            val siri = state.press(HandlebarSwitch.HOLD_LEFT)
-            assertThat(siri.action).isEqualTo(RiderAction.SIRI)
-            assertThat(siri.unavailable).isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-            assertThat(siri.soon).isTrue()
-            assertThat(state.press(HandlebarSwitch.UP).unavailable).isNull()
-            assertThat(state.press(HandlebarSwitch.UP).soon).isFalse()
-            assertThat(state.notice).isNull()
-        }
-
-    @Test
-    fun `with CarLink, ringing says it needs our CarPlay and the call keys are marked soon`() =
-        runTest {
-            val viewModel = viewModel()
-
-            viewModel.select(CallSituation.RINGING)
-
-            val state = viewModel.uiState.value
-            assertThat(state.notice).isEqualTo(HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY)
-            assertThat(state.press(HandlebarSwitch.LEFT).soon).isTrue()
-            assertThat(state.press(HandlebarSwitch.HOLD_LEFT).soon).isTrue()
-            assertThat(state.press(HandlebarSwitch.UP).soon).isFalse()
-        }
-
-    @Test
-    fun `with CarLink, on a call says hanging up needs our CarPlay while mute works`() =
-        runTest {
-            val viewModel = viewModel()
-
-            viewModel.select(CallSituation.ON_CALL)
-
-            val state = viewModel.uiState.value
-            assertThat(state.notice).isEqualTo(HandlebarNotice.HANG_UP_NEEDS_OUR_CARPLAY)
-            assertThat(state.press(HandlebarSwitch.HOLD_LEFT).soon).isTrue()
-            assertThat(state.press(HandlebarSwitch.LEFT).unavailable).isNull()
-        }
-
-    @Test
-    fun `the page follows our CarPlay connecting and going, the ringing notice and soon tags with it`() =
-        runTest {
-            val link = FakeCarPlayLink(CarPlayState.Idle)
-            val carPlay = OurCarPlay(link)
-            val logger = testLogger(RecordingLogSink(), TestTimeProvider(testScheduler))
-            val availability =
-                ActionAvailability(
-                    RoutedControlTarget(
-                        carPlay,
-                        OurCarPlayControlTarget(carPlay, logger),
-                        FakeControlTarget(CARLINK_SUPPORTED),
-                        logger,
-                    ),
-                    FakeMicrophone(),
-                    RoutedCallSituations(carPlay, FakeCallSituations(seesRinging = false), backgroundScope, logger),
-                    carPlay,
-                )
-            val viewModel = viewModel(availability)
-            viewModel.select(CallSituation.RINGING)
-            assertThat(viewModel.uiState.value.notice).isEqualTo(HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY)
-            assertThat(
-                viewModel.uiState.value
-                    .press(HandlebarSwitch.LEFT)
-                    .soon,
-            ).isTrue()
-
-            link.setState(CarPlayState.Connected("iphone", Instant.EPOCH))
-
-            assertThat(viewModel.uiState.value.notice).isNull()
-            assertThat(
-                viewModel.uiState.value
-                    .press(HandlebarSwitch.LEFT)
-                    .soon,
-            ).isFalse()
-            val picker = viewModel.picker(CallSituation.RIDING, HandlebarSwitch.HOLD_LEFT).first()
-            assertThat(picker.choices.filter { it.unavailable != null }).isEmpty()
-
-            link.setState(CarPlayState.Idle)
-
-            assertThat(viewModel.uiState.value.notice).isEqualTo(HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY)
-        }
-
-    @Test
-    fun `with our own CarPlay nothing is marked and no notice shows`() =
+    fun `with our own CarPlay nothing is marked in any situation, Siri and the call keys included`() =
         runTest {
             val viewModel = viewModel(ourCarPlay)
 
             CallSituation.entries.forEach { situation ->
                 viewModel.select(situation)
                 val state = viewModel.uiState.value
-                assertThat(state.notice).isNull()
                 assertThat(state.presses.values.filter { it.unavailable != null }).isEmpty()
             }
+            val picker = viewModel.picker(CallSituation.RIDING, HandlebarSwitch.HOLD_LEFT).first()
+            assertThat(picker.choices.filter { it.unavailable != null }).isEmpty()
         }
 
     @Test
-    fun `a microphone Android will not change is shown with that reason, not as soon`() =
+    fun `a microphone Android will not change is shown with that reason`() =
         runTest {
-            val refusing =
-                ActionAvailability(
-                    FakeControlTarget(CARLINK_SUPPORTED),
-                    FakeMicrophone(canMuteNow = false),
-                    FakeCallSituations(seesRinging = false),
-                    OurCarPlay(null),
-                )
-            val viewModel = viewModel(refusing)
+            val viewModel = viewModel(ActionAvailability(FakeMicrophone(canMuteNow = false)))
 
             viewModel.select(CallSituation.ON_CALL)
 
             val mute = viewModel.uiState.value.press(HandlebarSwitch.LEFT)
             assertThat(mute.unavailable).isEqualTo(Unavailable.MIC_REFUSED)
-            assertThat(mute.soon).isFalse()
+            assertThat(
+                viewModel.uiState.value
+                    .press(HandlebarSwitch.HOLD_LEFT)
+                    .unavailable,
+            ).isNull()
         }
 
     @Test
-    fun `the picker lists each situation's own choices, in order, with what works today`() =
+    fun `the picker lists each situation's own choices, in order`() =
         runTest {
             val viewModel = viewModel()
 
@@ -284,11 +175,8 @@ class HandlebarViewModelTest {
             }
             val ringing = viewModel.picker(CallSituation.RINGING, HandlebarSwitch.LEFT).first()
             assertThat(ringing.choices.map { it.action }).doesNotContain(RiderAction.NEXT)
-            assertThat(ringing.choices.first { it.action == RiderAction.ANSWER_CALL }.soon).isTrue()
             val riding = viewModel.picker(CallSituation.RIDING, HandlebarSwitch.LEFT).first()
             assertThat(riding.choices.map { it.action }).doesNotContain(RiderAction.END_CALL)
-            assertThat(riding.choices.first { it.action == RiderAction.SIRI }.soon).isTrue()
-            assertThat(riding.choices.first { it.action == RiderAction.NEXT }.soon).isFalse()
         }
 
     @Test
@@ -320,9 +208,9 @@ class HandlebarViewModelTest {
 
     @Test
     fun `while a call rings or is on, only keys that do something are called out, the call key in brand`() {
-        val ringing = handlebarState(CallSituation.RINGING, HANDLEBAR_DEFAULTS, carLink)
-        val onCall = handlebarState(CallSituation.ON_CALL, HANDLEBAR_DEFAULTS, carLink)
-        val riding = handlebarState(CallSituation.RIDING, HANDLEBAR_DEFAULTS, carLink)
+        val ringing = handlebarState(CallSituation.RINGING, HANDLEBAR_DEFAULTS, ourCarPlay)
+        val onCall = handlebarState(CallSituation.ON_CALL, HANDLEBAR_DEFAULTS, ourCarPlay)
+        val riding = handlebarState(CallSituation.RIDING, HANDLEBAR_DEFAULTS, ourCarPlay)
 
         assertThat(keyCallouts(CallSituation.RINGING) { ringing.press(it).action })
             .containsExactly(KeyCallout(SwitchKey.LEFT, RiderAction.ANSWER_CALL, RiderAction.DECLINE_CALL, call = true))

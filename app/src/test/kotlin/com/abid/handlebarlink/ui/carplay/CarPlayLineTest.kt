@@ -37,14 +37,14 @@ class CarPlayLineTest {
     fun `the CarPlay display can be opened only while our receiver is connected`() {
         assertThat(CarPlayStatus.Engine(CarPlayState.Connected("phone", now)).isConnected()).isTrue()
         assertThat(CarPlayStatus.Engine(CarPlayState.Connecting(ConnectStep.PAIRING)).isConnected()).isFalse()
-        assertThat(CarPlayStatus.Off.isConnected()).isFalse()
+        assertThat(CarPlayStatus.Held.isConnected()).isFalse()
         assertThat(CarPlayStatus.Failed.isConnected()).isFalse()
     }
 
     @Test
-    fun `the app's own states have their lines, and off keeps CarLink's`() {
-        assertThat(carPlayLine(CarPlayStatus.Off, now))
-            .isEqualTo(CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE))
+    fun `the app's own states have their lines`() {
+        assertThat(carPlayLine(CarPlayStatus.Held, now))
+            .isEqualTo(CarPlayLine(R.string.carplay_status_held, tone = SignalTone.IDLE))
         assertThat(carPlayLine(CarPlayStatus.NotAvailable, now))
             .isEqualTo(CarPlayLine(R.string.carplay_status_not_available, tone = SignalTone.IDLE))
         assertThat(carPlayLine(CarPlayStatus.NeedsPermission(listOf("p")), now))

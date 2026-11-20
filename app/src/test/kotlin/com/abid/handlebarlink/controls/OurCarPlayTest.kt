@@ -23,33 +23,29 @@ import com.abid.handlebarlink.core.testing.RecordingLogSink
 import com.abid.handlebarlink.core.testing.TestTimeProvider
 import com.abid.handlebarlink.core.testing.testLogger
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 import java.time.Instant
 
 /**
- * The smart buttons with our own CarPlay (docs/PLAN.md "Smart buttons"): presses go to our CarPlay while it is
- * connected and to CarLink otherwise, the situation comes from the iPhone's iAP2 calls while connected (ringing
- * included) and from the phone's audio otherwise, and the Handlebar page's availability follows.
+ * The smart buttons with our own CarPlay, the only CarPlay since it replaced CarLink (docs/PLAN.md "Smart buttons"):
+ * presses go to it while it is connected and do nothing (logged) otherwise, the situation comes from the iPhone's
+ * iAP2 calls while connected (ringing included) and is riding otherwise, and the Handlebar page marks nothing as
+ * unavailable.
  */
 class OurCarPlayTest {
     private val link = FakeCarPlayLink(CarPlayState.Idle)
     private val carPlay = OurCarPlay(link)
-    private val carLink = FakeControlTarget(CARLINK_SUPPORTED)
-    private val audio = FakeCallSituations(seesRinging = false)
     private val microphone = FakeMicrophone()
     private val log = RecordingLogSink()
 
     private fun TestScope.logger() = testLogger(log, TestTimeProvider(testScheduler))
 
-    private fun TestScope.target() =
-        RoutedControlTarget(carPlay, OurCarPlayControlTarget(carPlay, logger()), carLink, logger())
+    private fun TestScope.target() = OurCarPlayControlTarget(carPlay, logger())
 
-    private fun TestScope.situations() = RoutedCallSituations(carPlay, audio, backgroundScope, logger())
+    private fun TestScope.situations() = CarPlayCallSituations(carPlay, backgroundScope, logger())
 
     private fun connect() = link.setState(CarPlayState.Connected("iphone", Instant.EPOCH))
 
@@ -70,16 +66,14 @@ class OurCarPlayTest {
                 Control.Press(CarPlayKey.DROP),
                 Control.Siri,
             )
-            assertThat(carLink.performed).isEmpty()
-            assertThat(target.supported).isEqualTo(ControlAction.entries.toSet())
-            assertThat(log.events("control.route").first().fields).containsExactly(
+            assertThat(log.events("control.carplay").first().fields).containsExactly(
                 "action" to ControlAction.PLAY_PAUSE,
-                "to" to "our_carplay",
+                "key" to CarPlayKey.PLAY_PAUSE,
             )
         }
 
     @Test
-    fun `while our CarPlay is not connected presses keep going to CarLink, which takes the music keys only`() =
+    fun `while our CarPlay is not connected a press does nothing and is logged`() =
         runTest {
             val target = target()
             val notConnected =
@@ -92,40 +86,27 @@ class OurCarPlayTest {
 
             notConnected.forEach { state ->
                 link.setState(state)
-                assertThat(target.perform(ControlAction.NEXT), "$state").isEqualTo(ControlResult.Done)
-                assertThat(target.perform(ControlAction.ANSWER_CALL), "$state")
-                    .isEqualTo(ControlResult.NotDone(Unavailable.NEEDS_OUR_CARPLAY))
-                assertThat(target.supported, "$state").isEqualTo(CARLINK_SUPPORTED)
+                ControlAction.entries.forEach {
+                    assertThat(target.perform(it), "$state $it")
+                        .isEqualTo(ControlResult.NotDone(Unavailable.NO_CARPLAY_SESSION))
+                }
             }
 
             assertThat(link.controls).isEmpty()
-            assertThat(carLink.performed).isEqualTo(List(notConnected.size) { ControlAction.NEXT })
-            assertThat(log.events("control.route").last().fields).containsExactly(
-                "action" to ControlAction.ANSWER_CALL,
-                "to" to "carlink",
-            )
+            assertThat(log.events("control.carplay.not_connected").size)
+                .isEqualTo(notConnected.size * ControlAction.entries.size)
         }
 
     @Test
-    fun `without CarPlay ports our CarPlay is never connected and presses go to CarLink`() =
+    fun `without CarPlay ports our CarPlay is never connected and a press does nothing`() =
         runTest {
             val none = OurCarPlay(null)
-            val target = RoutedControlTarget(none, OurCarPlayControlTarget(none, logger()), carLink, logger())
+            val target = OurCarPlayControlTarget(none, logger())
 
             assertThat(none.isConnected).isFalse()
-            assertThat(target.perform(ControlAction.PLAY_PAUSE)).isEqualTo(ControlResult.Done)
-            assertThat(carLink.performed).containsExactly(ControlAction.PLAY_PAUSE)
-            assertThat(none.calls.value).isEmpty()
-        }
-
-    @Test
-    fun `our CarPlay's target refuses when the connection went between the choice and the press`() =
-        runTest {
-            val ours = OurCarPlayControlTarget(carPlay, logger())
-
-            assertThat(ours.perform(ControlAction.ANSWER_CALL))
+            assertThat(target.perform(ControlAction.PLAY_PAUSE))
                 .isEqualTo(ControlResult.NotDone(Unavailable.NO_CARPLAY_SESSION))
-            assertThat(link.controls).isEmpty()
+            assertThat(none.calls.value).isEmpty()
         }
 
     @Test
@@ -136,7 +117,6 @@ class OurCarPlayTest {
             val current = situations.current
             runCurrent()
             assertThat(current.value).isEqualTo(CallSituation.RIDING)
-            assertThat(situations.seesRinging).isTrue()
 
             link.setCalls(listOf(CarPlayCall(CarPlayCallStatus.RINGING)))
             runCurrent()
@@ -158,7 +138,7 @@ class OurCarPlayTest {
             link.setCalls(emptyList())
             runCurrent()
             assertThat(situations.current.value).isEqualTo(CallSituation.RIDING)
-            assertThat(log.events("control.situation.routed").map { it.fields.first() }).isEqualTo(
+            assertThat(log.events("control.situation").map { it.fields.first() }).isEqualTo(
                 listOf(
                     CallSituation.RIDING,
                     CallSituation.RINGING,
@@ -171,29 +151,20 @@ class OurCarPlayTest {
         }
 
     @Test
-    fun `while not connected the situation is the phone's audio, never ringing, and switches with the connection`() =
+    fun `while not connected the situation is riding, and it switches with the connection`() =
         runTest {
             link.setCalls(listOf(CarPlayCall(CarPlayCallStatus.RINGING)))
             val situations = situations()
             runCurrent()
             assertThat(situations.current.value).isEqualTo(CallSituation.RIDING)
-            assertThat(situations.seesRinging).isFalse()
-
-            audio.situation.value = CallSituation.ON_CALL
-            runCurrent()
-            assertThat(situations.current.value).isEqualTo(CallSituation.ON_CALL)
 
             connect()
             runCurrent()
             assertThat(situations.current.value).isEqualTo(CallSituation.RINGING)
-            assertThat(log.events("control.situation.routed").last().fields).containsExactly(
-                "situation" to CallSituation.RINGING,
-                "source" to "our_carplay",
-            )
 
             link.setState(CarPlayState.Idle)
             runCurrent()
-            assertThat(situations.current.value).isEqualTo(CallSituation.ON_CALL)
+            assertThat(situations.current.value).isEqualTo(CallSituation.RIDING)
         }
 
     @Test
@@ -206,39 +177,17 @@ class OurCarPlayTest {
         }
 
     @Test
-    fun `availability while connected marks nothing as needing our CarPlay, and while not connected it does`() =
+    fun `availability marks nothing as unavailable, connected or not, but a microphone Android keeps`() =
         runTest {
-            val availability = ActionAvailability(target(), microphone, situations(), carPlay)
-
-            CALL_CONTROLS.keys.forEach {
-                assertThat(availability.whyUnavailable(it), "$it").isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-            }
-            assertThat(availability.whyUnavailable(CallSituation.RINGING)).isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-
-            connect()
+            val availability = ActionAvailability(microphone)
 
             RiderAction.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
-            CallSituation.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
-
-            link.setState(CarPlayState.Idle)
-            assertThat(availability.whyUnavailable(RiderAction.SIRI)).isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-        }
-
-    @Test
-    fun `availability tells the page when our CarPlay connects and goes`() =
-        runTest {
-            val availability = ActionAvailability(target(), microphone, situations(), carPlay)
-            val seen = mutableListOf<Boolean>()
-            backgroundScope.launch(
-                UnconfinedTestDispatcher(testScheduler),
-            ) { availability.changes.collect { seen += it } }
-
             connect()
-            runCurrent()
-            link.setState(CarPlayState.Idle)
-            runCurrent()
+            RiderAction.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
 
-            assertThat(seen).containsExactly(false, true, false)
+            microphone.canMuteNow = false
+            assertThat(availability.whyUnavailable(RiderAction.MUTE_MIC)).isEqualTo(Unavailable.MIC_REFUSED)
+            assertThat(availability.whyUnavailable(RiderAction.SIRI)).isNull()
         }
 
     @Test
@@ -307,7 +256,7 @@ class OurCarPlayTest {
         }
 
     @Test
-    fun `our CarPlay disconnecting mid-call with nothing in the audio unmutes a mic we muted`() =
+    fun `our CarPlay disconnecting mid-call unmutes a mic we muted`() =
         runTest {
             connect()
             link.setCalls(listOf(CarPlayCall(CarPlayCallStatus.ACTIVE)))

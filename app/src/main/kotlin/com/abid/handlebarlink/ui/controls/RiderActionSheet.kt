@@ -101,8 +101,8 @@ private fun ChoiceRow(
     HlOptionRow(
         actionIcon(action),
         stringResource(actionName(action)),
-        // "Soon" says it all for our own CarPlay; any other reason it cannot work replaces the line.
-        if (reason == null || choice.soon) {
+        // A reason it can never work (the microphone Android does not let the app change) replaces the line.
+        if (reason == null) {
             stringResource(actionDetail(action, situation))
         } else {
             stringResource(unavailableText(reason))
@@ -110,7 +110,6 @@ private fun ChoiceRow(
         selected = chosen == action,
         onClick = { onChoose(action) },
         enabled = choice.choosable,
-        tag = if (choice.soon) stringResource(R.string.handlebar_soon) else null,
         destructive = isDestructive(action),
         accent = true,
     )
@@ -211,9 +210,7 @@ private fun actionDetail(action: RiderAction): Int =
 @StringRes
 fun unavailableText(reason: Unavailable): Int =
     when (reason) {
-        Unavailable.NO_MEDIA_ACCESS -> R.string.unavailable_no_media_access
         Unavailable.NO_CARPLAY_SESSION -> R.string.unavailable_no_carplay_session
-        Unavailable.NEEDS_OUR_CARPLAY -> R.string.unavailable_needs_our_carplay
         Unavailable.NO_CALL -> R.string.unavailable_no_call
         Unavailable.MIC_REFUSED -> R.string.unavailable_mic_refused
     }

@@ -16,6 +16,10 @@ android {
         // Starts instrumented tests with HiltTestApplication (Hilt testing guide).
         testInstrumentationRunner = "com.abid.handlebarlink.HiltTestRunner"
     }
+    // BuildConfig.DEBUG keeps MainActivity's test hooks (skip_setup, start_ride) out of release builds.
+    buildFeatures {
+        buildConfig = true
+    }
 }
 
 dependencies {
@@ -27,7 +31,6 @@ dependencies {
     implementation(projects.carplay.engineAndroid)
     implementation(projects.core.designsystem)
     implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.core.telecom)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.androidx.lifecycle.service)

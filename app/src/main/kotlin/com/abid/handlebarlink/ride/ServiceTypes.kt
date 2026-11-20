@@ -4,17 +4,13 @@ import android.content.pm.ServiceInfo
 import com.abid.handlebarlink.carplay.engine.CarPlayState
 
 /**
- * The ride service's foreground types: always `connectedDevice` (the bike and CarPlay's radios), `phoneCall` while a
- * Telecom call is held for CarLink's call ([holdingCall], callaudio/), `microphone` while CarPlay may record
- * ([microphone], [keepsMicrophone]). "If you need to add more service types, you can call startForeground() again"
- * with all of them (developer.android.com, "Launch a foreground service").
+ * The ride service's foreground types: always `connectedDevice` (the bike and CarPlay's radios), `microphone` while
+ * CarPlay may record ([microphone], [keepsMicrophone]). "If you need to add more service types, you can call
+ * startForeground() again" with all of them (developer.android.com, "Launch a foreground service"). Our CarPlay's
+ * calls route themselves (`setCommunicationDevice`, :carplay:engine-android CallAudio), so no `phoneCall` type.
  */
-internal fun rideServiceTypes(
-    holdingCall: Boolean,
-    microphone: Boolean,
-): Int {
+internal fun rideServiceTypes(microphone: Boolean): Int {
     var types = ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE
-    if (holdingCall) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_PHONE_CALL
     if (microphone) types = types or ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE
     return types
 }
@@ -31,7 +27,7 @@ internal fun rideServiceTypes(
  *   runtime prerequisite, "Foreground service types": Microphone) and the app [visible] (the CarPlay display);
  * - once held ([has]) it is kept across screen-off, the app leaving the screen, and CarPlay's drops and retries
  *   (`Connecting`, `Recovering`): giving it up mid-ride could not be undone until the rider opened the app again;
- * - it is given back when CarPlay no longer runs (`Stopped`, `Idle`: the switch off, Disconnect, the ride over) or the
+ * - it is given back when CarPlay no longer runs (`Stopped`, `Idle`: Disconnect, the ride over) or the
  *   permission was withdrawn.
  */
 internal fun keepsMicrophone(
@@ -46,12 +42,3 @@ internal fun keepsMicrophone(
         has -> true
         else -> carPlay is CarPlayState.Connected && visible
     }
-
-/**
- * Whether the ride service holds a Telecom call for a voice call it sees on the phone (callaudio/IntercomCallRoute).
- * While our own CarPlay is connected the call is ours: our receiver puts its sound and microphone on the intercom
- * itself (`setCommunicationDevice`, :carplay:engine-android CallAudio) and a held Telecom call would take over the
- * same route (Telecom becomes the audio mode's owner) and fight it. CarLink's calls, with our CarPlay off, keep the
- * held call.
- */
-internal fun holdsTelecomCall(ourCarPlayConnected: Boolean): Boolean = !ourCarPlayConnected

@@ -20,8 +20,8 @@ sealed interface AssistantHandler {
 /**
  * The intercom's assistant button (research of 2026-11-18): a headset's voice-assistant button (HFP
  * AT+BVRA) makes Android start the app that handles `Intent.ACTION_VOICE_COMMAND`; this app is one, so the
- * rider can choose what the button does. Play, pause and skip from a headset go to the app playing audio
- * (CarLink) and cannot be taken over by another app.
+ * rider can choose what the button does, Siri included (through our CarPlay). Play, pause and skip from a headset go
+ * to Android's media session routing, not to this app's choice.
  */
 interface AssistantButton {
     /** What the button does, as the rider chose. */

@@ -49,8 +49,8 @@ import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 
 /**
  * The Intercom tab (research of 2026-11-18): the primary device as on Home; where calls and music play
- * (Android's public routing) and how to change it; whether the intercom's play, pause and skip reach
- * CarLink; the primary among several; its details, the maker's app and removal. Nothing added: how to add.
+ * (Android's public routing) and how to change it; what the intercom's assistant button does; the primary among
+ * several; its details, the maker's app and removal. Nothing added: how to add.
  */
 @Composable
 fun IntercomScreen(

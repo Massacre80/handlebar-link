@@ -34,7 +34,7 @@ import javax.inject.Singleton
  * Owns the ride (architecture review M2.4–M3-1): one link per selected bike, run for as long as the
  * ride service calls [ride], with handlebar presses routed to CarPlay. The UI reads [link] for status.
  * Android's presence reports for the selected bike reach its link through [onPresence]. A [RideCompanion] (our own
- * CarPlay receiver, behind its beta switch) runs next to the link in its own child job.
+ * CarPlay receiver) runs next to the link in its own child job.
  */
 @Singleton
 class RideCoordinator

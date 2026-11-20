@@ -13,12 +13,13 @@ import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.ConnectStep
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
+import com.abid.handlebarlink.core.designsystem.component.HlTagTone
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.ui.permissions.Access
 import org.junit.Test
 import java.time.Instant
 
-/** The CarPlay tab's states (Paper "CarPlay — flow v2", Tab 1–4) from the switch, CarPlay's status and the iPhones. */
+/** The CarPlay tab's states (Paper "CarPlay — flow v2", Tab 1–4) from CarPlay's status and the iPhones. */
 class CarPlayTabTest {
     private val abid = PairedIphone("20:00:00:00:00:01", "Abid's iPhone")
     private val spare = PairedIphone("20:00:00:00:00:02", "iPhone SE")
@@ -32,13 +33,13 @@ class CarPlayTabTest {
         status: CarPlayStatus,
         iphones: List<PairedIphone>? = listOf(abid),
         chosen: String? = null,
-        enabled: Boolean = true,
-    ) = carPlayTab(enabled, status, iphones, chosen, line).hero
+        bluetoothOn: Boolean = true,
+    ) = carPlayTab(status, iphones, chosen, line, bluetoothOn = bluetoothOn).hero
 
     @Test
-    fun `no paired iPhone is Not set up with Add iPhone, whether the switch is on or off`() {
-        listOf(true, false).forEach { enabled ->
-            val hero = hero(engine(CarPlayState.Idle), emptyList(), enabled = enabled)
+    fun `no paired iPhone is Not set up with Add iPhone`() {
+        listOf(engine(CarPlayState.Idle), engine(CarPlayState.Stopped)).forEach { status ->
+            val hero = hero(status, emptyList())
             assertThat(hero.phase).isEqualTo(TabPhase.NOT_SET_UP)
             assertThat(hero.title).isEqualTo(R.string.carplay_tab_add_title)
             assertThat(hero.primary).isEqualTo(TabAction.ADD_IPHONE)
@@ -51,13 +52,6 @@ class CarPlayTabTest {
         val hero = hero(CarPlayStatus.NeedsPermission(listOf("p")), iphones = null)
         assertThat(hero.phase).isEqualTo(TabPhase.NEEDS_YOU)
         assertThat(hero.primary).isEqualTo(TabAction.ALLOW)
-    }
-
-    @Test
-    fun `the switch off with an iPhone is CarLink, offering the beta`() {
-        val hero = hero(CarPlayStatus.Off, enabled = false)
-        assertThat(hero.phase).isEqualTo(TabPhase.CARLINK)
-        assertThat(hero.primary).isEqualTo(TabAction.TURN_ON_BETA)
     }
 
     @Test
@@ -108,7 +102,8 @@ class CarPlayTabTest {
     @Test
     fun `each error the rider must fix gets its one action, or none when it cannot be fixed here`() {
         assertThat(fixFor(CarPlayError.PermissionMissing("p"))).isEqualTo(TabAction.ALLOW)
-        assertThat(fixFor(CarPlayError.BluetoothUnavailable("off"))).isEqualTo(TabAction.TURN_ON_BLUETOOTH)
+        assertThat(fixFor(CarPlayError.BluetoothUnavailable("off"), bluetoothOn = false))
+            .isEqualTo(TabAction.TURN_ON_BLUETOOTH)
         assertThat(fixFor(CarPlayError.IdentityUnavailable("missing"))).isNull()
         val identity = hero(engine(CarPlayState.Recovering(CarPlayError.IdentityUnavailable("x"), 1, now)))
         assertThat(identity.title).isEqualTo(R.string.carplay_error_identity)
@@ -136,36 +131,68 @@ class CarPlayTabTest {
 
     @Test
     fun `two iPhones and none chosen, or a chosen one no longer paired, ask to choose`() {
-        assertThat(hero(engine(CarPlayState.Idle), listOf(abid, spare)).primary).isEqualTo(TabAction.CHOOSE_IPHONE)
-        assertThat(hero(engine(CarPlayState.Idle), listOf(abid), chosen = "20:00:00:00:00:09").primary)
+        assertThat(hero(engine(CarPlayState.Stopped), listOf(abid, spare)).primary).isEqualTo(TabAction.CHOOSE_IPHONE)
+        assertThat(hero(engine(CarPlayState.Stopped), listOf(abid), chosen = "20:00:00:00:00:09").primary)
             .isEqualTo(TabAction.CHOOSE_IPHONE)
+        assertThat(hero(CarPlayStatus.Held, listOf(abid, spare)).primary).isEqualTo(TabAction.CHOOSE_IPHONE)
         val chosen = hero(engine(CarPlayState.Connected("p", now)), listOf(abid, spare), chosen = spare.address)
         assertThat(chosen.detail).isEqualTo(HeroDetail.Iphone(R.string.carplay_tab_connected_detail, "iPhone SE"))
     }
 
     @Test
-    fun `a failure and a build without CarPlay need you but offer nothing here`() {
-        assertThat(hero(CarPlayStatus.Failed).primary).isNull()
-        assertThat(hero(CarPlayStatus.Failed).phase).isEqualTo(TabPhase.NEEDS_YOU)
+    fun `with two iPhones and none chosen, CarPlay that runs anyway keeps its hero and Open CarPlay`() {
+        // The engine picks the iPhone with the live Bluetooth link by itself (IphoneChoice).
+        val connected = hero(engine(CarPlayState.Connected("p", now)), listOf(abid, spare))
+        assertThat(connected.phase).isEqualTo(TabPhase.CONNECTED)
+        assertThat(connected.primary).isEqualTo(TabAction.OPEN_CARPLAY)
+        assertThat(connected.detail).isEqualTo(HeroDetail.Text(R.string.carplay_tab_any_iphone))
+        val connecting = hero(engine(CarPlayState.Connecting(ConnectStep.PAIRING)), listOf(abid, spare))
+        assertThat(connecting.phase).isEqualTo(TabPhase.CONNECTING)
+        assertThat(hero(engine(CarPlayState.Idle), listOf(abid, spare)).phase).isEqualTo(TabPhase.CONNECTING)
+        // The iPhone row says connected, not Choose.
+        val row = carPlayTab(engine(CarPlayState.Connected("p", now)), listOf(abid, spare), null, line).iphone
+        assertThat(row.hint).isEqualTo(R.string.carplay_iphone_connected)
+    }
+
+    @Test
+    fun `Bluetooth unavailable offers Turn on Bluetooth only while it is off, else Choose iPhone`() {
+        val unavailable = engine(CarPlayState.Recovering(CarPlayError.BluetoothUnavailable("x"), 1, now))
+
+        val off = hero(unavailable, bluetoothOn = false)
+        assertThat(off.title).isEqualTo(R.string.carplay_tab_bluetooth_off_title)
+        assertThat(off.primary).isEqualTo(TabAction.TURN_ON_BLUETOOTH)
+        val on = hero(unavailable, bluetoothOn = true)
+        assertThat(on.phase).isEqualTo(TabPhase.NEEDS_YOU)
+        assertThat(on.title).isEqualTo(R.string.carplay_tab_choose_title)
+        assertThat(on.primary).isEqualTo(TabAction.CHOOSE_IPHONE)
+    }
+
+    @Test
+    fun `a failure needs you with Start CarPlay, and a build without CarPlay offers nothing here`() {
+        val failed = hero(CarPlayStatus.Failed)
+        assertThat(failed.phase).isEqualTo(TabPhase.NEEDS_YOU)
+        assertThat(failed.title).isEqualTo(R.string.carplay_tab_failed_title)
+        assertThat(failed.primary).isEqualTo(TabAction.START_CARPLAY)
         val unavailable = hero(CarPlayStatus.NotAvailable, emptyList())
         assertThat(unavailable.title).isEqualTo(R.string.carplay_status_not_available)
+        assertThat(unavailable.primary).isNull()
     }
 
     @Test
     fun `the iPhone row names the iPhone CarPlay uses and opens the sheet only when there is one`() {
-        val connected = carPlayTab(true, engine(CarPlayState.Connected("p", now)), listOf(abid), null, line).iphone
+        val connected = carPlayTab(engine(CarPlayState.Connected("p", now)), listOf(abid), null, line).iphone
         assertThat(
             connected,
         ).isEqualTo(
             IphoneRow("Abid's iPhone", R.string.carplay_iphone_connected, R.string.carplay_iphone_used_detail, true),
         )
         assertThat(
-            carPlayTab(true, CarPlayStatus.Held, listOf(abid), null, line).iphone.hint,
+            carPlayTab(CarPlayStatus.Held, listOf(abid), null, line).iphone.hint,
         ).isEqualTo(R.string.carplay_iphone_paired)
-        assertThat(carPlayTab(true, CarPlayStatus.Held, emptyList(), null, line).iphone.hasIphones).isEqualTo(false)
-        assertThat(carPlayTab(true, CarPlayStatus.Held, listOf(abid, spare), null, line).iphone.name).isNull()
+        assertThat(carPlayTab(CarPlayStatus.Held, emptyList(), null, line).iphone.hasIphones).isEqualTo(false)
+        assertThat(carPlayTab(CarPlayStatus.Held, listOf(abid, spare), null, line).iphone.name).isNull()
         assertThat(
-            carPlayTab(true, CarPlayStatus.Held, null, null, line).iphone.hint,
+            carPlayTab(CarPlayStatus.Held, null, null, line).iphone.hint,
         ).isEqualTo(R.string.carplay_iphone_unknown)
     }
 
@@ -292,9 +319,9 @@ class CarPlayTabTest {
 
     @Test
     fun `the CarPlay screen row shows the stored orientation, landscape by default`() {
-        val tab = carPlayTab(true, CarPlayStatus.Off, emptyList(), null, line)
+        val tab = carPlayTab(CarPlayStatus.Held, emptyList(), null, line)
         val portrait =
-            carPlayTab(true, CarPlayStatus.Off, emptyList(), null, line, orientation = CarPlayOrientation.PORTRAIT)
+            carPlayTab(CarPlayStatus.Held, emptyList(), null, line, orientation = CarPlayOrientation.PORTRAIT)
 
         assertThat(CarPlayUiState().orientation).isEqualTo(CarPlayOrientation.LANDSCAPE)
         assertThat(tab.orientation).isEqualTo(CarPlayOrientation.LANDSCAPE)
@@ -304,8 +331,16 @@ class CarPlayTabTest {
     }
 
     @Test
-    fun `the tab's default before loading is CarLink, not a false Not set up`() {
-        assertThat(CarPlayUiState().hero.phase).isEqualTo(TabPhase.CARLINK)
+    fun `the tab's default before loading is Ready, not a false Not set up or Needs you`() {
+        assertThat(CarPlayUiState().hero.phase).isEqualTo(TabPhase.READY)
         assertThat(CarPlayUiState().hero.detail).isInstanceOf(HeroDetail.Text::class)
+    }
+
+    @Test
+    fun `the hero tag's tone follows the hero, as the design system's tag draws it`() {
+        assertThat(tagTone(SignalTone.ON)).isEqualTo(HlTagTone.BRAND)
+        assertThat(tagTone(SignalTone.PROGRESS)).isEqualTo(HlTagTone.BRAND)
+        assertThat(tagTone(SignalTone.ERROR)).isEqualTo(HlTagTone.DANGER)
+        assertThat(tagTone(SignalTone.IDLE)).isEqualTo(HlTagTone.QUIET)
     }
 }

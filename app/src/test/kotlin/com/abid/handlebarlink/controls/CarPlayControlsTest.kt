@@ -272,53 +272,26 @@ class CarPlayControlsTest {
         }
 
     @Test
-    fun `with CarLink, call and Siri actions need our own CarPlay`() =
+    fun `while our CarPlay is not connected call and Siri actions do nothing`() =
         runTest {
-            val calls = calls(FakeControlTarget(CARLINK_SUPPORTED))
+            val calls = calls(FakeControlTarget(connected = false))
 
             CALL_CONTROLS.keys.forEach {
-                assertThat(calls.perform(it), "$it").isEqualTo(ControlResult.NotDone(Unavailable.NEEDS_OUR_CARPLAY))
+                assertThat(calls.perform(it), "$it").isEqualTo(ControlResult.NotDone(Unavailable.NO_CARPLAY_SESSION))
             }
         }
 
     @Test
-    fun `availability with CarLink, music and mute mic work, calls, Siri and the ringing layer need our CarPlay`() {
-        val availability =
-            ActionAvailability(
-                FakeControlTarget(CARLINK_SUPPORTED),
-                microphone,
-                FakeCallSituations(seesRinging = false),
-                OurCarPlay(null),
-            )
-
-        listOf(RiderAction.PLAY_PAUSE, RiderAction.NEXT, RiderAction.MUTE_MIC, RiderAction.TIME, RiderAction.NOTHING)
-            .forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
-        CALL_CONTROLS.keys.forEach {
-            assertThat(availability.whyUnavailable(it), "$it").isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-        }
-        assertThat(availability.whyUnavailable(CallSituation.RINGING)).isEqualTo(Unavailable.NEEDS_OUR_CARPLAY)
-        assertThat(availability.whyUnavailable(CallSituation.ON_CALL)).isNull()
-        assertThat(availability.whyUnavailable(CallSituation.RIDING)).isNull()
-    }
-
-    @Test
-    fun `availability with our own CarPlay, every action and situation works`() {
-        val availability =
-            ActionAvailability(
-                FakeControlTarget(),
-                microphone,
-                FakeCallSituations(seesRinging = true),
-                OurCarPlay(null),
-            )
+    fun `availability, every action works with our CarPlay`() {
+        val availability = ActionAvailability(microphone)
 
         RiderAction.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
-        CallSituation.entries.forEach { assertThat(availability.whyUnavailable(it), "$it").isNull() }
     }
 
     @Test
     fun `availability says when the microphone cannot be changed`() {
         microphone.canMuteNow = false
-        val availability = ActionAvailability(FakeControlTarget(), microphone, situations, OurCarPlay(null))
+        val availability = ActionAvailability(microphone)
 
         assertThat(availability.whyUnavailable(RiderAction.MUTE_MIC)).isEqualTo(Unavailable.MIC_REFUSED)
     }

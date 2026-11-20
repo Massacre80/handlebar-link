@@ -19,10 +19,10 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
 
-/** The CarPlay tab's Cancel and Disconnect stop CarPlay until Start CarPlay, with the switch left on. */
+/** The CarPlay tab's Cancel and Disconnect stop CarPlay until Start CarPlay; the app then starts no ride for it. */
 class CarPlayHoldTest {
     private val link = FakeCarPlayLink()
-    private val settings = InMemoryCarPlaySettings(enabled = true)
+    private val settings = InMemoryCarPlaySettings()
 
     private fun TestScope.running(): CarPlayCoordinator {
         val coordinator =
@@ -38,7 +38,7 @@ class CarPlayHoldTest {
     }
 
     @Test
-    fun `a hold stops the engine and shows Held, the switch stays on`() =
+    fun `a hold stops the engine, shows Held and tells the app the rider stopped it`() =
         runTest {
             val carPlay = running()
             assertThat(link.isRunning).isEqualTo(true)
@@ -49,22 +49,23 @@ class CarPlayHoldTest {
             assertThat(link.commands).containsExactly(Command.Start, Command.Stop)
             assertThat(link.isRunning).isEqualTo(false)
             assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Held)
-            assertThat(settings.enabled.value).isEqualTo(true)
+            assertThat(carPlay.stoppedByRider.value).isEqualTo(true)
         }
 
     @Test
-    fun `resume starts the engine again`() =
+    fun `Start CarPlay starts the engine again and lifts the stop`() =
         runTest {
             val carPlay = running()
             carPlay.hold()
             runCurrent()
 
-            carPlay.resume()
+            carPlay.start()
             runCurrent()
 
             assertThat(link.commands).containsExactly(Command.Start, Command.Stop, Command.Start)
             assertThat(link.isRunning).isEqualTo(true)
             assertThat(carPlay.status.first()).isEqualTo(CarPlayStatus.Engine(link.state.value))
+            assertThat(carPlay.stoppedByRider.value).isEqualTo(false)
         }
 
     @Test
@@ -87,10 +88,7 @@ class CarPlayHoldTest {
 
     @Test
     fun `a missing permission still shows over a hold`() {
-        val status = carPlayStatus(true, true, listOf("p"), false, link.state.value, held = true)
+        val status = carPlayStatus(true, listOf("p"), false, link.state.value, held = true)
         assertThat(status).isEqualTo(CarPlayStatus.NeedsPermission(listOf("p")))
-        assertThat(
-            carPlayStatus(false, true, emptyList(), false, link.state.value, held = true),
-        ).isEqualTo(CarPlayStatus.Off)
     }
 }

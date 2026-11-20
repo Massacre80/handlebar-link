@@ -15,13 +15,22 @@ import com.abid.handlebarlink.carplay.usedIphone
 
 /**
  * The hero's title for an [error] only the rider can fix: what is wrong, with the fix on the button (the status line's
- * "Turn on Wi-Fi" would repeat the button).
+ * "Turn on Wi-Fi" would repeat the button). Bluetooth unavailable is "Bluetooth is off" only when it is ([bluetoothOn]
+ * false); with Bluetooth on the engine found no iPhone it may use (none paired, several and none chosen, the chosen one
+ * unpaired: IphoneChoice), so the rider chooses one.
  */
 @StringRes
-internal fun heroTitle(error: CarPlayError): Int =
+internal fun heroTitle(
+    error: CarPlayError,
+    bluetoothOn: Boolean = true,
+): Int =
     when (error) {
         CarPlayError.WifiOff -> {
             R.string.carplay_tab_wifi_off_title
+        }
+
+        is CarPlayError.BluetoothUnavailable -> {
+            if (bluetoothOn) R.string.carplay_tab_choose_title else R.string.carplay_tab_bluetooth_off_title
         }
 
         is CarPlayError.PermissionMissing -> {
@@ -33,13 +42,31 @@ internal fun heroTitle(error: CarPlayError): Int =
         }
     }
 
-/** The one action that fixes [error], if the rider can do it from here. */
-internal fun fixFor(error: CarPlayError): TabAction? =
+/**
+ * The one action that fixes [error], if the rider can do it from here. Bluetooth unavailable: Turn on Bluetooth only
+ * while it is off ([bluetoothOn] false; Android's enable request does nothing while it is on), else Choose iPhone (the
+ * iPhone sheet chooses or adds one).
+ */
+internal fun fixFor(
+    error: CarPlayError,
+    bluetoothOn: Boolean = true,
+): TabAction? =
     when (error) {
-        CarPlayError.WifiOff -> TabAction.TURN_ON_WIFI
-        is CarPlayError.PermissionMissing -> TabAction.ALLOW
-        is CarPlayError.BluetoothUnavailable -> TabAction.TURN_ON_BLUETOOTH
-        else -> null
+        CarPlayError.WifiOff -> {
+            TabAction.TURN_ON_WIFI
+        }
+
+        is CarPlayError.PermissionMissing -> {
+            TabAction.ALLOW
+        }
+
+        is CarPlayError.BluetoothUnavailable -> {
+            if (bluetoothOn) TabAction.CHOOSE_IPHONE else TabAction.TURN_ON_BLUETOOTH
+        }
+
+        else -> {
+            null
+        }
     }
 
 /**
@@ -67,7 +94,7 @@ internal fun connectPhase(step: ConnectStep): Pair<Int, Int> =
         }
     }
 
-/** The iPhone row: the iPhone CarPlay uses, connected or paired; none yet; or none chosen. */
+/** The iPhone row: the iPhone CarPlay uses, connected or paired; none yet; or none chosen (unless connected). */
 internal fun iphoneRow(
     status: CarPlayStatus,
     iphones: List<PairedIphone>?,
@@ -89,12 +116,13 @@ internal fun iphoneRow(
             IphoneRow(null, R.string.carplay_iphone_add, R.string.carplay_iphone_none_detail, false)
         }
 
-        used == null -> {
-            IphoneRow(null, R.string.carplay_iphone_choose, R.string.carplay_iphone_choose_detail, true)
+        // Connected even when the app's own choice names none (the engine found the iPhone with the live link).
+        connected -> {
+            IphoneRow(used?.name, R.string.carplay_iphone_connected, R.string.carplay_iphone_used_detail, true)
         }
 
-        connected -> {
-            IphoneRow(used.name, R.string.carplay_iphone_connected, R.string.carplay_iphone_used_detail, true)
+        used == null -> {
+            IphoneRow(null, R.string.carplay_iphone_choose, R.string.carplay_iphone_choose_detail, true)
         }
 
         else -> {

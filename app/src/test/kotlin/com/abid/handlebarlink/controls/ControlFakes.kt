@@ -50,26 +50,25 @@ class FakeMicMuteRecord(
     }
 }
 
-/** A [ControlTarget] that does every action in [supported] and records it; the rest need our own CarPlay. */
+/**
+ * A [ControlTarget] that records what it is asked; while [connected] is false it does nothing, as our CarPlay while
+ * not connected.
+ */
 class FakeControlTarget(
-    override val supported: Set<ControlAction> = ControlAction.entries.toSet(),
+    var connected: Boolean = true,
 ) : ControlTarget {
     val performed = mutableListOf<ControlAction>()
 
     override fun perform(action: ControlAction): ControlResult {
-        if (action !in supported) return ControlResult.NotDone(Unavailable.NEEDS_OUR_CARPLAY)
+        if (!connected) return ControlResult.NotDone(Unavailable.NO_CARPLAY_SESSION)
         performed += action
         return ControlResult.Done
     }
 }
 
-/** What CarLink's media session takes: the music keys only (MediaSessionControlTarget). */
-val CARLINK_SUPPORTED = setOf(ControlAction.PLAY_PAUSE, ControlAction.NEXT, ControlAction.PREVIOUS)
-
 /** A [CallSituations] the test moves by hand. */
 class FakeCallSituations(
     start: CallSituation = CallSituation.RIDING,
-    override val seesRinging: Boolean = true,
 ) : CallSituations {
     val situation = MutableStateFlow(start)
     override val current: StateFlow<CallSituation> = situation

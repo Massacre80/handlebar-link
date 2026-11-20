@@ -19,10 +19,7 @@ enum class TabPhase {
     /** No paired iPhone yet: add one (Tab 1). */
     NOT_SET_UP,
 
-    /** The beta switch is off: CarLink runs CarPlay. */
-    CARLINK,
-
-    /** On, with an iPhone, no ride running: CarPlay starts with the ride. */
+    /** An iPhone, no ride running: CarPlay starts with the ride. */
     READY,
 
     /** Starting CarPlay, step by step (Tab 2). */
@@ -42,7 +39,6 @@ enum class TabPhase {
 enum class TabAction {
     ADD_IPHONE,
     CHOOSE_IPHONE,
-    TURN_ON_BETA,
     START_CARPLAY,
     OPEN_CARPLAY,
     CANCEL,
@@ -155,51 +151,53 @@ fun LinkRow.detailWords(): String {
 /** The CarPlay tab. */
 @Immutable
 data class CarPlayUiState(
-    val hero: CarPlayHero = carPlayHero(false, CarPlayStatus.Off, null, null, OFF_LINE),
-    /** The beta switch. */
-    val enabled: Boolean = false,
-    val iphone: IphoneRow = iphoneRow(CarPlayStatus.Off, null, null),
-    val link: LinkRow = linkRow(CarPlayStatus.Off),
+    val hero: CarPlayHero = carPlayHero(NOT_LOADED, null, null, NOT_LOADED_LINE),
+    val iphone: IphoneRow = iphoneRow(NOT_LOADED, null, null),
+    val link: LinkRow = linkRow(NOT_LOADED),
     /** The "CarPlay screen" row: which way the picture stands. */
     val orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
 )
 
 /**
- * The tab for the switch ([enabled]), CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one,
- * the status [line], the picture's last window of numbers ([video], for the Link row's quality) and the "CarPlay
- * screen" setting ([orientation]).
+ * The tab for CarPlay's [status], the paired [iphones] (null: unknown), the [chosen] one, the status [line], the
+ * picture's last window of numbers ([video], for the Link row's quality), the "CarPlay screen" setting
+ * ([orientation]) and whether Bluetooth is on ([bluetoothOn], read only when the engine says Bluetooth is
+ * unavailable).
  */
 @Suppress("LongParameterList") // One input per part of the page.
 fun carPlayTab(
-    enabled: Boolean,
     status: CarPlayStatus,
     iphones: List<PairedIphone>?,
     chosen: String?,
     line: CarPlayLine,
     video: CarPlayVideoStats? = null,
     orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
+    bluetoothOn: Boolean = true,
 ): CarPlayUiState =
     CarPlayUiState(
-        hero = carPlayHero(enabled, status, iphones, chosen, line),
-        enabled = enabled,
+        hero = carPlayHero(status, iphones, chosen, line, bluetoothOn),
         iphone = iphoneRow(status, iphones, chosen),
         link = linkRow(status, video),
         orientation = orientation,
     )
 
 /**
- * The hero, in priority order: no build support; no paired iPhone (Add iPhone, whether or not the switch is on: CarLink
- * needs the pairing too); the switch off (CarLink); paired iPhones but none CarPlay can use (two and none chosen, or
- * the chosen one unpaired); then CarPlay's own status.
+ * The hero, in priority order: no build support; no paired iPhone (Add iPhone); CarPlay starting or running (whatever
+ * the app's own choice says: the engine may have found the iPhone itself, IphoneChoice, and Open CarPlay must stay);
+ * paired iPhones but none CarPlay can use (two and none chosen, or the chosen one unpaired); then CarPlay's own status.
+ * [bluetoothOn] picks the fix when the engine reports Bluetooth unavailable ([fixFor]).
  */
 internal fun carPlayHero(
-    enabled: Boolean,
     status: CarPlayStatus,
     iphones: List<PairedIphone>?,
     chosen: String?,
     line: CarPlayLine,
+    bluetoothOn: Boolean = true,
 ): CarPlayHero {
     val used = iphones?.let { usedIphone(it, chosen) }
+    val state = (status as? CarPlayStatus.Engine)?.state
+    // The engine is starting or running CarPlay now (its steps or Connected).
+    val running = state is CarPlayState.Connected || state is CarPlayState.Connecting || state == CarPlayState.Idle
     return when {
         status == CarPlayStatus.NotAvailable -> {
             needsYou(R.string.carplay_status_not_available, R.string.carplay_tab_unavailable_detail, null)
@@ -217,16 +215,8 @@ internal fun carPlayHero(
             )
         }
 
-        !enabled -> {
-            CarPlayHero(
-                TabPhase.CARLINK,
-                R.string.carplay_tag_carlink,
-                R.string.carplay_tab_carlink_title,
-                HeroDetail.Text(R.string.carplay_tab_carlink_detail),
-                SignalTone.IDLE,
-                progress = 0f,
-                primary = TabAction.TURN_ON_BETA,
-            )
+        running -> {
+            statusHero(status, used?.name, line, bluetoothOn)
         }
 
         iphones != null && used == null -> {
@@ -234,7 +224,7 @@ internal fun carPlayHero(
         }
 
         else -> {
-            statusHero(status, used?.name, line)
+            statusHero(status, used?.name, line, bluetoothOn)
         }
     }
 }
@@ -243,10 +233,11 @@ private fun statusHero(
     status: CarPlayStatus,
     iphone: String?,
     line: CarPlayLine,
+    bluetoothOn: Boolean,
 ): CarPlayHero =
     when (status) {
-        CarPlayStatus.Off, CarPlayStatus.NotAvailable -> {
-            // Handled before (the switch off, no ports); kept total for the compiler.
+        CarPlayStatus.NotAvailable -> {
+            // Handled before; kept total for the compiler.
             needsYou(R.string.carplay_status_not_available, R.string.carplay_tab_unavailable_detail, null)
         }
 
@@ -254,8 +245,9 @@ private fun statusHero(
             needsAccess(missingAccess(status.permissions))
         }
 
+        // Start CarPlay starts the engine again (CarPlayCoordinator.start), in the running ride or a new one.
         CarPlayStatus.Failed -> {
-            needsYou(R.string.carplay_tab_failed_title, R.string.carplay_status_failed, null)
+            needsYou(R.string.carplay_tab_failed_title, R.string.carplay_status_failed, TabAction.START_CARPLAY)
         }
 
         CarPlayStatus.Held -> {
@@ -271,7 +263,7 @@ private fun statusHero(
         }
 
         is CarPlayStatus.Engine -> {
-            engineHero(status.state, iphone, line)
+            engineHero(status.state, iphone, line, bluetoothOn)
         }
     }
 
@@ -279,6 +271,7 @@ private fun engineHero(
     state: CarPlayState,
     iphone: String?,
     line: CarPlayLine,
+    bluetoothOn: Boolean,
 ): CarPlayHero =
     when (state) {
         CarPlayState.Stopped -> {
@@ -319,7 +312,11 @@ private fun engineHero(
             if (error is CarPlayError.PermissionMissing) {
                 needsAccess(listOf(carPlayGrant(error.permission)))
             } else if (error.needsUser) {
-                needsYou(heroTitle(error), R.string.carplay_tab_needs_you_detail, fixFor(error))
+                needsYou(
+                    heroTitle(error, bluetoothOn),
+                    R.string.carplay_tab_needs_you_detail,
+                    fixFor(error, bluetoothOn),
+                )
             } else {
                 // Retrying by itself: still starting, with the countdown.
                 connecting(HeroDetail.Line(line), 1)
@@ -374,4 +371,6 @@ private fun iphoneDetail(
 /** The rider's connection steps ("Step N of 4"). */
 internal const val CONNECT_PHASES = 4
 
-private val OFF_LINE = CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE)
+/** Before the first status arrives: no ride yet, nothing known (shown for a few milliseconds). */
+private val NOT_LOADED: CarPlayStatus = CarPlayStatus.Engine(CarPlayState.Stopped)
+private val NOT_LOADED_LINE = CarPlayLine(R.string.carplay_status_waiting, tone = SignalTone.IDLE)

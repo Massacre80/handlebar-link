@@ -9,18 +9,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 
-/** The beta switch and the CarPlay screen in memory. */
+/** The CarPlay screen in memory. */
 class InMemoryCarPlaySettings(
-    enabled: Boolean = false,
     orientation: CarPlayOrientation = CarPlayOrientation.DEFAULT,
 ) : CarPlaySettings {
-    override val enabled = MutableStateFlow(enabled)
-
     override val orientation = MutableStateFlow(orientation)
-
-    override suspend fun setEnabled(enabled: Boolean) {
-        this.enabled.value = enabled
-    }
 
     override suspend fun setOrientation(orientation: CarPlayOrientation) {
         this.orientation.value = orientation
@@ -28,31 +21,22 @@ class InMemoryCarPlaySettings(
 }
 
 /**
- * The beta switch as DataStore gives it: its first value arrives only after [loadMillis] (a file read), so the
- * time before CarPlay knows whether it will run can be seen (docs/LESSONS.md 51, 70).
+ * The settings as DataStore gives them: the first value arrives only after [loadMillis] (a file read), so the time
+ * before CarPlay knows whether it will run can be seen (docs/LESSONS.md 51, 64).
  */
 class SlowCarPlaySettings(
-    enabled: Boolean,
     private val loadMillis: Long,
 ) : CarPlaySettings {
-    private val stored = MutableStateFlow(enabled)
+    private val stored = MutableStateFlow(CarPlayOrientation.DEFAULT)
 
-    override val enabled: Flow<Boolean> =
+    override val orientation: Flow<CarPlayOrientation> =
         flow {
             delay(loadMillis)
             emitAll(stored)
         }
 
-    override suspend fun setEnabled(enabled: Boolean) {
-        stored.value = enabled
-    }
-
-    private val storedOrientation = MutableStateFlow(CarPlayOrientation.DEFAULT)
-
-    override val orientation: Flow<CarPlayOrientation> = storedOrientation
-
     override suspend fun setOrientation(orientation: CarPlayOrientation) {
-        storedOrientation.value = orientation
+        stored.value = orientation
     }
 }
 

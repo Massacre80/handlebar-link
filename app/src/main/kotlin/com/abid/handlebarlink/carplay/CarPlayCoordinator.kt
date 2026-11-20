@@ -11,6 +11,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOf
@@ -21,12 +23,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Runs our own CarPlay receiver next to the bike link during a ride (docs/PLAN.md "CarPlay receiver", C2), behind
- * the default-off beta switch ([CarPlaySettings]). The ride calls [run] in its own child job; while the switch is
- * on, CarPlay's permissions are granted and ports exist ([link] not null), the engine's [CarPlayLink.run] runs in
- * a child job of its own and is started; switching off stops it and cancels that job, which closes the radio,
- * Bluetooth and sockets. [run] never throws (except cancellation): a CarPlay failure is logged and shown as
- * [CarPlayStatus.Failed], and never reaches the bike link (docs/PLAN.md "Structure").
+ * Runs our own CarPlay receiver next to the bike link during every ride (docs/PLAN.md "CarPlay receiver", C2; it
+ * replaced CarLink, owner 2026-11-20, so there is no switch). The ride calls [run] in its own child job; while
+ * CarPlay's permissions are granted, ports exist ([link] not null) and the rider has not stopped it ([hold]), the
+ * engine's [CarPlayLink.run] runs in a child job of its own and is started; a withdrawn permission or [hold] stops it
+ * and cancels that job, which closes the radio, Bluetooth and sockets. [run] never throws (except cancellation): a
+ * CarPlay failure is logged and shown as [CarPlayStatus.Failed] until [start], and never reaches the bike link
+ * (docs/PLAN.md "Structure").
  *
  * The rider's "CarPlay screen" ([CarPlaySettings.orientation]) goes to the [canvas] before each start; a change while
  * CarPlay runs stops the engine and starts it again (a new connection), so the iPhone is told the new size.
@@ -46,11 +49,17 @@ class CarPlayCoordinator
         private val rechecks = MutableStateFlow(0)
         private val failed = MutableStateFlow(false)
 
+        /** Bumped by [start] after a failure, so the same orientation starts the engine again. */
+        private val restarts = MutableStateFlow(0)
+
         /**
          * The rider stopped CarPlay ([hold]) until [resume]. Kept in memory only: a new ride does not clear it (the app
          * restarts the ride whenever it comes to the front, which would undo a Disconnect at once), a new process does.
          */
         private val held = MutableStateFlow(false)
+
+        /** Whether the rider stopped CarPlay ([hold]) until [start]; the app then starts no ride for CarPlay. */
+        val stoppedByRider: StateFlow<Boolean> = held.asStateFlow()
 
         /** Set while CarPlay wants the service: from the start of [run] until it knows it will not start, or stops. */
         private val wanted = MutableStateFlow(false)
@@ -66,14 +75,13 @@ class CarPlayCoordinator
 
         /** What the CarPlay page and Home show. */
         val status: Flow<CarPlayStatus> =
-            combine(settings.enabled, missing, failed, held, link?.state ?: flowOf(CarPlayState.Stopped)) {
-                enabled,
+            combine(
                 missing,
                 failed,
                 held,
-                state,
-                ->
-                carPlayStatus(enabled, link != null, missing, failed, state, held)
+                link?.state ?: flowOf(CarPlayState.Stopped),
+            ) { missing, failed, held, state ->
+                carPlayStatus(link != null, missing, failed, state, held)
             }
 
         /** Back in the foreground or after a permission answer: a permission may have changed (no broadcast tells). */
@@ -82,22 +90,26 @@ class CarPlayCoordinator
         }
 
         /**
-         * Stops CarPlay until [resume] (the tab's Cancel while connecting, Disconnect while connected): the engine
-         * stops and releases the radio and Bluetooth; the switch stays on.
+         * Stops CarPlay until [start] (the tab's Cancel while connecting, Disconnect while connected): the engine
+         * stops and releases the radio and Bluetooth.
          */
         fun hold() {
             held.value = true
             log.info("carplay.held")
         }
 
-        /** Starts CarPlay again after [hold] (the tab's Start CarPlay). */
-        fun resume() {
+        /**
+         * Start CarPlay (the tab's and the pairing's): lifts a [hold], and after a failure starts the engine again in
+         * the running ride. Without a ride the caller starts the ride service, whose [run] starts afresh.
+         */
+        fun start() {
             held.value = false
-            log.info("carplay.resumed")
+            if (failed.value) restarts.value++
+            log.info("carplay.resumed", "after_failure" to failed.value)
         }
 
         /**
-         * Runs CarPlay for as long as the ride does (until cancelled), following the switch and the permissions.
+         * Runs CarPlay for as long as the ride does (until cancelled), following the permissions and the hold.
          * Returns at once when there are no ports. Only one [run] at a time.
          */
         override suspend fun run() {
@@ -107,7 +119,7 @@ class CarPlayCoordinator
                 return
             }
             check(running.compareAndSet(false, true)) { "CarPlay is already running" }
-            // Until the switch has been read, the ride must not end for lack of a reason to stay (keepAlive).
+            // Until the settings have been read, the ride must not end for lack of a reason to stay (keepAlive).
             wanted.value = true
             failed.value = false
             try {
@@ -128,16 +140,16 @@ class CarPlayCoordinator
         }
 
         /**
-         * Starts and stops the engine as the switch, the permissions and the hold change; a new orientation while it
-         * runs stops it and starts it again in that orientation.
+         * Starts and stops the engine as the permissions and the hold change; a new orientation while it runs stops it
+         * and starts it again in that orientation, and [start] after a failure starts it again.
          */
         private suspend fun follow(link: CarPlayLink) =
             coroutineScope {
                 var session: Job? = null
-                combine(settings.enabled, missing, held, settings.orientation) { enabled, missing, held, orientation ->
-                    if (enabled && missing.isNotEmpty()) log.warn("carplay.permission_missing", "missing" to missing)
-                    // The orientation to run in, or null when CarPlay must not run.
-                    orientation.takeIf { enabled && missing.isEmpty() && !held }
+                combine(missing, held, settings.orientation, restarts) { missing, held, orientation, restart ->
+                    if (missing.isNotEmpty()) log.warn("carplay.permission_missing", "missing" to missing)
+                    // What to run (the orientation, and which start after a failure), or null when CarPlay must not.
+                    Active(orientation, restart).takeIf { missing.isEmpty() && !held }
                 }.distinctUntilChanged().collect { active ->
                     // Still wanted across a restart, so the ride never ends between the stop and the new start.
                     if (active == null) wanted.value = false
@@ -150,20 +162,26 @@ class CarPlayCoordinator
                         ) {
                             log.info("carplay.off")
                         } else {
-                            log.info("carplay.restart", "orientation" to active)
+                            log.info("carplay.restart", "orientation" to active.orientation)
                         }
                     }
                     session = null
                     if (active != null) {
                         failed.value = false
                         wanted.value = true
-                        canvas.use(active)
+                        canvas.use(active.orientation)
                         session = launch { guarded { runEngine(link) } }
                         link.start()
-                        log.info("carplay.start", "orientation" to active)
+                        log.info("carplay.start", "orientation" to active.orientation)
                     }
                 }
             }
+
+        /** What the engine runs with: its [orientation], and the [restart] count that a start after a failure bumps. */
+        private data class Active(
+            val orientation: CarPlayOrientation,
+            val restart: Int,
+        )
 
         private suspend fun runEngine(link: CarPlayLink) {
             link.run()

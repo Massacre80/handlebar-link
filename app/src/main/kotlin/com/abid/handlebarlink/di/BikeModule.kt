@@ -4,6 +4,7 @@ import com.abid.handlebarlink.controls.ActionPerformer
 import com.abid.handlebarlink.controls.AndroidMicrophone
 import com.abid.handlebarlink.controls.ButtonPresses
 import com.abid.handlebarlink.controls.CallSituations
+import com.abid.handlebarlink.controls.CarPlayCallSituations
 import com.abid.handlebarlink.controls.ControlTarget
 import com.abid.handlebarlink.controls.DataStoreHandlebarMapping
 import com.abid.handlebarlink.controls.DataStoreMicMuteRecord
@@ -11,10 +12,9 @@ import com.abid.handlebarlink.controls.HandlebarMapping
 import com.abid.handlebarlink.controls.MappedButtonPresses
 import com.abid.handlebarlink.controls.MicMuteRecord
 import com.abid.handlebarlink.controls.Microphone
+import com.abid.handlebarlink.controls.OurCarPlayControlTarget
 import com.abid.handlebarlink.controls.PressFeedback
 import com.abid.handlebarlink.controls.RiderActions
-import com.abid.handlebarlink.controls.RoutedCallSituations
-import com.abid.handlebarlink.controls.RoutedControlTarget
 import com.abid.handlebarlink.ride.AndroidBikeLinkProvider
 import com.abid.handlebarlink.ride.BikeLinkProvider
 import com.abid.handlebarlink.ui.overlay.PressBanner
@@ -33,9 +33,9 @@ abstract class BikeModule {
     @Binds
     abstract fun bikeLinkProvider(provider: AndroidBikeLinkProvider): BikeLinkProvider
 
-    /** Our own CarPlay while it is connected, else CarLink's media session. */
+    /** Our own CarPlay: presses do nothing while it is not connected. */
     @Binds
-    abstract fun controlTarget(target: RoutedControlTarget): ControlTarget
+    abstract fun controlTarget(target: OurCarPlayControlTarget): ControlTarget
 
     @Binds
     abstract fun buttonPresses(presses: MappedButtonPresses): ButtonPresses
@@ -49,9 +49,9 @@ abstract class BikeModule {
     @Binds
     abstract fun actionPerformer(actions: RiderActions): ActionPerformer
 
-    /** Our own CarPlay's iAP2 call states while it is connected, else the phone's audio (never ringing). */
+    /** Our own CarPlay's iAP2 call states while it is connected; riding otherwise. */
     @Binds
-    abstract fun callSituations(situations: RoutedCallSituations): CallSituations
+    abstract fun callSituations(situations: CarPlayCallSituations): CallSituations
 
     @Binds
     abstract fun microphone(microphone: AndroidMicrophone): Microphone

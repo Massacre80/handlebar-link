@@ -106,6 +106,22 @@ class Navigator(
         while (stack.size > index) stack.removeAt(stack.lastIndex)
     }
 
+    /**
+     * The CarPlay display (Open CarPlay from the handlebar): on the CarPlay tab, over its page after any sheet or
+     * dialog on it closes; nothing more when it is already shown.
+     */
+    fun openCarPlayDisplay() {
+        navigate(CarPlayRoute)
+        val stack = state.stack(CarPlayRoute)
+        while (stack.last() is OverlayRoute) stack.removeAt(stack.lastIndex)
+        if (stack.last() != CarPlayDisplayRoute) navigate(CarPlayDisplayRoute)
+    }
+
+    /** Switch screen from the handlebar: back from the CarPlay display when it is shown, else to it. */
+    fun switchScreen() {
+        if (state.current == CarPlayDisplayRoute) goBack() else openCarPlayDisplay()
+    }
+
     /** What Back would do now, for the back gesture's preview (changes nothing). */
     fun backMove(): Move = if (state.atTabRoot) Move.TAB_BACKWARD else Move.POP
 

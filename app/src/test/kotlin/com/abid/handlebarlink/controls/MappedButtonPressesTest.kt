@@ -105,15 +105,15 @@ class MappedButtonPressesTest {
         }
 
     @Test
-    fun `an action CarLink cannot do is reported on the banner and logged, not crashed`() =
+    fun `a press while our CarPlay is not connected is reported on the banner and logged, not crashed`() =
         runTest {
-            val presses = presses(FakeControlTarget(CARLINK_SUPPORTED))
+            val presses = presses(FakeControlTarget(connected = false))
 
-            // Hold left is Siri while riding; with CarLink it needs our own CarPlay.
+            // Hold left is Siri while riding.
             presses.press(HandlebarSwitch.HOLD_LEFT)
             runCurrent()
 
-            assertThat(banner.unavailable).containsExactly(RiderAction.SIRI to Unavailable.NEEDS_OUR_CARPLAY)
+            assertThat(banner.unavailable).containsExactly(RiderAction.SIRI to Unavailable.NO_CARPLAY_SESSION)
             assertThat(banner.done).isEmpty()
             assertThat(log.events("control.unavailable")).hasSize(1)
         }
@@ -121,14 +121,14 @@ class MappedButtonPressesTest {
     @Test
     fun `presses keep working after an unavailable one`() =
         runTest {
-            val presses = presses(FakeControlTarget(CARLINK_SUPPORTED))
+            val presses = presses(FakeControlTarget(connected = false))
             situations.situation.value = CallSituation.ON_CALL
 
             presses.press(HandlebarSwitch.HOLD_LEFT)
             presses.press(HandlebarSwitch.LEFT)
             runCurrent()
 
-            assertThat(banner.unavailable).containsExactly(RiderAction.END_CALL to Unavailable.NEEDS_OUR_CARPLAY)
+            assertThat(banner.unavailable).containsExactly(RiderAction.END_CALL to Unavailable.NO_CARPLAY_SESSION)
             assertThat(banner.done).containsExactly(RiderAction.MUTE_MIC to null)
         }
 

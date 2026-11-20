@@ -58,15 +58,15 @@ internal fun listWords(parts: List<Int>): String {
 }
 
 /**
- * The line for [status] at [now]: Off keeps "Runs in CarLink for now"; then Starting, "Connecting · step",
- * Connected, "error · Retrying in N s", or the error alone when only the rider can fix it.
+ * The line for [status] at [now]: "Starts with the next ride", Starting, "Connecting · step", Connected, "error ·
+ * Retrying in N s", or the error alone when only the rider can fix it; and the app's own states (no receiver in this
+ * build, a permission missing, stopped by the rider or after an error).
  */
 internal fun carPlayLine(
     status: CarPlayStatus,
     now: Instant,
 ): CarPlayLine =
     when (status) {
-        CarPlayStatus.Off -> CarPlayLine(R.string.carplay_interim, tone = SignalTone.IDLE)
         CarPlayStatus.NotAvailable -> CarPlayLine(R.string.carplay_status_not_available, tone = SignalTone.IDLE)
         is CarPlayStatus.NeedsPermission -> permissionLine(status.permissions)
         CarPlayStatus.Failed -> CarPlayLine(R.string.carplay_status_failed, tone = SignalTone.ERROR)

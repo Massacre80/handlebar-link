@@ -136,6 +136,20 @@ class CarPlayCanvasTest {
     }
 
     @Test
+    fun `cutouts on both short edges add up, as the display pads by both`() {
+        // A notch and a bottom cutout: the landscape picture pads by WindowInsets.displayCutout on both sides
+        // (CarPlayDisplay), so the window loses both strips, 89 + 40, in either rotation.
+        assertThat(cutoutOnShortEdges(1080, 2246, left = 0, top = 89, right = 0, bottom = 40)).isEqualTo(129)
+        assertThat(cutoutOnShortEdges(2246, 1080, left = 89, top = 0, right = 40, bottom = 0)).isEqualTo(129)
+        assertThat(cutoutOnShortEdges(2246, 1080, left = 40, top = 30, right = 89, bottom = 30)).isEqualTo(129)
+        // negotiate(2246, 1080, cutout 129, landscape) in diplay_display.py: window 2117x1080, areas
+        // [(1920, 978), (922, 1920)].
+        assertThat(carPlayWindow(1080, 2246, LANDSCAPE, cutout = 129)).isEqualTo(WindowSize(2117, 1080))
+        assertThat(carPlayCanvas(1080, 2246, 60f, LANDSCAPE, cutout = 129, decoderTakes = poco).viewAreas)
+            .isEqualTo(listOf(CarPlayViewArea(1920, 978), CarPlayViewArea(922, 1920)))
+    }
+
+    @Test
     fun `the frame rate follows the display, within CarPlay's 30 to 60`() {
         assertThat(carPlayCanvas(1080, 2246, 120f, LANDSCAPE, decoderTakes = poco).maxFps).isEqualTo(60)
         assertThat(carPlayCanvas(1080, 2246, 59.94f, LANDSCAPE, decoderTakes = poco).maxFps).isEqualTo(59)

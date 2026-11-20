@@ -101,11 +101,12 @@ data class PairIphoneActions(
 )
 
 /**
- * The CarPlay tab with its view model. Every action that starts CarPlay (the switch, Start CarPlay) asks for CarPlay's
- * missing permissions, the microphone included, through the same runtime flow as the Permissions page, after a dialog
- * that says why ([CarPlayAccessEntry]); it starts the ride service once they are allowed, so a ride that had ended
- * picks CarPlay up while the app is on screen (a foreground service may only start then). Refused, the hero shows
- * Needs you with Allow while Android still asks, Open settings once it no longer does ([withAccess]).
+ * The CarPlay tab with its view model. Start CarPlay (after the rider stopped it, after an error, or with no ride
+ * running) asks for CarPlay's missing permissions, the microphone included, through the same runtime flow as the
+ * Permissions page, after a dialog that says why ([CarPlayAccessEntry]); it starts the ride service once they are
+ * allowed, so a ride that had ended picks CarPlay up while the app is on screen (a foreground service may only start
+ * then). Refused, the hero shows Needs you with Allow while Android still asks, Open settings once it no longer does
+ * ([withAccess]).
  */
 @Composable
 fun CarPlayEntry(
@@ -118,25 +119,18 @@ fun CarPlayEntry(
     val access = rememberCarPlayAccess { viewModel.recheckPermission() }
     val enableBluetooth = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {}
     val startRide = { startRide(context, access, navigation.onExplainAccess) }
-    val toggle = {
-        val on = !state.enabled
-        viewModel.setEnabled(on)
-        if (on) startRide()
-    }
     CarPlayScreen(
         state.copy(hero = state.hero.withAccess(access.status)),
         onAction = { action ->
             when (action) {
                 TabAction.ADD_IPHONE -> navigation.onAddIphone()
                 TabAction.CHOOSE_IPHONE -> navigation.onIphone()
-                TabAction.TURN_ON_BETA -> toggle()
                 TabAction.OPEN_CARPLAY -> navigation.onOpen()
                 TabAction.START_CARPLAY -> viewModel.start().also { startRide() }
                 TabAction.CANCEL, TabAction.DISCONNECT -> viewModel.stop()
                 else -> fix(action, context, access) { enableBluetooth.launch(it) }
             }
         },
-        onToggle = toggle,
         onIphone = { if (state.iphone.hasIphones) navigation.onIphone() else navigation.onAddIphone() },
         contentPadding = contentPadding,
         onScreen = navigation.onScreen,

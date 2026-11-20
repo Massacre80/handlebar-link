@@ -23,7 +23,7 @@ private val PreviewDevice =
         battery = PREVIEW_BATTERY,
     )
 
-/** One intercom connected, its battery known, buttons reaching CarLink; a second, passenger's intercom. */
+/** One intercom connected, its battery known, the assistant button set; a second, passenger's intercom. */
 internal val PreviewIntercom =
     IntercomUiState(
         devices = listOf(PreviewDevice, PreviewDevice.copy(address = "BB", name = "Passenger", connected = false)),

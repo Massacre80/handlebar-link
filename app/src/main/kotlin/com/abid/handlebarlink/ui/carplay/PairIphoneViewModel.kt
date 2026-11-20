@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
-import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.engine.android.pairing.IphonePairingState
 import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
@@ -87,7 +86,6 @@ class PairIphoneViewModel
     constructor(
         private val pairing: IphonePairing,
         private val coordinator: CarPlayCoordinator,
-        private val settings: CarPlaySettings,
         private val time: TimeProvider,
     ) : ViewModel() {
         private val sessions = MutableStateFlow(0)
@@ -135,10 +133,9 @@ class PairIphoneViewModel
             viewModelScope.launch { pairing.rename(name) }
         }
 
-        /** Start CarPlay: the switch on and any stop lifted; the caller starts the ride service. */
+        /** Start CarPlay: any stop lifted (or a failed engine started again); the caller starts the ride service. */
         fun startCarPlay() {
-            coordinator.resume()
-            viewModelScope.launch { settings.setEnabled(true) }
+            coordinator.start()
         }
 
         /** A paired iPhone becomes CarPlay's iPhone, once. */

@@ -8,14 +8,10 @@ import assertk.assertions.isEqualTo
 import assertk.assertions.isNotEqualTo
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.controls.ActionAvailability
-import com.abid.handlebarlink.controls.CARLINK_SUPPORTED
 import com.abid.handlebarlink.controls.CallSituation
-import com.abid.handlebarlink.controls.FakeCallSituations
-import com.abid.handlebarlink.controls.FakeControlTarget
 import com.abid.handlebarlink.controls.FakeMicrophone
 import com.abid.handlebarlink.controls.HANDLEBAR_DEFAULTS
 import com.abid.handlebarlink.controls.InMemoryHandlebarMapping
-import com.abid.handlebarlink.controls.OurCarPlay
 import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.testing.MainDispatcherRule
 import com.abid.handlebarlink.ui.navigation.HandlebarResetRoute
@@ -43,12 +39,7 @@ class HandlebarResetTest {
     private fun viewModel() =
         HandlebarViewModel(
             mapping,
-            ActionAvailability(
-                FakeControlTarget(CARLINK_SUPPORTED),
-                FakeMicrophone(),
-                FakeCallSituations(),
-                OurCarPlay(null),
-            ),
+            ActionAvailability(FakeMicrophone()),
         )
 
     /** The rider has changed a press in two situations. */

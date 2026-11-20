@@ -11,7 +11,6 @@ import androidx.annotation.StringRes
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.core.app.Person
 import androidx.core.content.ContextCompat
 import com.abid.handlebarlink.MainActivity
 import com.abid.handlebarlink.R
@@ -48,32 +47,6 @@ class RideNotifications
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setCategory(NotificationCompat.CATEGORY_SERVICE)
-                .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
-                .build()
-        }
-
-        /**
-         * The ongoing notification while a call is carried over the intercom: a call-style notification, as
-         * Core-Telecom requires for calls held in the background. Hang up stops holding (the call itself goes
-         * on, back on the phone).
-         */
-        fun callAudio(): Notification {
-            createChannels()
-            val caller =
-                Person
-                    .Builder()
-                    .setName(
-                        context.getString(R.string.call_audio_person),
-                    ).setImportant(true)
-                    .build()
-            return NotificationCompat
-                .Builder(context, CHANNEL_RIDE)
-                .setSmallIcon(R.drawable.ic_stat_ride)
-                .setContentTitle(context.getString(R.string.call_audio_title))
-                .setContentIntent(openApp())
-                .setStyle(NotificationCompat.CallStyle.forOngoingCall(caller, endCallAudio()))
-                .setOngoing(true)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
                 .build()
         }
@@ -139,14 +112,6 @@ class RideNotifications
                 context,
                 0,
                 Intent(context, MainActivity::class.java),
-                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-            )
-
-        private fun endCallAudio(): PendingIntent =
-            PendingIntent.getService(
-                context,
-                1,
-                RideService.endCallAudioIntent(context),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )
 

@@ -12,47 +12,39 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.abid.handlebarlink.bike.link.LinkState
-import com.abid.handlebarlink.callaudio.IntercomCallRoute
-import com.abid.handlebarlink.callaudio.VoipCallWatcher
 import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.controls.OurCarPlay
 import com.abid.handlebarlink.core.common.log.Logger
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.merge
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
  * Keeps the process and the Bluetooth link alive during a ride: a `connectedDevice` foreground service
  * (architecture review M2.4–M3-8). Started by the app while it is on screen, and from the background when
- * Android reports the bike nearby (autostart/, docs/PLAN.md M4); ends itself when the ride ends. Adds the
- * `microphone` type while our CarPlay runs, once the app was visible with CarPlay connected ([keepsMicrophone]).
- * Not exported: only this app starts it, with explicit intents.
+ * Android reports the bike nearby (autostart/, docs/PLAN.md M4), and by the app on screen with an iPhone paired for
+ * CarPlay; ends itself when the ride ends. Adds the `microphone` type while our CarPlay runs, once the app was visible
+ * with CarPlay connected ([keepsMicrophone]). Every start from the app on screen posts the foreground state again, so
+ * a ride that began in the background (ignition) gains the while-in-use capability that CarPlay's sound needs on
+ * Android 17 (docs/PLAN.md "Microphone in the background"). Not exported: only this app starts it, with explicit
+ * intents.
  */
 @AndroidEntryPoint
 class RideService : LifecycleService() {
     @Inject lateinit var coordinator: RideCoordinator
 
-    /** Our own CarPlay receiver, beside the bike link behind its beta switch (docs/PLAN.md "CarPlay in the app"). */
+    /** Our own CarPlay receiver, beside the bike link in every ride (docs/PLAN.md "CarPlay in the app"). */
     @Inject lateinit var carPlay: CarPlayCoordinator
 
     @Inject lateinit var notifications: RideNotifications
 
     @Inject lateinit var logger: Logger
-
-    @Inject lateinit var calls: VoipCallWatcher
-
-    @Inject lateinit var callRoute: IntercomCallRoute
 
     @Inject lateinit var ourCarPlay: OurCarPlay
 
@@ -60,7 +52,6 @@ class RideService : LifecycleService() {
     private var ride: Job? = null
 
     @androidx.annotation.StringRes private var status: Int = statusText(LinkState.Stopped)
-    private val endCall = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
 
     override fun onStartCommand(
         intent: Intent?,
@@ -97,10 +88,6 @@ class RideService : LifecycleService() {
                 coordinator.stop()
             }
 
-            ACTION_END_CALL_AUDIO -> {
-                endCall.tryEmit(Unit)
-            }
-
             else -> {
                 log.warn("service.unknown_action", "action" to intent.action)
             }
@@ -118,8 +105,11 @@ class RideService : LifecycleService() {
                 showForeground()
             } else {
                 // A plain start comes from the app on screen (RideAutoStart on every resume): the moment the
-                // microphone type may be added.
-                updateMicrophone(visible = true)
+                // microphone type may be added, and the moment a ride started in the background gains the
+                // while-in-use capability: Android 17's background audio hardening silences CarPlay's playback and
+                // refuses its audio focus without it ("Background audio hardening": an FGS gets it when started
+                // while the app is visible). So the foreground state is posted again even when nothing changed.
+                if (!updateMicrophone(visible = true)) showForeground()
             }
             return
         }
@@ -163,10 +153,9 @@ class RideService : LifecycleService() {
                     .distinctUntilChanged()
                     .collect {
                         status = it
-                        if (!holdingCall) notifications.update(it)
+                        notifications.update(it)
                     }
             }
-        val callAudio = lifecycleScope.launch { routeCalls() }
         val microphoneType =
             lifecycleScope.launch { ourCarPlay.state.collect { updateMicrophone(visible = appVisible()) } }
         try {
@@ -174,7 +163,6 @@ class RideService : LifecycleService() {
         } finally {
             microphoneType.cancel()
             microphone = false
-            callAudio.cancel()
             updates.cancel()
             ride = null
             ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
@@ -182,26 +170,25 @@ class RideService : LifecycleService() {
         }
     }
 
-    private var holdingCall = false
-
     /** Whether the service runs with the `microphone` type now. */
     private var microphone = false
 
     /**
      * Adds or gives back the `microphone` type as [keepsMicrophone] decides for our CarPlay's state, [visible] and the
      * permission. A refused upgrade (the app was not visible after all) is logged and retried at the next change.
+     * True when it posted the foreground state.
      */
-    private fun updateMicrophone(visible: Boolean) {
-        if (ride == null) return
+    private fun updateMicrophone(visible: Boolean): Boolean {
         val permitted =
             ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
                 PackageManager.PERMISSION_GRANTED
         val wanted = keepsMicrophone(microphone, ourCarPlay.state.value, visible, permitted)
-        if (wanted == microphone) return
+        if (ride == null || wanted == microphone) return false
         microphone = wanted
         val applied = showForeground()
         if (!applied && wanted) microphone = false
         log.info("service.microphone_type", "on" to microphone, "visible" to visible, "applied" to applied)
+        return true
     }
 
     /** Whether one of the app's activities is in the foreground now (our own process's importance, public API). */
@@ -212,57 +199,24 @@ class RideService : LifecycleService() {
     }
 
     /**
-     * While another app's call runs (CarLink's CarPlay call), holds a Telecom call so Android carries its
-     * sound and microphone over the intercom (callaudio/). The service shows the call notification and adds
-     * the phoneCall type meanwhile, as Core-Telecom asks for calls held in the background. A call of our own
-     * CarPlay routes itself and is left alone ([holdsTelecomCall]).
-     */
-    private suspend fun routeCalls() {
-        val inCall = calls.inCall().stateIn(lifecycleScope)
-        inCall.collect { call ->
-            if (!call) return@collect
-            if (!holdsTelecomCall(ourCarPlay.isConnected)) {
-                log.info("callaudio.call.ours")
-                return@collect
-            }
-            log.info("callaudio.call.start")
-            asCall(true)
-            callRoute.hold { merge(inCall.filter { !it }.map {}, endCall).first() }
-            asCall(false)
-            log.info("callaudio.call.end")
-        }
-    }
-
-    /** Switches the foreground notification and types between the ride and a held call. */
-    private fun asCall(on: Boolean) {
-        holdingCall = on
-        showForeground()
-    }
-
-    /**
-     * Posts the foreground notification and types for what the service is doing now (ride or held call, with or
-     * without the microphone); false when Android refused.
+     * Posts the foreground notification and types for what the service is doing now (with or without the
+     * microphone); false when Android refused.
      */
     private fun showForeground(): Boolean =
         try {
             ServiceCompat.startForeground(
                 this,
                 RideNotifications.ID_RIDE,
-                if (holdingCall) notifications.callAudio() else notifications.riding(status),
-                rideServiceTypes(holdingCall, microphone),
+                notifications.riding(status),
+                rideServiceTypes(microphone),
             )
             true
         } catch (e: ForegroundServiceStartNotAllowedException) {
-            log.warn("service.foreground_refused", "call" to holdingCall, "error" to e.message)
+            log.warn("service.foreground_refused", "error" to e.message)
             false
         } catch (e: SecurityException) {
             // A while-in-use type (microphone) asked for from the background.
-            log.warn(
-                "service.foreground_denied",
-                "call" to holdingCall,
-                "microphone" to microphone,
-                "error" to e.message,
-            )
+            log.warn("service.foreground_denied", "microphone" to microphone, "error" to e.message)
             false
         }
 
@@ -270,7 +224,6 @@ class RideService : LifecycleService() {
     companion object {
         private const val ACTION_START = "com.abid.handlebarlink.ride.START"
         private const val ACTION_STOP = "com.abid.handlebarlink.ride.STOP"
-        private const val ACTION_END_CALL_AUDIO = "com.abid.handlebarlink.ride.END_CALL_AUDIO"
         private const val EXTRA_PRESENT_HINT = "present_hint"
         private const val EXTRA_FOREGROUND_START = "foreground_start"
 
@@ -310,10 +263,6 @@ class RideService : LifecycleService() {
                 false
             }
         }
-
-        /** The intent that stops holding a call (the call notification's hang-up). */
-        fun endCallAudioIntent(context: Context): Intent =
-            Intent(context, RideService::class.java).setAction(ACTION_END_CALL_AUDIO)
 
         /** The intent that ends the ride. */
         fun stopIntent(context: Context): Intent = Intent(context, RideService::class.java).setAction(ACTION_STOP)

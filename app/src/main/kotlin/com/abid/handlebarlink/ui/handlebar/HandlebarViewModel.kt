@@ -14,15 +14,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 /**
  * The Handlebar page and its chooser (docs/PLAN.md "Smart buttons"): the situation the rider is looking at
- * (riding, ringing, on a call), every press's action in it with whether it works with today's CarPlay, and the
- * chooser's choices for a situation ([pickerState]). Changes go through [HandlebarMapping.assign]; an action
- * that needs our own CarPlay may be chosen (the defaults have them too); it is marked "Soon" and does nothing
- * until then.
+ * (riding, ringing, on a call), every press's action in it with whether it can work, and the chooser's choices for a
+ * situation ([pickerState]). Changes go through [HandlebarMapping.assign].
  */
 @HiltViewModel
 class HandlebarViewModel
@@ -35,7 +34,7 @@ class HandlebarViewModel
 
         /** The page: the chosen situation and its presses. */
         val uiState: StateFlow<HandlebarUiState> =
-            combine(situation, mapping.current, availability.changes) { shown, all, _ ->
+            combine(situation, mapping.current) { shown, all ->
                 handlebarState(shown, all, availability)
             }.stateIn(
                 viewModelScope,
@@ -52,11 +51,7 @@ class HandlebarViewModel
         fun picker(
             situation: CallSituation,
             switch: HandlebarSwitch,
-        ): Flow<PickerUiState> =
-            combine(
-                mapping.current,
-                availability.changes,
-            ) { all, _ -> pickerState(situation, switch, all, availability) }
+        ): Flow<PickerUiState> = mapping.current.map { all -> pickerState(situation, switch, all, availability) }
 
         /** The chooser's first frame, before [picker] has emitted. */
         fun pickerNow(

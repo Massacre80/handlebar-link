@@ -189,8 +189,7 @@ interface PressFeedback {
     )
 
     /**
-     * [action] was not done because of [reason] (e.g. answering needs our own CarPlay, or no music has played
-     * yet). Replaces the old "held for a call": the music keys are no longer on the call layers at all.
+     * [action] was not done because of [reason] (e.g. our CarPlay is not connected, or the call is over).
      */
     fun unavailable(
         action: RiderAction,
@@ -201,8 +200,6 @@ interface PressFeedback {
 /**
  * [ButtonPresses] through the rider's [HandlebarMapping]: each press does the action of its switch in the
  * current [CallSituation]'s layer, off the link's thread, and the banner says what it did or why it could not.
- * With a source that cannot see ringing ([CallSituations.seesRinging] false, today with CarLink), presses while a
- * call rings use the riding layer.
  */
 class MappedButtonPresses
     @Inject

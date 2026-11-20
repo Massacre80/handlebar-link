@@ -22,12 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.bike.protocol.HandlebarSwitch
 import com.abid.handlebarlink.controls.CallSituation
-import com.abid.handlebarlink.controls.Unavailable
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
-import com.abid.handlebarlink.core.designsystem.component.HlNotice
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlSegment
@@ -43,11 +41,10 @@ import com.abid.handlebarlink.ui.settings.SubPage
 
 /**
  * Handlebar controls with smart buttons (Paper "Handlebar — Smart buttons"; like the earbuds apps' control
- * pages): the situation switch (riding, ringing, on a call) with a line on it and, when today's CarPlay limits
- * it, a notice; the switch with what its keys do in that situation ([SwitchDiagram]); one block per key, its
- * icon as on the switch, with its press and its hold, each opening the chooser (a hold the meter keeps is
- * dimmed; an action that needs our own CarPlay is tagged "Soon"); Reset to default ([onReset] only asks: the
- * confirmation dialog resets).
+ * pages): the situation switch (riding, ringing, on a call) with a line on it; the switch with what its keys do in
+ * that situation ([SwitchDiagram]); one block per key, its icon as on the switch, with its press and its hold, each
+ * opening the chooser (a hold the meter keeps is dimmed); Reset to default ([onReset] only asks: the confirmation
+ * dialog resets). Our own CarPlay does every action, so nothing is marked "Soon" (owner, 2026-11-20).
  */
 @Composable
 fun HandlebarScreen(
@@ -66,7 +63,7 @@ fun HandlebarScreen(
     }
 }
 
-/** The situation switch, a line on the situation shown, and its notice. */
+/** The situation switch and a line on the situation shown. */
 @Composable
 private fun SituationBlock(
     state: HandlebarUiState,
@@ -82,25 +79,6 @@ private fun SituationBlock(
             onSelect = { onSituation(SITUATIONS[it].situation) },
         )
         Note(stringResource(situationHint(state.situation, state.atDefaults)))
-        when (state.notice) {
-            HandlebarNotice.RINGING_NEEDS_OUR_CARPLAY -> {
-                HlNotice(
-                    HlIcons.Info,
-                    stringResource(R.string.handlebar_notice_ringing_title),
-                    stringResource(R.string.handlebar_notice_ringing_body),
-                )
-            }
-
-            HandlebarNotice.HANG_UP_NEEDS_OUR_CARPLAY -> {
-                HlNotice(
-                    HlIcons.Info,
-                    stringResource(R.string.handlebar_notice_call_title),
-                    stringResource(R.string.handlebar_notice_call_body),
-                )
-            }
-
-            null -> {}
-        }
     }
 }
 
@@ -132,11 +110,9 @@ private fun KeyBlock(
                 )
             }
         }
-        // Why a press here does nothing today; a situation with a notice has said it already.
-        if (state.notice == null) {
-            val reason = listOfNotNull(key.press, key.hold).firstNotNullOfOrNull { state.press(it).unavailable }
-            reason?.let { Note(stringResource(footnote(it))) }
-        }
+        // Why a press here can never work (the microphone Android does not let the app change).
+        val reason = listOfNotNull(key.press, key.hold).firstNotNullOfOrNull { state.press(it).unavailable }
+        reason?.let { Note(stringResource(unavailableText(it))) }
     }
 }
 
@@ -153,7 +129,6 @@ private fun ActionRow(
         onClick = { onPress(switch) },
         container = Color.Transparent,
         chevron = true,
-        tag = if (choice.soon) stringResource(R.string.handlebar_soon) else null,
         hintColor = if (isDestructive(choice.action)) HlTheme.colors.danger else Color.Unspecified,
     )
 }
@@ -222,11 +197,6 @@ private fun situationHint(
         atDefaults -> R.string.handlebar_hint_on_call
         else -> R.string.handlebar_hint_on_call_set
     }
-
-/** The footnote under a key whose press cannot work today. */
-@StringRes
-private fun footnote(reason: Unavailable): Int =
-    if (reason == Unavailable.NEEDS_OUR_CARPLAY) R.string.handlebar_soon_footnote else unavailableText(reason)
 
 /** A press in full, for the chooser's title ("Press up", "Hold down"). */
 @StringRes

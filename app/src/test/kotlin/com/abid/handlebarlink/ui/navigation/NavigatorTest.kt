@@ -117,4 +117,44 @@ class NavigatorTest {
         assertThat(state.routesInUse).containsExactly(HomeRoute, GarageRoute)
         assertThat(state.lastMove).isEqualTo(Move.TAB_FORWARD)
     }
+
+    @Test
+    fun `Open CarPlay from the handlebar shows the CarPlay display on the CarPlay tab, once`() {
+        navigator.navigate(SettingsRoute)
+
+        navigator.openCarPlayDisplay()
+        navigator.openCarPlayDisplay()
+
+        assertThat(state.topLevelRoute).isEqualTo(CarPlayRoute)
+        assertThat(state.stack(CarPlayRoute).toList()).containsExactly(CarPlayRoute, CarPlayDisplayRoute)
+        // Back from it returns to the CarPlay tab.
+        navigator.goBack()
+        assertThat(state.current).isEqualTo(CarPlayRoute)
+    }
+
+    @Test
+    fun `Open CarPlay closes a sheet or dialog over the CarPlay tab first`() {
+        navigator.navigate(CarPlayRoute)
+        navigator.navigate(PairIphoneRoute)
+        navigator.navigate(CarPlayScreenRoute)
+
+        navigator.openCarPlayDisplay()
+
+        assertThat(state.stack(CarPlayRoute).toList())
+            .containsExactly(CarPlayRoute, PairIphoneRoute, CarPlayDisplayRoute)
+    }
+
+    @Test
+    fun `Switch screen goes to the CarPlay display and back from it`() {
+        navigator.navigate(IntercomRoute)
+
+        navigator.switchScreen()
+        assertThat(state.current).isEqualTo(CarPlayDisplayRoute)
+
+        navigator.switchScreen()
+        assertThat(state.current).isEqualTo(CarPlayRoute)
+
+        navigator.switchScreen()
+        assertThat(state.current).isEqualTo(CarPlayDisplayRoute)
+    }
 }
