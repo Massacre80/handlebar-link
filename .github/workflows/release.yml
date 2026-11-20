@@ -1,0 +1,105 @@
+# Tagged releases only: rebuild from the tag with the signing key and CarPlay identity
+# injected from secrets, verify the APK and attach it with its checksum and mapping file.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HL_KEYSTORE_PATH: ${{ runner.temp }}/handlebarlink.jks
+      HL_KEYSTORE_PASSWORD: ${{ secrets.HL_KEYSTORE_PASSWORD }}
+      HL_KEY_ALIAS: ${{ secrets.HL_KEY_ALIAS }}
+      HL_KEY_PASSWORD: ${{ secrets.HL_KEY_PASSWORD }}
+      HL_KEYSTORE_B64: ${{ secrets.HL_KEYSTORE_B64 }}
+      HL_MFI_B64: ${{ secrets.HL_MFI_B64 }}
+      HL_MFI_DIR: ${{ runner.temp }}/carplay-mfi
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Check required secrets
+        run: |
+          for name in HL_KEYSTORE_B64 HL_KEYSTORE_PASSWORD HL_KEY_ALIAS HL_KEY_PASSWORD HL_MFI_B64; do
+            if [ -z "${!name:-}" ]; then echo "::error::missing secret $name"; exit 1; fi
+          done
+
+      - name: Decode signing key and CarPlay identity (never written to the repo)
+        run: |
+          printf '%s' "$HL_KEYSTORE_B64" | base64 --decode > "$HL_KEYSTORE_PATH"
+          chmod 600 "$HL_KEYSTORE_PATH"
+          mkdir -p "$HL_MFI_DIR"
+          printf '%s' "$HL_MFI_B64" | base64 --decode | tar -xzf - -C "$HL_MFI_DIR"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-provider: basic
+
+      - name: Check and build signed release
+        run: >-
+          ./gradlew check assembleRelease --console=plain
+          -Pcarplay.mfi.dir="$HL_MFI_DIR/offline-mfi"
+
+      - name: Verify APK identity, signing and checksum
+        id: apk
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          apk="app/build/outputs/apk/release/app-release.apk"
+          out="app/build/outputs/apk/release/handlebar-link-$version.apk"
+          unzip -l "$apk" | grep 'assets/offline-mfi/identity.pk8'
+          unzip -l "$apk" | grep 'assets/offline-mfi/certificate.p7b'
+          unzip -l "$apk" | grep 'assets/licenses/LICENSE-AGPL.txt'
+          signer="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -1)"
+          "$signer" verify --print-certs "$apk" 2>/dev/null | grep 'SHA-256 digest'
+          cp "$apk" "$out"
+          (cd "$(dirname "$out")" && sha256sum "$(basename "$out")" > "$(basename "$out").sha256")
+          cat "$out.sha256"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "apk=$out" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifacts on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-reports
+          path: |
+            **/build/reports/
+            app/build/outputs/mapping/release/mapping.txt
+          retention-days: 7
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APK: ${{ steps.apk.outputs.apk }}
+          VERSION: ${{ steps.apk.outputs.version }}
+        run: |
+          set -euo pipefail
+          sha="$(cut -d' ' -f1 < "$APK.sha256")"
+          notes="$(mktemp)"
+          {
+            echo "SHA-256: \`$sha\`"
+            echo
+            echo "Not an Apple-certified product. CarPlay depends on a builder-supplied accessory identity and is not guaranteed to survive iOS updates."
+          } > "$notes"
+          gh release create "$GITHUB_REF_NAME" \
+            "$APK" "$APK.sha256" app/build/outputs/mapping/release/mapping.txt \
+            --title "Handlebar Link $VERSION" \
+            --notes-file "$notes"

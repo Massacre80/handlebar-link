@@ -11,3 +11,5 @@ local.properties
 *.p7b
 *.jks
 *.keystore
+keystore.properties
+.claude/worktrees/
