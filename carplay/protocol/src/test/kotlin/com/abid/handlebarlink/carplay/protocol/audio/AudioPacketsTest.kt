@@ -8,7 +8,9 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isInstanceOf
 import assertk.assertions.isNotNull
+import assertk.assertions.isNotSameInstanceAs
 import assertk.assertions.isNull
+import assertk.assertions.isSameInstanceAs
 import com.abid.handlebarlink.carplay.protocol.bouncyCastleSeal
 import com.abid.handlebarlink.carplay.protocol.hex
 import com.abid.handlebarlink.carplay.protocol.pairing.JVM_CIPHER
@@ -35,6 +37,10 @@ class AudioPacketsTest {
         assertThat(packet.payloadType).isEqualTo(0x60)
         assertThat(packet.payload().toHex()).isEqualTo("216c4f5510")
         assertThat(packet.rtp.toHex()).isEqualTo("80600007fffffc0011223344" + "216c4f5510")
+        // Handed on once without a copy; payload() still copies.
+        assertThat(packet.takePayload().toHex()).isEqualTo("216c4f5510")
+        assertThat(packet.takePayload()).isSameInstanceAs(packet.takePayload())
+        assertThat(packet.payload()).isNotSameInstanceAs(packet.takePayload())
     }
 
     @Test

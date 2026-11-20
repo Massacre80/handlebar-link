@@ -8,6 +8,7 @@ import assertk.assertThat
 import assertk.assertions.containsExactly
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
+import assertk.assertions.isSameInstanceAs
 import assertk.assertions.isTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -29,6 +30,7 @@ class AndroidScreenPortTest {
 
     private class RecordingDecoder(
         val listener: ScreenDecoder.Listener,
+        val recycler: ScreenDecoder.FrameRecycler,
     ) : ScreenDecoder {
         val calls = ArrayList<String>()
         val submitted = ArrayList<Submitted>()
@@ -65,8 +67,15 @@ class AndroidScreenPortTest {
         }
     }
 
+    private fun send(
+        isConfig: Boolean,
+        senderNanos: Long,
+        payload: ByteArray,
+    ) = port.frame(isConfig, senderNanos, payload, payload.size)
+
     private lateinit var decoder: RecordingDecoder
-    private val port = AndroidScreenPort { listener -> RecordingDecoder(listener).also { decoder = it } }
+    private val port =
+        AndroidScreenPort { listener, recycler -> RecordingDecoder(listener, recycler).also { decoder = it } }
 
     @Test
     fun `the decoder's numbers reach the screen's stats until a new stream starts`() {
@@ -93,7 +102,7 @@ class AndroidScreenPortTest {
         val sps = "000000016764000aacb42136022000000300200000" + "0f01e244d4"
         val pps = "0000000168ef0fcb"
 
-        port.frame(isConfig = true, senderNanos = 0L, payload = avcc)
+        send(isConfig = true, senderNanos = 0L, payload = avcc)
 
         // ffmpeg's own Annex B stream carries exactly these two parameter sets.
         assertThat(annexB.contains(sps) && annexB.contains(pps)).isTrue()
@@ -103,8 +112,8 @@ class AndroidScreenPortTest {
 
     @Test
     fun `the iPhone-like avcC becomes SPS and PPS, and pictures go in as they came with their time in microseconds`() {
-        port.frame(isConfig = true, senderNanos = 0L, payload = hex(IPHONE_AVCC))
-        port.frame(isConfig = false, senderNanos = 3_250_000_000L, payload = hex(ANNEX_B_PICTURE))
+        send(isConfig = true, senderNanos = 0L, payload = hex(IPHONE_AVCC))
+        send(isConfig = false, senderNanos = 3_250_000_000L, payload = hex(ANNEX_B_PICTURE))
 
         assertThat(decoder.submitted.map { it.bytes })
             .containsExactly("000000016764001f" + "0000000168ee3c80", ANNEX_B_PICTURE)
@@ -113,12 +122,26 @@ class AndroidScreenPortTest {
     }
 
     @Test
+    fun `a picture goes in as the first bytes of its buffer, which the decoder gives back for reuse`() {
+        val picture = hex(ANNEX_B_PICTURE)
+        val buffer = port.pictureBuffer(picture.size + 16)
+        picture.copyInto(buffer)
+
+        port.frame(isConfig = false, senderNanos = 0L, payload = buffer, length = picture.size)
+        decoder.recycler.recycle(buffer)
+
+        assertThat(decoder.submitted.single().bytes).isEqualTo(ANNEX_B_PICTURE)
+        assertThat(port.pictureBuffer(picture.size + 16)).isSameInstanceAs(buffer)
+        assertThat(port.buffers.allocated).isEqualTo(1)
+    }
+
+    @Test
     fun `an avcC with 2-byte lengths and an unreadable record go in unchanged`() {
         // lengthSizeMinusOne 1: the reader left those pictures length-prefixed, so the decoder must read them so.
         val twoByte = "0164001ffde100046764001f01000468ee3c80"
 
-        port.frame(isConfig = true, senderNanos = 0L, payload = hex(twoByte))
-        port.frame(isConfig = true, senderNanos = 0L, payload = hex("02ff"))
+        send(isConfig = true, senderNanos = 0L, payload = hex(twoByte))
+        send(isConfig = true, senderNanos = 0L, payload = hex("02ff"))
 
         assertThat(decoder.submitted.map { it.bytes }).containsExactly(twoByte, "02ff")
     }

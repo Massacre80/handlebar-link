@@ -173,6 +173,10 @@ for name, (L, S), cut, portrait, fps, takes in cases:
 for name, cw, ch, area, vw, vh, touches in [
     ("fit", 2246, 1080, None, 2000, 1200, [(1000.0, 600.0), (10.0, 200.0), (1999.0, 1000.0)]),
     ("offset-area", 1920, 720, (1280, 720, 640, 0), 2246, 1080, [(0.0, 0.0), (1123.0, 540.0), (2245.0, 1079.0)]),
+    # Each edge rounds on its own: top 154.32 and bottom 1045.68 give 892 rows, where rounding the height gives 891.
+    ("fit-rounding", 2246, 1001, None, 2000, 1200, [(1000.0, 600.0)]),
+    # An area away from the top on a view whose two axes scale differently (1.7547 across, 1.5 down).
+    ("offset-area-y", 1920, 1080, (1280, 720, 320, 180), 2246, 1080, [(0.0, 0.0), (1123.0, 540.0)]),
 ]:
     c = content_rect(cw, ch, area, vw, vh)
     print(name, "content=(%r, %r, %r, %r)" % c, "bounds=%s" % (surface_bounds(c),))

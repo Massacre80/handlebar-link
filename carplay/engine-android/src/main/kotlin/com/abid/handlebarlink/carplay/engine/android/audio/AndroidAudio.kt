@@ -36,7 +36,7 @@ internal class AndroidAudioSystem(
 
     val focus: AudioFocus by lazy { AudioFocus(AndroidFocusSystem(this), platform.log) }
 
-    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), headsets, platform.log) }
+    val calls: CallAudio by lazy { CallAudio(AndroidAudioModeSystem(this), headsets, platform.log, platform.time) }
 
     val renderers: RendererPlatform by lazy { AndroidRendererPlatform(this) }
 
@@ -138,6 +138,16 @@ private class AndroidAudioModeSystem(
     override fun clearCommunicationDevice() {
         audio.manager.clearCommunicationDevice()
     }
+
+    override fun activeCommunicationDevice(): CommunicationDevice? = audio.manager.communicationDevice?.let(::device)
+
+    override fun watchCommunicationDevice(changed: (CommunicationDevice?) -> Unit) {
+        // On the platform thread; CallAudio is synchronised. Kept for the process, like CallAudio itself.
+        audio.manager.addOnCommunicationDeviceChangedListener(audio.platform.executor) { changed(it?.let(::device)) }
+    }
+
+    private fun device(info: AudioDeviceInfo) =
+        CommunicationDevice(info.id, info.type, info.address, info.productName?.toString().orEmpty())
 }
 
 /** AudioTrack and MediaCodec for [AudioRenderer]. */

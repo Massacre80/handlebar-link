@@ -19,8 +19,8 @@ import org.junit.Test
 class CallAudioTest {
     private val modes = FakeAudioModes()
     private var preferred: CarPlayHeadset? = CarPlayHeadset()
-    private val calls =
-        CallAudio(modes, CarPlayHeadsetSource { preferred }, testLogger(RecordingLogSink(), ManualTime()))
+    private val time = ManualTime()
+    private val calls = CallAudio(modes, CarPlayHeadsetSource { preferred }, testLogger(RecordingLogSink(), time), time)
 
     @Test
     fun `a call enters communication mode once and only a microphone that entered leaves it with MODE_NORMAL`() {
@@ -154,6 +154,53 @@ class CallAudioTest {
         assertThat(modes.speakers).isEqualTo(1)
         // The loudspeaker is cleared when the call leaves; the lost intercom's route is gone already.
         assertThat(modes.cleared).isEqualTo(1)
+    }
+
+    @Test
+    fun `an intercom whose link Android drops while it stays listed sends the call to the loudspeaker`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        val call = Any()
+        calls.enter(call)
+        check(calls.voiceStarted(call, AudioChannel.PHONE) == INTERCOM)
+
+        modes.moveTo(EARPIECE) // The intercom refused the SCO link mid-call; it is still connected and listed.
+
+        assertThat(modes.speakers).isEqualTo(1)
+        assertThat(modes.cleared).isEqualTo(1)
+        // The next track asks again: the failed headset is not taken for granted.
+        assertThat(calls.voiceStarted(Any(), AudioChannel.PHONE)).isEqualTo(INTERCOM)
+    }
+
+    @Test
+    fun `an accepted request that Android never applies is a passing earpiece report at first, a failed route later`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        modes.appliesRoutes = false
+        val call = Any()
+        calls.enter(call)
+        check(calls.voiceStarted(call, AudioChannel.PHONE) == INTERCOM)
+
+        calls.routedToEarpiece()
+        val early = modes.speakers
+        time.now = CallAudio.CONFIRM_MILLIS
+        calls.routedToEarpiece()
+
+        assertThat(early).isEqualTo(0)
+        assertThat(modes.speakers).isEqualTo(1)
+    }
+
+    @Test
+    fun `an applied intercom route is confirmed and its earpiece reports stay passing ones`() {
+        modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
+        modes.appliesRoutes = false
+        val call = Any()
+        calls.enter(call)
+        calls.voiceStarted(call, AudioChannel.PHONE)
+        modes.moveTo(INTERCOM)
+
+        time.now = 10 * CallAudio.CONFIRM_MILLIS
+        calls.routedToEarpiece()
+
+        assertThat(modes.speakers).isEqualTo(0)
     }
 
     @Test

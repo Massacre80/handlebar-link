@@ -68,7 +68,10 @@ public data class WifiGroup(
      * ("fe80::1%p2p-wlan0-0"). Never empty. The engine puts IPv4 first (E-connection.md #7).
      */
     val addresses: List<String>,
-    /** Our AirPlay receiver id, lower-case "aa:bb:…" (the group interface's MAC where Android reveals it). */
+    /**
+     * Our AirPlay receiver id, "aa:bb:…": the group interface's MAC where Android reveals it (lower case, as DiPlay),
+     * else DiPlay's id derived from the AirPlay identity (upper case, as DiPlay).
+     */
     val interfaceMac: String,
 ) {
     init {
@@ -269,6 +272,7 @@ public interface ScreenPort {
      * - [isConfig] false: [payload] is one access unit in Annex B form (each 4-byte NAL length replaced by a start
      *   code), or the decrypted bytes untouched when its lengths do not tile it.
      *
+     * The message is the first [length] bytes of [payload] (a picture's buffer from [pictureBuffer] may be longer).
      * [senderNanos] is the iPhone's frame time from the 128-byte header. [payload] now belongs to the port; the
      * engine never touches it again.
      */
@@ -276,7 +280,15 @@ public interface ScreenPort {
         isConfig: Boolean,
         senderNanos: Long,
         payload: ByteArray,
+        length: Int,
     )
+
+    /**
+     * A buffer of at least [size] bytes to decrypt the next main screen picture into; it comes back as a [frame]'s
+     * payload. A port whose decoder gives its buffers back hands them out again here (docs/PLAN.md performance rules:
+     * decrypt into reused buffers); the default allocates.
+     */
+    public fun pictureBuffer(size: Int): ByteArray = ByteArray(size)
 
     /**
      * Each emission asks the iPhone for a key frame (`forceKeyFrame` on the event channel, DiPlay
@@ -300,6 +312,7 @@ public interface ScreenPort {
                     isConfig: Boolean,
                     senderNanos: Long,
                     payload: ByteArray,
+                    length: Int,
                 ) {}
 
                 override val keyFrameRequests: Flow<Unit> = emptyFlow()

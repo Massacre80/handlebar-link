@@ -27,6 +27,9 @@ class ScreenStreamReaderTest {
 
     private fun reader() = ScreenStreamReader(key, JVM_CIPHER)
 
+    /** The message's bytes: a picture is the first [ScreenFrame.length] bytes of its buffer. */
+    private fun ScreenFrame.bytes(): ByteArray = payload.copyOf(length)
+
     @Test
     fun `sealed pictures and the config between them come out in order with their frame times`() {
         val frames = reader().feed(FRAME_A + CONFIG + FRAME_B)
@@ -35,12 +38,30 @@ class ScreenStreamReaderTest {
         val (a, config, b) = frames
         assertThat(a.isConfig).isFalse()
         assertThat(a.senderNanos).isEqualTo(3_250_000_000L) // 3.25 s, ScreenCodecTest.kt:69-72
-        assertThat(a.payload.toHex()).isEqualTo("00000001651100000001419a02")
+        assertThat(a.bytes().toHex()).isEqualTo("00000001651100000001419a02")
         assertThat(config.isConfig).isTrue()
         assertThat((config as ScreenFrame.Config).codec).isEqualTo(VideoCodec.H264)
-        assertThat(config.payload.toHex()).isEqualTo(AVCC.toHex())
+        assertThat(config.bytes().toHex()).isEqualTo(AVCC.toHex())
         assertThat(b.senderNanos - a.senderNanos).isEqualTo(16_666_666L) // ScreenCodecTest.kt:74-76
-        assertThat(b.payload.toHex()).isEqualTo("0000000141")
+        assertThat(b.bytes().toHex()).isEqualTo("0000000141")
+    }
+
+    @Test
+    fun `pictures are decrypted into the buffers the screen hands out, which can be reused`() {
+        val buffer = ByteArray(4096) { 0x7F }
+        val asked = mutableListOf<Int>()
+        val reader = ScreenStreamReader(key, JVM_CIPHER) { size -> buffer.also { asked += size } }
+
+        val a = reader.feed(FRAME_A).single()
+        val aBytes = a.bytes().toHex()
+        val b = reader.feed(FRAME_B).single()
+
+        assertThat(a.payload).isSameInstanceAs(buffer)
+        assertThat(b.payload).isSameInstanceAs(buffer)
+        assertThat(aBytes).isEqualTo("00000001651100000001419a02")
+        assertThat(b.bytes().toHex()).isEqualTo("0000000141")
+        // Asked for the whole body (ciphertext and tag): 0x1d and 0x15 bytes from the headers.
+        assertThat(asked.toList()).isEqualTo(listOf(0x1d, 0x15))
     }
 
     @Test
@@ -50,7 +71,7 @@ class ScreenStreamReaderTest {
 
         val frames = wire.indices.flatMap { reader.feed(wire, it, 1) }
 
-        assertThat(frames.map { it.payload.toHex() })
+        assertThat(frames.map { it.bytes().toHex() })
             .containsExactly("00000001651100000001419a02", AVCC.toHex(), "0000000141")
         assertThat(reader.decryptedPictures).isEqualTo(2L)
     }
@@ -116,7 +137,7 @@ class ScreenStreamReaderTest {
 
         val frames = reader().feed(short + FRAME_A)
 
-        assertThat(frames.single().payload.toHex()).isEqualTo("00000001651100000001419a02")
+        assertThat(frames.single().bytes().toHex()).isEqualTo("00000001651100000001419a02")
     }
 
     @Test
@@ -165,10 +186,10 @@ class ScreenStreamReaderTest {
         val boxed = hex("00000010") + "avcC".encodeToByteArray() + hex("0164001f")
         val hevc = hex("00000010") + "hvcC".encodeToByteArray() + hex("01")
 
-        assertThat(ScreenStreamReader.config(boxed).payload.toHex()).isEqualTo("0164001f")
+        assertThat(ScreenStreamReader.config(boxed).bytes().toHex()).isEqualTo("0164001f")
         assertThat(ScreenStreamReader.config(boxed).codec).isEqualTo(VideoCodec.H264)
         assertThat(ScreenStreamReader.config(hevc).codec).isEqualTo(VideoCodec.H265)
-        assertThat(ScreenStreamReader.config(hevc).payload.toHex()).isEqualTo("01")
+        assertThat(ScreenStreamReader.config(hevc).bytes().toHex()).isEqualTo("01")
     }
 
     @Test

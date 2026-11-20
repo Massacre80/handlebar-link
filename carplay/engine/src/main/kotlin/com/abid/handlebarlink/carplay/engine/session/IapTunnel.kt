@@ -185,16 +185,13 @@ internal class IapTunnelStream(
 ) : ByteStream {
     private var reader = IapTunnelReader(readKey, context.platform.cipherName)
     private val chunk = ByteArray(READ_CHUNK)
-    private var pending = ByteArray(0)
+
+    private val pending = ByteQueue(READ_CHUNK)
     private var closed = false
 
     override suspend fun read(buffer: ByteArray): Int {
-        while (pending.isEmpty() && !closed) fill()
-        if (pending.isEmpty()) return -1
-        val count = minOf(buffer.size, pending.size)
-        pending.copyInto(buffer, 0, 0, count)
-        pending = pending.copyOfRange(count, pending.size)
-        return count
+        while (pending.isEmpty && !closed) fill()
+        return if (pending.isEmpty) -1 else pending.read(buffer)
     }
 
     /** One read from the data connection; at its end, the iPhone's next connection. */
@@ -202,7 +199,7 @@ internal class IapTunnelStream(
         val count = connection.read(chunk)
         when {
             count >= 0 -> {
-                pending += decode(count)
+                decode(count).forEach(pending::append)
             }
 
             !closed -> {
@@ -217,9 +214,9 @@ internal class IapTunnelStream(
         }
     }
 
-    private fun decode(count: Int): ByteArray =
+    private fun decode(count: Int): List<ByteArray> =
         try {
-            reader.receive(chunk, 0, count).fold(ByteArray(0)) { all, body -> all + body }
+            reader.receive(chunk, 0, count)
         } catch (e: AEADBadTagException) {
             throw CarPlayException(CarPlayError.LinkFailed("iAP2 tunnel frame failed authentication"), e)
         } catch (e: IapTunnelException) {
@@ -259,5 +256,50 @@ internal class IapTunnelStream(
 
         /** DiPlay's READ_CHUNK_BYTES (IapTunnel.kt:223). */
         const val READ_CHUNK = 16 * 1024
+    }
+}
+
+/**
+ * Bytes waiting to be read, in order: appended at the end, read from the front. The buffer is compacted or grown only
+ * when an append does not fit, so reading in small pieces never copies the rest again (the tunnel's records arrive
+ * many to a 16 KiB chunk and are read 8 KiB at a time).
+ */
+internal class ByteQueue(
+    initialBytes: Int,
+) {
+    private var bytes = ByteArray(initialBytes)
+    private var start = 0
+    private var end = 0
+
+    val isEmpty: Boolean get() = start == end
+
+    /** Bytes waiting. */
+    val size: Int get() = end - start
+
+    fun append(body: ByteArray) {
+        if (end + body.size > bytes.size) {
+            val waiting = size
+            if (waiting + body.size > bytes.size) {
+                bytes = bytes.copyOfRange(start, end).copyOf(maxOf(bytes.size * 2, waiting + body.size))
+            } else {
+                bytes.copyInto(bytes, 0, start, end)
+            }
+            start = 0
+            end = waiting
+        }
+        body.copyInto(bytes, end)
+        end += body.size
+    }
+
+    /** Moves up to `buffer.size` bytes into the start of [buffer]; returns how many (0 when empty). */
+    fun read(buffer: ByteArray): Int {
+        val count = minOf(buffer.size, size)
+        bytes.copyInto(buffer, 0, start, start + count)
+        start += count
+        if (start == end) {
+            start = 0
+            end = 0
+        }
+        return count
     }
 }

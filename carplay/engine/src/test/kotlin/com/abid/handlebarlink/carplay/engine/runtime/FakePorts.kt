@@ -334,8 +334,23 @@ internal class FakePorts(
             isConfig: Boolean,
             senderNanos: Long,
             payload: ByteArray,
+            length: Int,
         ) {
-            calls += Call.Frame(isConfig, senderNanos, payload.joinToString("") { "%02x".format(it) })
+            calls += Call.Frame(isConfig, senderNanos, payload.copyOf(length).joinToString("") { "%02x".format(it) })
+            if (!isConfig) bufferBack = payload
+        }
+
+        /** The last picture's buffer, handed out again by [pictureBuffer] when it is large enough. */
+        private var bufferBack: ByteArray? = null
+        var buffersAsked = 0
+        var buffersReused = 0
+
+        override fun pictureBuffer(size: Int): ByteArray {
+            buffersAsked++
+            val back = bufferBack?.takeIf { it.size >= size }
+            bufferBack = null
+            if (back != null) buffersReused++
+            return back ?: ByteArray(size)
         }
     }
 

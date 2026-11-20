@@ -47,7 +47,7 @@ internal object ReceiverIds {
         ) { index -> text.substring(index * HEX_STRIDE, index * HEX_STRIDE + 2).toInt(HEX).toByte() }
     }
 
-    /** 6 bytes to lower-case "aa:bb:…" (the form `WifiGroup.interfaceMac` asks for). */
+    /** 6 bytes to lower-case "aa:bb:…", as DiPlay formats an interface address (WifiP2pGroupManager.kt:893-897). */
     fun format(bytes: ByteArray): String = bytes.joinToString(":") { "%02x".format(it.toInt() and BYTE_MASK) }
 
     /** Where an id came from, for the log. */
@@ -64,7 +64,10 @@ internal object ReceiverIds {
 
     /**
      * The AirPlay receiver id: the group interface's hardware address, else the group owner's device address, else
-     * the identity-derived id (DiPlay WifiP2pGroupManager.kt:682-683, then CarPlayController.kt:1539-1541).
+     * the identity-derived id (DiPlay WifiP2pGroupManager.kt:682-683, then CarPlayController.kt:1539-1541). Spelled
+     * as DiPlay spells each: the hardware address lower case (WifiP2pGroupManager.kt:893-897), the derived id upper
+     * case (`DiPlayBootstrap.deviceId`, `%02X`, DiPlayBootstrap.kt:45-49; the iPhone echoes it so in the tunnel's
+     * channelID).
      */
     fun receiverId(
         interfaceHardware: ByteArray?,
@@ -83,7 +86,7 @@ internal object ReceiverIds {
             }
 
             else -> {
-                format(fromIdentity(identityPublicKey)) to Source.IDENTITY
+                format(fromIdentity(identityPublicKey)).uppercase() to Source.IDENTITY
             }
         }
     }

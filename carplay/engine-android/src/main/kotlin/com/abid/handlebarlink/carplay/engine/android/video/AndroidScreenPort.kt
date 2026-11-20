@@ -19,10 +19,16 @@ import kotlinx.coroutines.flow.asStateFlow
  * its configuration says, so an `avcC` with 4-byte lengths goes in as its SPS and PPS behind start codes
  * ([decoderConfig]): the pictures that follow are then read as the Annex B they are, never by guessing whether lengths
  * happen to tile them (an Annex B picture can, docs/LESSONS.md 71).
+ *
+ * Pictures are decrypted into [PictureBuffers] ([pictureBuffer]), which the decoder gives back once it has copied each
+ * into the codec ([ScreenDecoder.FrameRecycler]): no picture-sized allocation per frame.
  */
 internal class AndroidScreenPort(
-    decoderFactory: (ScreenDecoder.Listener) -> ScreenDecoder,
+    decoderFactory: (ScreenDecoder.Listener, ScreenDecoder.FrameRecycler) -> ScreenDecoder,
 ) : ScreenPort {
+    /** The picture buffers the reader decrypts into and the decoder gives back. */
+    val buffers = PictureBuffers()
+
     /** Dropped when no screen stream listens (no subscriber); a burst while one listens collapses into one. */
     private val requests =
         MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -45,6 +51,7 @@ internal class AndroidScreenPort(
                     statsFlow.value = stats
                 }
             },
+            buffers::give,
         )
 
     override val keyFrameRequests: Flow<Unit> = requests.asSharedFlow()
@@ -63,10 +70,17 @@ internal class AndroidScreenPort(
         isConfig: Boolean,
         senderNanos: Long,
         payload: ByteArray,
+        length: Int,
     ) {
-        val bytes = if (isConfig) decoderConfig(payload) else payload
-        decoder.submit(bytes, 0, bytes.size, senderNanos / NANOS_PER_MICRO, isConfig)
+        if (isConfig) {
+            val config = decoderConfig(if (length == payload.size) payload else payload.copyOf(length))
+            decoder.submit(config, 0, config.size, senderNanos / NANOS_PER_MICRO, true)
+        } else {
+            decoder.submit(payload, 0, length, senderNanos / NANOS_PER_MICRO, false)
+        }
     }
+
+    override fun pictureBuffer(size: Int): ByteArray = buffers.take(size)
 
     companion object {
         private const val NANOS_PER_MICRO = 1_000L

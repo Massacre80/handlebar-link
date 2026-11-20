@@ -141,13 +141,13 @@ internal class ScreenReceiver(
         events: EventCommands,
     ) {
         if (stream.type != MediaStreams.MAIN_SCREEN) {
-            read(stream, connection) { _, _, _ -> }
+            read(stream, connection, ::ByteArray) { _, _, _, _ -> }
             return
         }
         coroutineScope {
             val keyFrames = launch { screen.keyFrameRequests.collect { forceKeyFrame(events) } }
             try {
-                read(stream, connection, screen::frame)
+                read(stream, connection, screen::pictureBuffer, screen::frame)
             } finally {
                 keyFrames.cancel()
             }
@@ -162,9 +162,10 @@ internal class ScreenReceiver(
     private suspend fun read(
         stream: ScreenStreamSetup,
         connection: TcpConnection,
-        frames: (isConfig: Boolean, senderNanos: Long, payload: ByteArray) -> Unit,
+        buffers: (Int) -> ByteArray,
+        frames: (isConfig: Boolean, senderNanos: Long, payload: ByteArray, length: Int) -> Unit,
     ) {
-        val reader = ScreenStreamReader(stream.key, context.cipherName)
+        val reader = ScreenStreamReader(stream.key, context.cipherName, buffers)
         var count = 0L
         var configs = 0L
         var bytes = 0L
@@ -181,7 +182,7 @@ internal class ScreenReceiver(
                         "carplay.screen.receiving",
                         "type" to stream.type,
                         "config" to frame.isConfig,
-                        "bytes" to frame.payload.size,
+                        "bytes" to frame.length,
                     )
                     summaryAt = now + SUMMARY_MILLIS
                 } else if (now >= summaryAt) {
@@ -194,7 +195,7 @@ internal class ScreenReceiver(
                     )
                     summaryAt = now + SUMMARY_MILLIS
                 }
-                frames(frame.isConfig, frame.senderNanos, frame.payload)
+                frames(frame.isConfig, frame.senderNanos, frame.payload, frame.length)
             }
         } catch (e: MediaStreamException) {
             throw CarPlayException(CarPlayError.PhoneDisconnected("screen stream ${stream.type}: ${e.message}"), e)

@@ -27,10 +27,15 @@ import java.security.GeneralSecurityException
  * good, as the iPhone's counter can no longer be followed.
  *
  * Bytes may arrive split or joined at any point. Not thread-safe: one reader per stream, fed by one thread.
+ *
+ * Each picture is decrypted into an array from [pictureBuffers] (asked for at least the body's size), so the screen
+ * can hand its buffers back for reuse (docs/PLAN.md performance rules: decrypt into reused buffers); the picture's
+ * bytes are the first [ScreenFrame.length] of it.
  */
 public class ScreenStreamReader(
     key: ByteArray,
     cipherName: String,
+    private val pictureBuffers: (Int) -> ByteArray = ::ByteArray,
 ) {
     private val cipher = ChaCha20Poly1305(key, cipherName)
     private val header = ByteArray(HEADER_BYTES)
@@ -126,15 +131,16 @@ public class ScreenStreamReader(
 
     private fun picture(): ScreenFrame.Picture? {
         if (bodySize < ChaCha20Poly1305.TAG_BYTES) return null
-        val payload =
+        val payload = pictureBuffers(bodySize)
+        val length =
             try {
-                cipher.open(counterNonce(frameCounter), header, body, 0, bodySize)
+                cipher.openInto(counterNonce(frameCounter), header, body, bodySize, payload)
             } catch (e: GeneralSecurityException) {
                 failed = true
                 throw MediaStreamException("Screen frame $frameCounter did not authenticate", e)
             }
         frameCounter++
-        return ScreenFrame.Picture(senderNanos(header), lengthPrefixedToAnnexB(payload))
+        return ScreenFrame.Picture(senderNanos(header), lengthPrefixedToAnnexB(payload, length), length)
     }
 
     /** Sizes and opcodes of the screen stream (ScreenStream.kt:140-147). */
@@ -166,14 +172,17 @@ public class ScreenStreamReader(
         }
 
         /**
-         * Replaces each 4-byte big-endian NAL length of [payload] with an Annex B start code, in place, and
-         * returns [payload]. A payload that already starts with a start code, or whose lengths do not tile
-         * it exactly with NALs of at least one byte, is returned untouched (ScreenStream.kt:172-203).
+         * Replaces each 4-byte big-endian NAL length in the first [length] bytes of [payload] with an Annex B start
+         * code, in place, and returns [payload]. A payload that already starts with a start code, or whose lengths do
+         * not tile those bytes exactly with NALs of at least one byte, is returned untouched (ScreenStream.kt:172-203).
          */
-        public fun lengthPrefixedToAnnexB(payload: ByteArray): ByteArray {
-            if (payload.size < 4 || payload.startsWithStartCode() || !isLengthPrefixed(payload)) return payload
+        public fun lengthPrefixedToAnnexB(
+            payload: ByteArray,
+            length: Int = payload.size,
+        ): ByteArray {
+            if (length < 4 || payload.startsWithStartCode() || !isLengthPrefixed(payload, length)) return payload
             var offset = 0
-            while (offset <= payload.size - 4) {
+            while (offset <= length - 4) {
                 val length = readU32Be(payload, offset)
                 payload[offset] = 0
                 payload[offset + 1] = 0
@@ -184,18 +193,21 @@ public class ScreenStreamReader(
             return payload
         }
 
-        /** Whether 4-byte lengths, each followed by that many (at least one) bytes, tile [payload] exactly. */
-        private fun isLengthPrefixed(payload: ByteArray): Boolean {
+        /** Whether 4-byte lengths, each followed by that many (at least one) bytes, tile [size] bytes exactly. */
+        private fun isLengthPrefixed(
+            payload: ByteArray,
+            size: Int,
+        ): Boolean {
             var offset = 0
             var valid = true
-            while (valid && offset <= payload.size - 4) {
+            while (valid && offset <= size - 4) {
                 val length = readU32Be(payload, offset)
                 offset += 4
                 // Subtraction, not `offset + length`, so that a length near 2^31 cannot wrap.
-                valid = length > 0 && length <= payload.size - offset
+                valid = length > 0 && length <= size - offset
                 if (valid) offset += length
             }
-            return valid && offset == payload.size
+            return valid && offset == size
         }
 
         /**
@@ -243,8 +255,11 @@ public sealed interface ScreenFrame {
     /** The iPhone's time stamp from the header (bytes 8..15, NTP 32.32 LE) in nanoseconds. */
     public val senderNanos: Long
 
-    /** The decoder record (configuration) or the Annex B access unit (picture). */
+    /** The decoder record (configuration) or the Annex B access unit (picture), in its first [length] bytes. */
     public val payload: ByteArray
+
+    /** How many bytes of [payload] are the message (a picture's buffer may be longer). */
+    public val length: Int
 
     /**
      * A codec configuration (opcode 1, clear): [payload] is the avcC (H.264) or hvcC (H.265) decoder
@@ -258,6 +273,8 @@ public sealed interface ScreenFrame {
         override val senderNanos: Long = 0L,
     ) : ScreenFrame {
         override val isConfig: Boolean get() = true
+
+        override val length: Int get() = payload.size
 
         /**
          * The first SPS and first PPS of an avcC [payload], without start codes; each is empty when the record
@@ -294,13 +311,14 @@ public sealed interface ScreenFrame {
     }
 
     /**
-     * A decrypted picture (opcode 0): [payload] is the access unit with start codes in place of the NAL
-     * lengths (or the decrypted bytes as they are, when the lengths are malformed), [senderNanos] the iPhone's
-     * frame time (ScreenStream.kt:117).
+     * A decrypted picture (opcode 0): the first [length] bytes of [payload] are the access unit with start codes in
+     * place of the NAL lengths (or the decrypted bytes as they are, when the lengths are malformed), [senderNanos] the
+     * iPhone's frame time (ScreenStream.kt:117).
      */
     public class Picture(
         override val senderNanos: Long,
         override val payload: ByteArray,
+        override val length: Int = payload.size,
     ) : ScreenFrame {
         override val isConfig: Boolean get() = false
     }

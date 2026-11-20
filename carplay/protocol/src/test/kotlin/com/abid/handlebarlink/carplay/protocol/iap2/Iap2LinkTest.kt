@@ -356,6 +356,49 @@ class Iap2LinkTest {
         assertThat(framesIn(link.drainOutput()).map { it.sequence }).containsExactly(100)
     }
 
+    @Test
+    fun `the iPhone's sequence wraps from 255 to 0, in order and out of order`() {
+        // Spec A: sequence numbers are one byte; the next after 0xFF is 0x00 (Iap2LinkEngine.kt nextSequence).
+        val link = connectedAt(peerSeq = 0xFD)
+
+        link.feedFrame(data(0xFE, byteArrayOf(1)))
+        link.feedFrame(data(0x00, byteArrayOf(3))) // Arrives before 0xFF: waits for it.
+        val beforeGap = link.drainEvents().size
+        link.feedFrame(data(0xFF, byteArrayOf(2)))
+        link.feedFrame(data(0x01, byteArrayOf(4)))
+
+        val payloads = link.drainEvents().map { (it as Iap2LinkEvent.Message).payload.single().toInt() }
+        assertThat(beforeGap).isEqualTo(1)
+        assertThat(payloads).containsExactly(2, 3, 4)
+    }
+
+    @Test
+    fun `our sequence wraps from 255 to 0, and an EAK listing the wrapped packets resends them`() {
+        val link = connected(peerParameters(retransmitMillis = 2_000, maxRetransmissions = 2))
+        // Ours starts at 100 (SYN 99, LinkMachine.kt): send and have acknowledged 100..255.
+        for (sequence in 100..0xFF) {
+            link.send(10, byteArrayOf(1), now = 0)
+            link.feedFrame(Iap2Frame(Iap2Frame.ACK, PEER_SEQ, sequence, 0, null))
+        }
+        link.drainOutput()
+        link.send(10, byteArrayOf(2), now = 0)
+        link.send(10, byteArrayOf(3), now = 0)
+        val sent = framesIn(link.drainOutput()).map { it.sequence }
+
+        link.feedFrame(Iap2Frame(Iap2Frame.EAK, PEER_SEQ, 0xFF, 0, byteArrayOf(0x00, 0x01)))
+
+        assertThat(sent).containsExactly(0x00, 0x01)
+        assertThat(framesIn(link.drainOutput()).map { it.sequence }).containsExactly(0x00, 0x01)
+    }
+
+    /** Connected with the iPhone's SYN+ACK at [peerSeq] (its parameters as [PEER_SYN_ACK]'s). */
+    private fun connectedAt(peerSeq: Int): Iap2Link =
+        connected(
+            Iap2Frame(Iap2Frame.SYN or Iap2Frame.ACK, peerSeq, 99, 0, peerParameters(maxOutgoing = 4).encode())
+                .encode()
+                .toHex(),
+        )
+
     private fun started() = Iap2Link().apply { start(0) }.also { it.drainOutput() }
 
     private fun negotiating() = started().apply { feed(MARKER) }.also { it.drainOutput() }

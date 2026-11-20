@@ -149,7 +149,7 @@ internal class AudioReceiver(
             if (failed) return
             try {
                 val target = player ?: open()
-                target.packet(packet.sequence, packet.timestamp, packet.payload())
+                target.packet(packet.sequence, packet.timestamp, packet.takePayload())
             } catch (e: RuntimeException) {
                 failed = true
                 context.log.error(

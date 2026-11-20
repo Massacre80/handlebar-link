@@ -27,7 +27,7 @@ class MicrophoneCaptureTest {
     private val log = testLogger(RecordingLogSink(), ManualTime())
     private val modes = FakeAudioModes()
     private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
-    private val calls = CallAudio(modes, headsets, log)
+    private val calls = CallAudio(modes, headsets, log, ManualTime())
     private val bodies = mutableListOf<String>()
 
     private val call = MicrophoneFormat("telephony", AudioCodec.LPCM, 16_000, 1, 20, 0)

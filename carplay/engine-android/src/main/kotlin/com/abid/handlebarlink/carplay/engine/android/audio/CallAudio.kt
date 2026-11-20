@@ -3,6 +3,7 @@ package com.abid.handlebarlink.carplay.engine.android.audio
 import android.media.AudioManager
 import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import java.util.Collections
 import java.util.IdentityHashMap
 
@@ -22,6 +23,12 @@ internal interface AudioModeSystem {
 
     /** `clearCommunicationDevice()`. */
     fun clearCommunicationDevice()
+
+    /** `AudioManager.getCommunicationDevice()`: the device communication is routed to now; null when none. */
+    fun activeCommunicationDevice(): CommunicationDevice?
+
+    /** Calls [changed] with the new active device each time it changes (`addOnCommunicationDeviceChangedListener`). */
+    fun watchCommunicationDevice(changed: (CommunicationDevice?) -> Unit)
 }
 
 /**
@@ -41,6 +48,14 @@ internal interface AudioModeSystem {
  * (the selection lasts "until the device is disconnected", setCommunicationDevice reference), the call falls to the
  * earpiece, and the same fallback applies.
  *
+ * **A request, not a route.** `setCommunicationDevice` returning true only means the request was taken; the route is
+ * applied when the communication device changes to the headset ("Managing BLE Audio for Communication Applications":
+ * wait for the communication device to become the selected one, with a timeout, e.g. 30 s; listen for the change). The
+ * route counts as confirmed once [AudioModeSystem.activeCommunicationDevice] is the headset. A confirmed headset that
+ * Android then leaves (a dropped or refused SCO link while the intercom stays listed), or one still not applied
+ * [CONFIRM_MILLIS] after the request when a call's sound lands on the earpiece, is a failed route: it is forgotten and
+ * the call gets the loudspeaker fallback. Before that an earpiece report is a passing one (SCO still coming up).
+ *
  * **The call's mode.** The call's microphone puts the phone in `MODE_IN_COMMUNICATION` before it records ([enter]:
  * the platform's echo canceller and the voice path need it) and leaves with `MODE_NORMAL` ([leave]), which withdraws
  * this process's request rather than restoring an old mode (DiPlay #987). Siri keeps the normal mode, as in DiPlay.
@@ -53,6 +68,8 @@ internal class CallAudio(
     private val system: AudioModeSystem,
     private val headsets: CarPlayHeadsetSource,
     private val log: Logger,
+    /** Elapsed time, for [CONFIRM_MILLIS]. */
+    private val time: TimeProvider,
 ) {
     /**
      * The call microphones that asked for the mode and have not left yet. Usually one; two while a replaced telephony
@@ -68,6 +85,14 @@ internal class CallAudio(
 
     /** The headset that is the communication device now, by our request. */
     private var headset: CommunicationDevice? = null
+
+    /** Android applied [headset] (it became the active communication device); when it was requested. */
+    private var confirmed = false
+    private var requestedAt = 0L
+
+    init {
+        system.watchCommunicationDevice(::communicationDeviceChanged)
+    }
 
     /**
      * A track or recorder of [channel] starts; the headset the calls and Siri use now, which it should prefer, or
@@ -93,6 +118,7 @@ internal class CallAudio(
             log.info("carplay.audio.headset_route", "device" to it.name, "cleared" to true)
         }
         headset = null
+        confirmed = false
     }
 
     /** [call]'s microphone is about to record; the first one puts the phone in communication mode. */
@@ -116,27 +142,66 @@ internal class CallAudio(
     }
 
     /**
-     * A call's track was routed to the earpiece: with the headset still connected that is a passing report and is
-     * ignored; otherwise the call moves to the loudspeaker, once per call.
+     * A call's track was routed to the earpiece: while the headset's route is applied, or still coming up, that is a
+     * passing report and is ignored; otherwise (no headset, a lost one, a route that failed) the call moves to the
+     * loudspeaker, once per call.
      */
     @Synchronized
     fun routedToEarpiece() {
-        if (callers.isEmpty() || loudspeaker || headsetStillThere()) return
+        if (callers.isEmpty() || loudspeaker || headsetHolds()) return
+        fallBackToLoudspeaker()
+    }
+
+    /** Android's communication device changed to [device] (the platform's listener). */
+    @Synchronized
+    fun communicationDeviceChanged(device: CommunicationDevice?) {
+        val routed = headset ?: return
+        if (device?.id == routed.id) {
+            if (!confirmed) log.info("carplay.audio.headset_confirmed", "device" to routed.name)
+            confirmed = true
+        } else if (confirmed || time.elapsedMillis() - requestedAt >= CONFIRM_MILLIS) {
+            headsetFailed(routed, "route left")
+        }
+    }
+
+    /**
+     * Whether the headset we routed to still carries the call, or may still be coming up. A disconnected one is
+     * forgotten (Android dropped its route); one whose route Android did not apply, or left, is a failed route.
+     */
+    private fun headsetHolds(): Boolean {
+        val routed = headset ?: return false
+        val active = system.activeCommunicationDevice()?.id == routed.id
+        if (active) confirmed = true
+        val waiting = !confirmed && time.elapsedMillis() - requestedAt < CONFIRM_MILLIS
+        val listed = system.communicationDevices().any { it.id == routed.id }
+        if (!listed) {
+            headset = null
+            confirmed = false
+            log.info("carplay.audio.headset_lost", "device" to routed.name, "reason" to "disconnected")
+        } else if (!active && !waiting) {
+            headsetFailed(routed, "route not applied")
+        }
+        return listed && (active || waiting)
+    }
+
+    /** The headset's route failed while it is still listed: forget it and withdraw the request. */
+    private fun headsetFailed(
+        routed: CommunicationDevice,
+        reason: String,
+    ) {
+        headset = null
+        confirmed = false
+        log.info("carplay.audio.headset_lost", "device" to routed.name, "reason" to reason)
+        system.clearCommunicationDevice()
+        if (callers.isNotEmpty() && !loudspeaker) fallBackToLoudspeaker()
+    }
+
+    /** DiPlay's fallback: the call moves to the loudspeaker, once per call. */
+    private fun fallBackToLoudspeaker() {
         if (loudspeakerTried) return
         loudspeakerTried = true
         loudspeaker = system.loudspeaker()
         log.info("carplay.audio.call_route", "earpiece" to true, "loudspeaker" to loudspeaker)
-    }
-
-    /** Whether the headset we routed to is still connected; a lost one is forgotten (Android dropped its route). */
-    private fun headsetStillThere(): Boolean {
-        val routed = headset ?: return false
-        val there = system.communicationDevices().any { it.id == routed.id }
-        if (!there) {
-            headset = null
-            log.info("carplay.audio.headset_lost", "device" to routed.name)
-        }
-        return there
     }
 
     private fun routeToHeadset(channel: AudioChannel) {
@@ -150,6 +215,8 @@ internal class CallAudio(
             // The headset replaces a loudspeaker this call chose before it connected.
             loudspeaker = false
             headset = chosen
+            requestedAt = time.elapsedMillis()
+            confirmed = system.activeCommunicationDevice()?.id == chosen.id
         }
         log.info(
             "carplay.audio.headset_route",
@@ -158,5 +225,10 @@ internal class CallAudio(
             "channel" to channel,
             "routed" to routed,
         )
+    }
+
+    companion object {
+        /** How long a requested headset route may take to apply (the AudioManager guide's example timeout). */
+        const val CONFIRM_MILLIS = 30_000L
     }
 }

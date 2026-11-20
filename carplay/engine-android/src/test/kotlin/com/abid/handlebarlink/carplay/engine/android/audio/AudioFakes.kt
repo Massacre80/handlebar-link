@@ -198,11 +198,31 @@ internal class FakeAudioModes : AudioModeSystem {
 
     override fun setCommunicationDevice(device: CommunicationDevice): Boolean {
         routed += device
+        if (deviceGranted && appliesRoutes) active = device
         return deviceGranted
     }
 
     override fun clearCommunicationDevice() {
         cleared++
+    }
+
+    /** What `getCommunicationDevice` reports; a granted request becomes it at once unless [appliesRoutes] is false. */
+    var active: CommunicationDevice? = EARPIECE
+    var appliesRoutes = true
+
+    /** The listener CallAudio registered. */
+    var changed: ((CommunicationDevice?) -> Unit)? = null
+
+    override fun activeCommunicationDevice(): CommunicationDevice? = active
+
+    override fun watchCommunicationDevice(changed: (CommunicationDevice?) -> Unit) {
+        this.changed = changed
+    }
+
+    /** Android moves communication to [device] by itself (a dropped SCO link falls back to the earpiece). */
+    fun moveTo(device: CommunicationDevice?) {
+        active = device
+        changed?.invoke(device)
     }
 }
 

@@ -33,4 +33,4 @@ public class CarPlayScreen internal constructor(
  * thread starts with the first stream. Logs `carplay.video.*` through [logger].
  */
 public fun createCarPlayScreen(logger: Logger): CarPlayScreen =
-    CarPlayScreen(AndroidScreenPort { listener -> createScreenDecoder(logger, listener) })
+    CarPlayScreen(AndroidScreenPort { listener, recycler -> createScreenDecoder(logger, listener, recycler) })

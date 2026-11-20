@@ -2,6 +2,7 @@ package com.abid.handlebarlink.carplay.protocol.pairing
 
 import assertk.assertThat
 import assertk.assertions.isEqualTo
+import assertk.assertions.isNotNull
 import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.carplay.protocol.crypto.Ed25519KeyPair
@@ -76,6 +77,21 @@ class PairVerifyTest {
         val m4 = Tlv8.decode(verify.handle(phone.verifyM3(m2, signer = Ed25519KeyPair.generate(random))))
 
         assertThat(m4.getValue(Tlv8.ERROR).single().toInt()).isEqualTo(2)
+        assertThat(verify.controlKeys).isNull()
+    }
+
+    @Test
+    fun `a failed M1 forgets the handshake before it, so that exchange's M3 is refused`() {
+        phone.pairSetup(PairSetup(identity, pairings, random, JVM_CIPHER))
+        val m2 = Tlv8.decode(verify.handle(phone.verifyM1()))
+        val m3 = phone.verifyM3(m2)
+
+        val refused = Tlv8.decode(verify.handle(Tlv8.encode(state(1), Tlv8.PUBLIC_KEY to ByteArray(32))))
+        val m4 = Tlv8.decode(verify.handle(m3))
+
+        // DiPlay PairVerify.kt: a new M1 replaces the handshake, also when it then fails.
+        assertThat(refused.getValue(Tlv8.ERROR).single().toInt()).isEqualTo(2)
+        assertThat(m4[Tlv8.ERROR]).isNotNull()
         assertThat(verify.controlKeys).isNull()
     }
 

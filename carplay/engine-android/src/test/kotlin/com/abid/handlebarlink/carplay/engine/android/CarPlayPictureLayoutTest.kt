@@ -110,6 +110,26 @@ class CarPlayPictureLayoutTest {
     }
 
     @Test
+    fun `the surface rounds each edge on its own, not the size`() {
+        val layout = CarPlayPictureLayout.of(2246, 1001, CarPlayViewArea(2246, 1001), 2000, 1200)
+        // fit-rounding content=(0.0, 154.31878895814782, 2000.0, 891.3624220837044) bounds=(0, 154, 2000, 892)
+        assertLayout(layout, 0.0, 154.31878895814782, 2000.0, 891.3624220837044)
+        assertThat(layout.bounds).isEqualTo(CarPlaySurfaceBounds(0, 154, 2000, 892))
+        assertTouch(touch(layout, 1000f, 600f), 0.5, 0.5)
+    }
+
+    @Test
+    fun `an area away from the top moves the canvas up by the vertical scale, and touches land in that area`() {
+        val layout =
+            CarPlayPictureLayout.of(1920, 1080, CarPlayViewArea(1280, 720, originX = 320, originY = 180), 2246, 1080)
+        // offset-area-y content=(-561.5, -270.0, 3369.0, 1620.0) bounds=(-561, -270, 3369, 1620)
+        assertLayout(layout, -561.5, -270.0, 3369.0, 1620.0)
+        assertThat(layout.bounds).isEqualTo(CarPlaySurfaceBounds(-561, -270, 3369, 1620))
+        assertTouch(touch(layout, 0f, 0f), 0.16666666666666666, 0.16666666666666666)
+        assertTouch(touch(layout, 1123f, 540f), 0.5, 0.5)
+    }
+
+    @Test
     fun `in the surface placed at the bounds a touch lands where it lands in the window`() {
         val layout = CarPlayPictureLayout.of(1920, 720, CarPlayViewArea(1280, 720, originX = 640), 2246, 1080)
         val surface = layout.inSurface()
