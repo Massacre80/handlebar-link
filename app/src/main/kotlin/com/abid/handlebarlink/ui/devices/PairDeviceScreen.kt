@@ -33,11 +33,13 @@ import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlNavRow
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlSection
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 import com.abid.handlebarlink.devices.DeviceKind
 import com.abid.handlebarlink.devices.NearbyDevice
 import com.abid.handlebarlink.devices.PairState
@@ -127,7 +129,7 @@ private fun Search(
             horizontalArrangement = Arrangement.spacedBy(spacing.s12),
         ) {
             SearchSpinner(if (searching) SearchState.SEARCHING else SearchState.ENDED)
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            HlRowText {
                 HlText(
                     stringResource(if (searching) R.string.pair_searching else R.string.pair_ended),
                     HlTheme.typography.value,
@@ -135,7 +137,7 @@ private fun Search(
                 )
                 HlText(
                     stringResource(if (searching) R.string.pair_searching_detail else R.string.pair_ended_detail),
-                    HlTheme.typography.meta,
+                    HlTheme.typography.meta.balanced(),
                     HlTheme.colors.inkMuted,
                 )
             }

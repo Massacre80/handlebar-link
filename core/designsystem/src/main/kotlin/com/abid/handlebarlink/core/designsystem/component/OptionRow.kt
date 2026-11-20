@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -25,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /**
  * One choice of a single-choice list: optional icon, title, line and a radio (a check when [selected]).
@@ -82,7 +84,7 @@ public fun HlOptionRow(
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
     ) {
         if (icon != null) OptionIcon(icon, selected, destructive)
-        OptionText(title, subtitle, tag, Modifier.weight(1f))
+        OptionText(title, subtitle, tag)
         OptionIndicator(selected, night)
     }
 }
@@ -112,17 +114,16 @@ private fun OptionIcon(
     }
 }
 
-/** An option's title (with its [tag]) and line. */
+/** An option's title (with its [tag]) and line (balanced), clear of the radio ([HlRowText]). */
 @Composable
-private fun OptionText(
+private fun RowScope.OptionText(
     title: String,
     subtitle: String,
     tag: String?,
-    modifier: Modifier,
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+    HlRowText {
         if (tag == null) {
             HlText(title, HlTheme.typography.value, colors.ink)
         } else {
@@ -134,7 +135,7 @@ private fun OptionText(
                 HlTag(tag)
             }
         }
-        HlText(subtitle, HlTheme.typography.meta, colors.inkMuted)
+        HlText(subtitle, HlTheme.typography.meta.balanced(), colors.inkMuted)
     }
 }
 

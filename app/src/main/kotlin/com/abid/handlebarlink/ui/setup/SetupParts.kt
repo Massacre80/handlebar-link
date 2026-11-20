@@ -64,6 +64,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.dashedOutline
@@ -179,7 +180,7 @@ internal fun MeterCard(
         ) {
             HlIcon(HlIcons.Bluetooth, colors.brandInk, size = HlTheme.sizes.iconMedium)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        HlRowText(rowGap = spacing.s14) {
             HlText(meter.name, HlTheme.typography.lead, colors.inkInverse, maxLines = 1)
             Row(
                 verticalAlignment = Alignment.CenterVertically,

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /** What a [SignalCard] shows. */
 public enum class SignalTone {
@@ -113,9 +114,9 @@ public fun SignalCard(
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
     ) {
         SignalBadge(tone, accent, progress)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        HlRowText {
             HlText(title, HlTheme.typography.value, colors.inkInverse, maxLines = 2)
-            HlText(subtitle, HlTheme.typography.meta, colors.inkInverseMuted, maxLines = 2)
+            HlText(subtitle, HlTheme.typography.meta.balanced(), colors.inkInverseMuted, maxLines = 2)
         }
         action?.let { SignalButton(it, tone, night) }
     }

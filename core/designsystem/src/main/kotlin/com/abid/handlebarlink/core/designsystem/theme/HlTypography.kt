@@ -117,3 +117,15 @@ public val HlTypographyDefault: HlTypography =
  * width by hand (owner, 2026-11-20: "Needs you", "Add your iPhone", "Waiting for your iPhone").
  */
 public fun TextStyle.centred(): TextStyle = copy(textAlign = TextAlign.Center, lineBreak = LineBreak.Heading)
+
+/**
+ * [this] with its lines balanced, alignment unchanged: a row's or card's subtext that wraps breaks into lines of even
+ * length instead of a full line over one orphan word (owner, 2026-11-20: "Not there? Check it is in pairing" over
+ * "mode"). The Compose guide's paragraph setting with the balanced strategy ("Style paragraph text": Insert line
+ * breaks, `LineBreak.Paragraph.copy(strategy = LineBreak.Strategy.Balanced)`); [LineBreak.Heading] adds looser
+ * strictness and phrase word-breaking, which are meant for CJK text, so it stays for centred titles ([centred]).
+ */
+public fun TextStyle.balanced(): TextStyle = copy(lineBreak = BalancedLines)
+
+/** The paragraph line break with the balanced strategy ([balanced]). */
+private val BalancedLines = LineBreak.Paragraph.copy(strategy = LineBreak.Strategy.Balanced)

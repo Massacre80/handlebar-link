@@ -87,6 +87,12 @@ Key rules (details in 01 §5, 03 §7):
   custom Compose theme, not Material (Android "Custom design systems in Compose"). Touch targets ≥ 48 dp.
   Data without a source yet (odometer, trip, service, intercom battery, CarPlay) shows an empty state,
   never a made-up number. (Replaces "Dark/Day/Sunlight, 76 dp", 2026-11-17.)
+- Row and card text (owner, 2026-11-20: subtexts ran up to the trailing control and left one word alone): the text of a
+  row with something after it sits in `HlRowText`, which keeps `HlSpacing.trailingGap` (16 dp) clear before the
+  trailing element, and subtexts that may wrap use `TextStyle.balanced()` (the Compose guide's paragraph line break with
+  the balanced strategy), in the design system's rows (`HlNavRow`, `HlValueRow`, `HlSwitchRow`, `HlOptionRow`,
+  `SignalCard`) and the app's own (pairing search, setup search and problem rows, permission rows, the Handlebar card,
+  the meter and iPhone-pairing cards).
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 

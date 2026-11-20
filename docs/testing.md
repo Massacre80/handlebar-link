@@ -116,7 +116,8 @@ landscape layout, `LandscapeScreenshots.kt`: 13 pages at `@Landscape`'s 914 x 41
 then +21 for 7 more (setup Linking/Done, pairing steps/Waiting/Paired, Devices, Garage);
 the design system +4 for the tab rail; dropping Rides on 2026-11-20 removed no screenshot test, since the Rides page
 had none, so the counts hold, but every image with the tab bar or rail (four tabs now), the design system's tab bar,
-rail and component sheet, Settings, Permissions and setup's "You're set" (one row) change and are recorded again). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+rail and component sheet, Settings, Permissions and setup's "You're set" (one row) change and are recorded again; the same day every row with a subtext and a trailing element moved its text 4 dp
+further from it and balanced its lines, so most page images change too). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

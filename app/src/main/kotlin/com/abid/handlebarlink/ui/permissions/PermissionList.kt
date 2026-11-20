@@ -25,9 +25,11 @@ import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /**
  * Permissions as one group (Paper "Setup 6", reused by Settings › Permissions): a row per permission with its
@@ -71,9 +73,9 @@ private fun PermissionRow(item: PermissionItem) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(spacing.s12),
     ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        HlRowText {
             HlText(stringResource(item.title), HlTheme.typography.value, colors.ink)
-            HlText(stringResource(item.why), HlTheme.typography.meta, colors.inkMuted)
+            HlText(stringResource(item.why), HlTheme.typography.meta.balanced(), colors.inkMuted)
         }
         AnimatedContent(
             item.status,

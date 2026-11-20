@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /** The main button ("Save device"): full width, inverse fill. */
 @Composable
@@ -148,7 +149,7 @@ public fun HlStepRow(
             }
             Column(verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
                 HlText(title, HlTheme.typography.value, colors.ink)
-                HlText(detail, HlTheme.typography.meta, colors.inkMuted)
+                HlText(detail, HlTheme.typography.meta.balanced(), colors.inkMuted)
             }
         }
     }
@@ -265,7 +266,7 @@ public fun HlHeader(
         }
         Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2)) {
             HlText(title, HlTheme.typography.title, colors.ink, maxLines = 2)
-            HlText(subtitle, HlTheme.typography.label, colors.inkMuted)
+            HlText(subtitle, HlTheme.typography.label.balanced(), colors.inkMuted)
         }
     }
 }

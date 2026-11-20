@@ -67,11 +67,13 @@ import com.abid.handlebarlink.core.designsystem.component.HlActionPill
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.dashedOutline
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 import com.abid.handlebarlink.setup.FoundMeter
 import com.abid.handlebarlink.setup.SetupProblem
 
@@ -137,9 +139,9 @@ internal fun ProblemCard(
         ) {
             HlText("!", HlTheme.typography.value, colors.danger)
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+        HlRowText {
             HlText(title, HlTheme.typography.value, colors.ink)
-            HlText(detail, HlTheme.typography.meta, colors.inkMuted)
+            HlText(detail, HlTheme.typography.meta.balanced(), colors.inkMuted)
         }
         HlActionPill(fix)
     }
@@ -193,13 +195,14 @@ internal fun SearchRow(
         horizontalArrangement = Arrangement.spacedBy(spacing.s14),
     ) {
         SearchSpinner(state)
-        AnimatedContent(
-            state,
-            Modifier.weight(1f),
-            transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
-            label = "search state",
-        ) { shown ->
-            SearchText(shown)
+        HlRowText(rowGap = spacing.s14) {
+            AnimatedContent(
+                state,
+                transitionSpec = { fadeIn(motion.fade()) togetherWith fadeOut(motion.fade()) },
+                label = "search state",
+            ) { shown ->
+                SearchText(shown)
+            }
         }
         if (!searching) HlActionPill(stringResource(R.string.setup_search_again))
     }
@@ -224,17 +227,29 @@ private fun SearchText(state: SearchState) {
                     colors.ink,
                     Modifier.graphicsLayer { alpha = pulse },
                 )
-                HlText(stringResource(R.string.setup_searching_detail), HlTheme.typography.meta, colors.inkMuted)
+                HlText(
+                    stringResource(R.string.setup_searching_detail),
+                    HlTheme.typography.meta.balanced(),
+                    colors.inkMuted,
+                )
             }
 
             SearchState.NONE_FOUND -> {
                 HlText(stringResource(R.string.setup_none_found), HlTheme.typography.value, colors.danger)
-                HlText(stringResource(R.string.setup_search_again_detail), HlTheme.typography.meta, colors.inkMuted)
+                HlText(
+                    stringResource(R.string.setup_search_again_detail),
+                    HlTheme.typography.meta.balanced(),
+                    colors.inkMuted,
+                )
             }
 
             SearchState.ENDED -> {
                 HlText(stringResource(R.string.setup_not_listed), HlTheme.typography.value, colors.ink)
-                HlText(stringResource(R.string.setup_search_again_detail), HlTheme.typography.meta, colors.inkMuted)
+                HlText(
+                    stringResource(R.string.setup_search_again_detail),
+                    HlTheme.typography.meta.balanced(),
+                    colors.inkMuted,
+                )
             }
         }
     }

@@ -35,6 +35,13 @@ public data class HlSpacing(
     val s24: Dp = 24.dp,
 )
 
+/**
+ * The clear gap between a row's or card's text and whatever trails it (a button, a value, a chevron, a switch, a radio,
+ * a battery): [HlSpacing.s16] everywhere, so a subtext never runs up to its control (owner, 2026-11-20). Rows keep it
+ * through `HlRowText`.
+ */
+public val HlSpacing.trailingGap: Dp get() = s16
+
 /** Size tokens (`--size-*`). Interactive sizes are at least 48 dp (accessibility minimum). */
 @Immutable
 public data class HlSizes(

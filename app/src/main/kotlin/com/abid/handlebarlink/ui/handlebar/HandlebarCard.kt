@@ -23,8 +23,10 @@ import com.abid.handlebarlink.controls.RiderAction
 import com.abid.handlebarlink.core.designsystem.component.HlCard
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
 import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
@@ -62,7 +64,7 @@ fun HandlebarCard(
                 contentDescription = null,
                 modifier = Modifier.size(HlTheme.sizes.handlebarRender).clip(RoundedCornerShape(radius - padding)),
             )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            HlRowText(rowGap = spacing.s16) {
                 HlText(stringResource(R.string.handlebar_title), HlTheme.typography.value, colors.ink, maxLines = 2)
                 HlText(
                     if (changed == 0) {
@@ -70,7 +72,7 @@ fun HandlebarCard(
                     } else {
                         pluralStringResource(R.plurals.handlebar_changed, changed, changed)
                     },
-                    HlTheme.typography.meta,
+                    HlTheme.typography.meta.balanced(),
                     colors.inkMuted,
                     maxLines = 2,
                 )

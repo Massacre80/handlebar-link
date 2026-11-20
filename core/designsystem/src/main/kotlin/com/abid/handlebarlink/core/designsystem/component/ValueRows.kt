@@ -37,6 +37,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /**
  * A value row (the sheet's "Name" field): value and an optional [detail] line on the left, a hint on the
@@ -70,7 +71,7 @@ public fun HlValueRow(
         },
     ) {
         if (icon != null) HlRowIcon(icon)
-        RowText(value, detail, Modifier.weight(1f))
+        RowText(value, detail)
         tag?.let { HlTag(it) }
         hint?.let { HlText(it, HlTheme.typography.meta, hintColor.takeOrElse { colors.inkMuted }, maxLines = 1) }
         if (chevron) HlIcon(HlIcons.ChevronRight, colors.inkMuted, size = HlTheme.sizes.iconTiny)
@@ -105,7 +106,7 @@ public fun HlSwitchRow(
         ),
     ) {
         if (icon != null) HlRowIcon(icon)
-        RowText(value, detail, Modifier.weight(1f))
+        RowText(value, detail)
         HlSwitch(checked, onCheckedChange = null)
     }
 }
@@ -134,17 +135,16 @@ private fun RowFrame(
     )
 }
 
-/** A row's value and its optional detail line. */
+/** A row's value and its optional detail line (balanced), clear of what trails them ([HlRowText]). */
 @Composable
-private fun RowText(
+private fun RowScope.RowText(
     value: String,
     detail: String?,
-    modifier: Modifier,
 ) {
     val colors = HlTheme.colors
-    Column(modifier, verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s2)) {
+    HlRowText {
         HlText(value, HlTheme.typography.value.copy(fontWeight = FontWeight.Medium), colors.ink)
-        detail?.let { HlText(it, HlTheme.typography.meta, colors.inkMuted) }
+        detail?.let { HlText(it, HlTheme.typography.meta.balanced(), colors.inkMuted) }
     }
 }
 

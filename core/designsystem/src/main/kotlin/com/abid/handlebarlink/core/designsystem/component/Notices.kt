@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 
 /**
  * A small status tag beside a value or a title, upper-cased here: "SOON" (Paper "Handlebar — Smart buttons") or the
@@ -122,7 +123,13 @@ public fun HlNotice(
             }
             HlText(title, HlTheme.typography.body.copy(fontWeight = FontWeight.SemiBold), colors.ink)
         }
-        HlText(body, HlTheme.typography.label.copy(fontWeight = FontWeight.Normal), colors.inkMuted)
+        HlText(
+            body,
+            HlTheme.typography.label
+                .copy(fontWeight = FontWeight.Normal)
+                .balanced(),
+            colors.inkMuted,
+        )
     }
 }
 

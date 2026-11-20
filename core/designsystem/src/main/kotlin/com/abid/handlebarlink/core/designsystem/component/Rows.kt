@@ -10,7 +10,9 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -24,9 +26,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
+import com.abid.handlebarlink.core.designsystem.theme.HlSpacing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
+import com.abid.handlebarlink.core.designsystem.theme.trailingGap
 
 /**
  * A row that opens something (a device on Add device, "Pair a new device"): the icon block of
@@ -72,10 +79,7 @@ public fun HlNavRow(
             HlIcon(icon, colors.ink, size = HlTheme.sizes.iconSmall)
         }
         // A detail line coming or going ("Pairing…") eases the row to its new height.
-        Column(
-            Modifier.weight(1f).animateContentSize(HlTheme.motion.layout(IntSize.VisibilityThreshold)),
-            verticalArrangement = Arrangement.spacedBy(spacing.s2),
-        ) {
+        HlRowText(Modifier.animateContentSize(HlTheme.motion.layout(IntSize.VisibilityThreshold))) {
             HlText(title, HlTheme.typography.value, colors.ink, maxLines = 2)
             detail?.let {
                 HlText(
@@ -121,4 +125,24 @@ public fun HlActionRow(
         HlIcon(icon, tint, size = HlTheme.sizes.iconSmall)
         HlText(title, HlTheme.typography.value, tint, maxLines = 1)
     }
+}
+
+/**
+ * The text of a row or card that has something after it (a button, a value, a chevron, a switch, a radio, a battery):
+ * its lines, [HlSpacing.s2] apart, take the room the row leaves and stay [trailingGap] clear of what follows, whatever
+ * the row spaces its items by ([rowGap]; the owner, 2026-11-20: subtexts ran up to the trailing control). Give a
+ * subtext that may wrap [balanced] lines.
+ */
+@Composable
+public fun RowScope.HlRowText(
+    modifier: Modifier = Modifier,
+    rowGap: Dp = HlTheme.spacing.s12,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val spacing = HlTheme.spacing
+    Column(
+        modifier.weight(1f).padding(end = (spacing.trailingGap - rowGap).coerceAtLeast(0.dp)),
+        verticalArrangement = Arrangement.spacedBy(spacing.s2),
+        content = content,
+    )
 }

@@ -26,12 +26,14 @@ import com.abid.handlebarlink.core.designsystem.component.HlCard
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
+import com.abid.handlebarlink.core.designsystem.component.HlRowText
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlStepRow
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.balanced
 import com.abid.handlebarlink.ui.navigation.Move
 import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.setup.Footnote
@@ -293,9 +295,9 @@ private fun PhoneCard(
             ) {
                 HlIcon(icon, if (lit) colors.brandInk else colors.inkMuted, size = HlTheme.sizes.iconMedium)
             }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.s2)) {
+            HlRowText(rowGap = spacing.s14) {
                 HlText(name, HlTheme.typography.lead, colors.ink, maxLines = 1)
-                HlText(line, HlTheme.typography.meta, colors.inkMuted, maxLines = 2)
+                HlText(line, HlTheme.typography.meta.balanced(), colors.inkMuted, maxLines = 2)
             }
         }
     }
