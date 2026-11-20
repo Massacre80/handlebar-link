@@ -98,6 +98,8 @@ jobs:
             echo "SHA-256: \`$sha\`"
             echo
             echo "Not an Apple-certified product. CarPlay depends on a builder-supplied accessory identity and is not guaranteed to survive iOS updates."
+            echo
+            echo "Credits: DiPlay and DiAuto by shihabal3amri (GPL-3.0 / AGPL-3.0), xcertplay by shilapi, CarLink by F-e-n-y-x (AGPL-3.0), Inter by the Inter Project (OFL-1.1), Integral CF by Fontfabric. Full notices are in NOTICE.md and the APK's assets/licenses/."
           } > "$notes"
           gh release create "$GITHUB_REF_NAME" \
             "$APK" "$APK.sha256" app/build/outputs/mapping/release/mapping.txt \

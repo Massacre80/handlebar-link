@@ -105,6 +105,30 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) and [SECURITY.md](SECURITY.md). The engin
 plan and the mistakes this project already learned from are in
 [`docs/PLAN.md`](docs/PLAN.md) and [`docs/LESSONS.md`](docs/LESSONS.md).
 
+## Credits
+
+Handlebar Link stands on the work of others. Thank you to:
+
+- **[shihabal3amri](https://github.com/shihabal3amri)** — [DiPlay](https://github.com/shihabal3amri/DiPlay)
+  (GPL-3.0), the CarPlay receiver this project's `:carplay:*` modules are ported from, and
+  [DiAuto](https://github.com/shihabal3amri/DiAuto) (AGPL-3.0), the reference for call and
+  audio routing. DiPlay is itself based on [xcertplay](https://github.com/shilapi/xcertplay)
+  by **shilapi** (GPL-3.0). DiAuto builds on
+  [Open Headunit](https://github.com/andreknieriem/open-headunit) by **andreknieriem**,
+  Headunit Revived and Michael Reid's headunit.
+- **[F-e-n-y-x](https://github.com/F-e-n-y-x)** — [CarLink](https://github.com/F-e-n-y-x/CarLink)
+  (AGPL-3.0), the reference receiver whose hardening patches this port follows. CarLink
+  itself credits DiPlay and DiAuto.
+- **Rasmus Andersson / Inter Project** — [Inter](https://github.com/rsms/inter) Display,
+  used under the SIL Open Font License 1.1.
+- **Fontfabric** — Integral CF, bundled with the project owner's commercial licence.
+- **The Bouncy Castle team, Google and the AndroidX/Kotlin community** — the crypto,
+  platform and UI libraries this app builds on.
+
+Full attribution and licence texts are in [NOTICE.md](NOTICE.md) and
+[`docs/THIRD_PARTY_NOTICES.md`](docs/THIRD_PARTY_NOTICES.md), and are shipped in the APK
+under `assets/licenses/`.
+
 ## CarPlay notice
 
 This is **not an Apple-certified product**. A CarPlay-enabled build bundles an
