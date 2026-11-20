@@ -70,6 +70,7 @@ import com.abid.handlebarlink.core.designsystem.component.dashedOutline
 import com.abid.handlebarlink.core.designsystem.component.pressScale
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.centred
 import com.abid.handlebarlink.setup.FoundMeter
 import com.abid.handlebarlink.setup.SetupProblem
 
@@ -122,7 +123,6 @@ internal fun SetupHeading(
 ) {
     val colors = HlTheme.colors
     val type = HlTheme.typography
-    val align = if (centered) TextAlign.Center else TextAlign.Unspecified
     Column(
         modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12),
@@ -133,8 +133,13 @@ internal fun SetupHeading(
             val tone = if (HlTheme.variant == HlThemeVariant.NIGHT) colors.brand else colors.ink
             HlText(stringResource(R.string.setup_step_of, it, STEPS).uppercase(), type.overline, tone)
         }
-        HlText(title, type.headline, colors.ink, Modifier.semantics { heading() }, textAlign = align)
-        HlText(text, setupLead(), colors.inkMuted, textAlign = align)
+        HlText(
+            title,
+            if (centered) type.headline.centred() else type.headline,
+            colors.ink,
+            Modifier.semantics { heading() },
+        )
+        HlText(text, if (centered) setupLead().centred() else setupLead(), colors.inkMuted)
     }
 }
 

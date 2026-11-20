@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,14 +19,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.centred
 
 /**
  * A dialog, laid out as the platform's dialog guidance describes ("Dialog": icon, title, text, a confirm and
- * a dismiss button): the icon on top, the question as the title, what will happen below it, then the
- * action named by what it does and Cancel. [destructive] (removing, deleting) puts the icon and the confirm
+ * a dismiss button): the icon on top, the question as the title, what will happen below it, then Cancel and
+ * the action named by what it does, side by side. [destructive] (removing, deleting) puts the icon and the confirm
  * in the danger colour. Shown as a dialog destination (Navigation 3 DialogSceneStrategy), which gives the
  * scrim, Back and a tap outside as dismiss.
  */
@@ -73,18 +74,20 @@ public fun HlDialog(
         ) {
             HlText(
                 title,
-                HlTheme.typography.title.copy(textAlign = TextAlign.Center),
+                HlTheme.typography.title.centred(),
                 colors.ink,
                 Modifier.semantics { heading() },
             )
-            HlText(text, HlTheme.typography.body.copy(textAlign = TextAlign.Center), colors.inkMuted)
+            HlText(text, HlTheme.typography.body.centred(), colors.inkMuted)
         }
-        Column(
+        // Side by side (owner, 2026-11-20; Paper "Handlebar 7"): the dismiss as the secondary button at the start,
+        // the action at the end, equal widths, as Android's dialogs place them.
+        Row(
             Modifier.fillMaxWidth().padding(top = spacing.s4),
-            verticalArrangement = Arrangement.spacedBy(spacing.s8),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s12),
         ) {
-            HlButton(confirm, onConfirm, Modifier.fillMaxWidth(), destructive = destructive)
-            HlQuietButton(dismiss, onDismiss, Modifier.fillMaxWidth())
+            HlSecondaryButton(dismiss, onDismiss, Modifier.weight(1f))
+            HlButton(confirm, onConfirm, Modifier.weight(1f), destructive = destructive)
         }
     }
 }

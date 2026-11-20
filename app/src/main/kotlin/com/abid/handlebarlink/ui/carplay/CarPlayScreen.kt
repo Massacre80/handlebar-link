@@ -61,6 +61,7 @@ import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
+import com.abid.handlebarlink.core.designsystem.theme.centred
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
@@ -134,7 +135,7 @@ internal fun ColumnScope.HeroState(hero: CarPlayHero) {
     // detail, whose retry countdown ticks every second.
     HlText(
         stringResource(hero.title),
-        HlTheme.typography.headline.copy(textAlign = TextAlign.Center),
+        HlTheme.typography.headline.centred(),
         colors.ink,
         Modifier.semantics {
             heading()
@@ -143,7 +144,7 @@ internal fun ColumnScope.HeroState(hero: CarPlayHero) {
     )
     HlText(
         hero.detail.words(),
-        HlTheme.typography.body.copy(textAlign = TextAlign.Center),
+        HlTheme.typography.body.centred(),
         colors.inkMuted,
         Modifier.padding(horizontal = spacing.s8),
     )

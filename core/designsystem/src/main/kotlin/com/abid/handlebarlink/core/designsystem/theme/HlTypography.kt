@@ -5,7 +5,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineBreak
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
@@ -108,3 +110,10 @@ public val HlTypographyDefault: HlTypography =
         figureLarge = style(32.sp, 34.sp, FontWeight.SemiBold, Tracking.figure),
         wordmark = style(15.sp, 18.sp, FontWeight.Normal, Tracking.wide, IntegralCf),
     )
+
+/**
+ * [this] centred, its lines balanced: a centred paragraph breaks into lines of even length (Android's balanced
+ * strategy, [LineBreak.Heading]) instead of a full line over a short one, as the design sets each centred subtext's
+ * width by hand (owner, 2026-11-20: "Needs you", "Add your iPhone", "Waiting for your iPhone").
+ */
+public fun TextStyle.centred(): TextStyle = copy(textAlign = TextAlign.Center, lineBreak = LineBreak.Heading)
