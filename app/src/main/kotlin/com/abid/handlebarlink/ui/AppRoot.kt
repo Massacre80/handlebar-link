@@ -30,6 +30,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +64,7 @@ import com.abid.handlebarlink.startsRideOnResume
 import com.abid.handlebarlink.ui.carplay.carPlayEntries
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.devices.deviceEntries
+import com.abid.handlebarlink.ui.frame.LivePadding
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.currentWindowLayout
@@ -171,7 +173,7 @@ private fun BoxScope.Tabs(main: MainViewModel) {
     val panes = LocalWindowLayout.current == WindowLayout.PANES
     val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val side = WindowInsets.pageSides.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr)
-    val barSpace =
+    val currentBarSpace =
         if (panes) {
             // On its side, room for the rail on the end edge and the navigation bar below. Pages pad both sides by
             // the mirrored side (WindowInsets.pageTop) and set their content 16 dp in, so the content's margin
@@ -182,6 +184,9 @@ private fun BoxScope.Tabs(main: MainViewModel) {
             // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
             PaddingValues(bottom = HlTheme.sizes.tabBar + spacing.s20 * 2 + navigationBar)
         }
+    // One object for every page, always reading the current room (LivePadding: pages keep what they were given).
+    val barSpaceState = rememberUpdatedState(currentBarSpace)
+    val barSpace = remember(barSpaceState) { LivePadding(barSpaceState) }
     val motion = HlTheme.motion
     val entries =
         entryProvider {
