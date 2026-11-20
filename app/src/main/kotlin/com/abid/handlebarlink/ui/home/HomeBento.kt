@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -63,6 +62,7 @@ import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
 import com.abid.handlebarlink.ui.BikeImage
 import com.abid.handlebarlink.ui.devices.ADD_DEVICE
 import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.navigation.containerContent
 import com.abid.handlebarlink.ui.navigation.containerTransform
@@ -80,7 +80,7 @@ internal fun HomeBento(
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberPageScrollState())
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -89,10 +89,10 @@ internal fun HomeBento(
             Modifier
                 .widthIn(max = HlTheme.sizes.contentMax)
                 .fillMaxWidth()
-                .padding(horizontal = spacing.s16),
+                // The bike card 8 dp under the app header, as it was under the pill's row.
+                .padding(start = spacing.s16, end = spacing.s16, top = spacing.headerGap),
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
         ) {
-            BentoTopRow(state.link, actions.onSettings)
             BentoBikeCard(state.rideData, Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard))
             if (state.rideData) BentoStats()
             HomeBikePlayCard(state.bikePlay, actions)
@@ -100,22 +100,6 @@ internal fun HomeBento(
             HandlebarCard(state.handlebar, actions.onHandlebar)
             Spacer(Modifier.height(spacing.s8))
         }
-    }
-}
-
-/** The link pill and settings, above the bike card. */
-@Composable
-internal fun BentoTopRow(
-    link: LinkStatus,
-    onSettings: () -> Unit,
-) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = HlTheme.spacing.s8),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Pill(link)
-        Spacer(Modifier.weight(1f))
-        HlIconButton(HlIcons.Settings, stringResource(R.string.settings), onSettings)
     }
 }
 

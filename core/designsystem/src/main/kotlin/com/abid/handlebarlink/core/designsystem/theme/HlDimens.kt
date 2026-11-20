@@ -156,8 +156,6 @@ public data class HlSizes(
     val meterHeroText: Dp = 290.dp,
     /** The same on its side. */
     val meterHeroTextPane: Dp = 240.dp,
-    /** The BikePlay tab's meter below the status bar. */
-    val heroTop: Dp = 76.dp,
     /** A tab hero's dial (Paper "Devices 1 — No intercom yet"). */
     val dial: Dp = 168.dp,
     /** The mark inside a tab hero's dial. */

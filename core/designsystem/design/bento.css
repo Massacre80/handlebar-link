@@ -149,7 +149,6 @@
   --size-meter-hero-pane: 280px; /* the same on its side (Tab 1L–9L) */
   --size-meter-hero-text: 290px; /* its detail line, widest */
   --size-meter-hero-text-pane: 240px;
-  --size-hero-top: 76px;       /* the tab's meter below the status bar */
   --size-dial: 168px;          /* a tab hero's dial (Paper "Devices 1 — No intercom yet") */
   --size-dial-icon: 30px;      /* the mark inside it */
   --size-handle-width: 40px;

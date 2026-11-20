@@ -11,15 +11,17 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -126,8 +128,9 @@ internal fun tagTone(tone: SignalTone): HlTagTone =
     }
 
 /**
- * A hero tab upright: one column up to the content width, from the top (Paper "Devices 1"), scrolling when it runs out
- * of it (docs/LESSONS.md 22), below the status bar and clear of the tab bar ([contentPadding]).
+ * A hero tab upright: one column up to the content width, from the top 8 dp under the app header (docs/PLAN.md "App
+ * header"), scrolling under the header and the status bar when it runs out of height (docs/LESSONS.md 22), clear of
+ * the tab bar ([contentPadding]: the header's room and the bar's).
  */
 @Composable
 fun HeroColumn(
@@ -135,19 +138,15 @@ fun HeroColumn(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = HlTheme.spacing
-    BoxWithConstraints(
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.pageTop)
-            .padding(contentPadding),
-    ) {
+    BoxWithConstraints(Modifier.fillMaxSize()) {
         Column(
             Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
+                .verticalScroll(rememberPageScrollState())
                 .heightIn(min = maxHeight)
-                // Paper "Devices 1": the hero starts 20 dp under the status bar.
-                .padding(start = spacing.s16, end = spacing.s16, top = spacing.s20, bottom = spacing.s16),
+                .windowInsetsPadding(WindowInsets.pageTop)
+                .padding(contentPadding)
+                .padding(start = spacing.s16, end = spacing.s16, top = spacing.headerGap, bottom = spacing.s16),
             horizontalAlignment = Alignment.CenterHorizontally,
             content = content,
         )
@@ -156,8 +155,8 @@ fun HeroColumn(
 
 /**
  * A hero tab on its side: the hero's state ([hero]) in the first pane, its actions and list ([side]) in the second;
- * each pane centred in the height and scrolling on its own when it runs out of it, below the status bar and clear of
- * the rail ([contentPadding]).
+ * each pane centred in the height under the app header and scrolling on its own under it when it runs out of height,
+ * clear of the rail ([contentPadding]: the header's room, the rail's, the navigation bar inside each pane).
  */
 @Composable
 fun HeroPanes(
@@ -168,10 +167,12 @@ fun HeroPanes(
     val spacing = HlTheme.spacing
     // The navigation bar's room goes inside each pane, so the list scrolls to the screen's edge.
     val bottom = contentPadding.calculateBottomPadding() + spacing.s16
+    val top = contentPadding.calculateTopPadding() + spacing.headerGap
+    val statusBar = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
     Row(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.pageTop)
+            .windowInsetsPadding(WindowInsets.pageSides)
             .padding(end = contentPadding.calculateEndPadding(LocalLayoutDirection.current))
             .padding(start = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s16),
@@ -180,9 +181,10 @@ fun HeroPanes(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberPageScrollState())
                     .heightIn(min = maxHeight)
-                    .padding(top = spacing.s16, bottom = bottom),
+                    .windowInsetsPadding(statusBar)
+                    .padding(top = top, bottom = bottom),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
                 content = hero,
@@ -192,9 +194,10 @@ fun HeroPanes(
             Column(
                 Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(rememberPageScrollState())
                     .heightIn(min = maxHeight)
-                    .padding(top = spacing.s16, bottom = bottom),
+                    .windowInsetsPadding(statusBar)
+                    .padding(top = top, bottom = bottom),
                 verticalArrangement = Arrangement.spacedBy(spacing.groupGap, Alignment.CenterVertically),
                 content = side,
             )

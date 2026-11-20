@@ -125,7 +125,7 @@ change and are recorded again; then the design system +36 for the BikePlay instr
 (`InstrumentCardNight`, `InstrumentCardBento` with `InstrumentSamples`), and every Home image changes (the card replaces
 the CarPlay card; `HomeCarPlay*` shows it connected); then :app +4 for the BikePlay tab's retry (`CarPlayRetryingNight` at
 the artboard, `CarPlayRetryingNightLandscape` at `@Landscape`), and every BikePlay tab, Devices and sheet image changes (the
-tab redrawn from the instrument, icon rows, the 14 dp group gap)). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+tab redrawn from the instrument, icon rows, the 14 dp group gap)). then the app header (docs/PLAN.md "App header", 2026-11-20): the design system +4 (`AppHeaderNight`, `AppHeaderBento` at font 1 and 1.5), :app +21 (`HeaderScreenshots.kt`: the four tab pages under the header in Night at the artboard and 400x500 at font 1.5, BikePlay and Devices in Bento, lifted in both looks, and three on their side at `@Landscape`), and every tab page image framed by `TabFrame` or `RailFrame` changes (the header over it; Home lost its own); `GarageScreenshots.kt` keeps its own frame without the header. References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

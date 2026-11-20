@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -44,6 +43,7 @@ import com.abid.handlebarlink.ui.devices.kindName
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 
 /**
  * The Intercom tab (research of 2026-11-18): the primary device as on Home; where calls and music play
@@ -68,7 +68,7 @@ fun IntercomScreen(
     Column(
         Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberPageScrollState())
             .windowInsetsPadding(WindowInsets.pageTop)
             .padding(contentPadding)
             .then(

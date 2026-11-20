@@ -40,6 +40,7 @@ import com.abid.handlebarlink.core.designsystem.component.AddDeviceSlot
 import com.abid.handlebarlink.core.designsystem.component.ArcGauge
 import com.abid.handlebarlink.core.designsystem.component.DeviceRow
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
+import com.abid.handlebarlink.core.designsystem.component.HlAppHeaderDefaults
 import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlCard
 import com.abid.handlebarlink.core.designsystem.component.HlIconButton
@@ -61,12 +62,12 @@ import com.abid.handlebarlink.ui.frame.WindowLayout
 
 /**
  * Home in the rider's look: one column upright, two panes on its side ([WindowLayout.PANES]: the bike, the cards).
- * [contentPadding]: room for the floating tab bar or rail.
+ * [contentPadding]: room for the app header (the wordmark, the link pill and Settings live there, on every tab) and
+ * the floating tab bar or rail.
  */
 @Composable
 fun HomeScreen(
     state: HomeUiState,
-    onSettings: () -> Unit,
     contentPadding: PaddingValues,
     onAddDevice: () -> Unit = {},
     onDevice: () -> Unit = {},
@@ -74,7 +75,7 @@ fun HomeScreen(
     onBikePlay: (TabAction) -> Unit = {},
     onBikePlayTab: () -> Unit = {},
 ) {
-    val actions = HomeActions(onSettings, onAddDevice, onDevice, onHandlebar, onBikePlay, onBikePlayTab)
+    val actions = HomeActions(onAddDevice, onDevice, onHandlebar, onBikePlay, onBikePlayTab)
     val panes = LocalWindowLayout.current == WindowLayout.PANES
     when {
         panes && HlTheme.variant == HlThemeVariant.NIGHT -> HomeNightPanes(state, actions, contentPadding)
@@ -89,11 +90,6 @@ internal fun Caps(
     @StringRes text: Int,
 ) {
     HlText(stringResource(text).uppercase(), HlTheme.typography.caps, HlTheme.colors.inkMuted, maxLines = 1)
-}
-
-@Composable
-internal fun Pill(status: LinkStatus) {
-    StatusPill(stringResource(pillText(status)), on = status == LinkStatus.CONNECTED)
 }
 
 /** The BikePlay card (design B "Instrument"): its button acts as the tab's; a tap elsewhere opens the BikePlay tab. */
@@ -121,9 +117,13 @@ internal fun pillText(status: LinkStatus): Int =
         LinkStatus.NEEDS_PAIRING -> R.string.pill_pairing
     }
 
-/** Previews leave the same room for the tab bar as the app does (without a navigation bar). */
+/** Previews leave the same room for the header and the tab bar as the app does (without system bars). */
 @Composable
-private fun previewBarSpace() = PaddingValues(bottom = HlTheme.sizes.tabBar + HlTheme.spacing.s20 * 2)
+private fun previewBarSpace() =
+    PaddingValues(
+        top = HlAppHeaderDefaults.height(compact = false),
+        bottom = HlTheme.sizes.tabBar + HlTheme.spacing.s20 * 2,
+    )
 
 @Preview(name = "Home · Night", widthDp = 411, heightDp = 856)
 @Composable
@@ -132,7 +132,6 @@ private fun HomeNightPreview() {
         HlBackground(Modifier.fillMaxSize()) {
             HomeScreen(
                 HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
-                onSettings = {},
                 contentPadding = previewBarSpace(),
             )
         }
@@ -147,8 +146,11 @@ private fun HomeNightLandscapePreview() {
             HlBackground(Modifier.fillMaxSize()) {
                 HomeScreen(
                     HomeUiState(LinkStatus.CONNECTED, bikePlay = PreviewBikePlayConnected),
-                    onSettings = {},
-                    contentPadding = PaddingValues(end = HlTheme.sizes.tabRail + HlTheme.spacing.s16 * 2),
+                    contentPadding =
+                        PaddingValues(
+                            top = HlAppHeaderDefaults.height(compact = true),
+                            end = HlTheme.sizes.tabRail + HlTheme.spacing.s16 * 2,
+                        ),
                 )
             }
         }
@@ -160,14 +162,13 @@ private fun HomeNightLandscapePreview() {
 private fun HomeBentoPreview() {
     HlTheme(HlThemeVariant.BENTO) {
         HlBackground(Modifier.fillMaxSize()) {
-            HomeScreen(HomeUiState(LinkStatus.LOOKING), onSettings = {}, contentPadding = previewBarSpace())
+            HomeScreen(HomeUiState(LinkStatus.LOOKING), contentPadding = previewBarSpace())
         }
     }
 }
 
 /** What Home can open. */
 internal data class HomeActions(
-    val onSettings: () -> Unit,
     val onAddDevice: () -> Unit,
     val onDevice: () -> Unit,
     val onHandlebar: () -> Unit,

@@ -285,7 +285,6 @@ class TokenDriftTest {
             "size-meter-hero-pane" to z.meterHeroPane,
             "size-meter-hero-text" to z.meterHeroText,
             "size-meter-hero-text-pane" to z.meterHeroTextPane,
-            "size-hero-top" to z.heroTop,
             "size-dial" to z.dial,
             "size-dial-icon" to z.dialIcon,
             "size-handle-width" to z.handleWidth,

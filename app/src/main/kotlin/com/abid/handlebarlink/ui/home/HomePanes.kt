@@ -7,20 +7,23 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.Dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
-import com.abid.handlebarlink.ui.frame.pageTop
+import com.abid.handlebarlink.ui.frame.pageSides
+import com.abid.handlebarlink.ui.frame.rememberPageScrollState
 import com.abid.handlebarlink.ui.handlebar.HandlebarCard
 import com.abid.handlebarlink.ui.setup.FittedBike
 
@@ -41,14 +44,13 @@ internal fun HomeNightPanes(
     HomePanes(
         contentPadding,
         bike = {
-            NightHeader(state, actions.onSettings, Modifier.fillMaxWidth())
-            FittedBike(Modifier.weight(1f).fillMaxWidth().padding(top = spacing.s8))
+            FittedBike(Modifier.weight(1f).fillMaxWidth())
         },
         cards = {
             // Paper "BikePlay card B — Landscape Home (Night)": the BikePlay card first, then the devices, the
             // Handlebar card.
             HomeBikePlayCard(state.bikePlay, actions)
-            if (state.rideData) NightGauges(Modifier.fillMaxWidth())
+            if (state.rideData) NightGauges(Modifier.fillMaxWidth().padding(top = spacing.s22))
             NightDevices(state.device, backdrop = null, actions.onAddDevice, actions.onDevice, Modifier)
             HandlebarCard(state.handlebar, actions.onHandlebar)
         },
@@ -71,7 +73,6 @@ internal fun HomeBentoPanes(
     HomePanes(
         contentPadding,
         bike = {
-            BentoTopRow(state.link, actions.onSettings)
             BentoBikeCard(state.rideData, Modifier.weight(1f).fillMaxWidth(), fitted = true)
         },
         cards = {
@@ -85,9 +86,10 @@ internal fun HomeBentoPanes(
 }
 
 /**
- * The two panes inside the page's frame (status bar, mirrored sides, then [contentPadding]: the
- * rail's room, and the navigation bar inside each pane). The panes start 16 dp in from the frame, 16 dp apart; [bike]
- * fills the pane's height, [cards] scroll, [gap] apart. Neither pane draws under the status bar or the rail.
+ * The two panes inside the page's frame (the mirrored sides, then [contentPadding]: the app header's room above, the
+ * rail's room, and the navigation bar inside each pane). The panes start 16 dp in from the frame, 16 dp apart, 8 dp
+ * under the header (the header gap); [bike] fills the pane's height, [cards] scroll, [gap] apart, under the
+ * header and the status bar (the header lifts into its glass), never under the rail.
  */
 @Composable
 private fun HomePanes(
@@ -100,20 +102,23 @@ private fun HomePanes(
     // The bottom room (the navigation bar) goes inside each pane, so the cards scroll to the screen's edge and
     // their shadows are not cut off above the navigation bar. 8 dp above and below, like the tab rail.
     val bottom = contentPadding.calculateBottomPadding() + spacing.s8
+    val top = contentPadding.calculateTopPadding() + spacing.headerGap
+    val statusBar = WindowInsets.safeDrawing.only(WindowInsetsSides.Top)
     Row(
         Modifier
             .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.pageTop)
+            .windowInsetsPadding(WindowInsets.pageSides)
             .padding(end = contentPadding.calculateEndPadding(LocalLayoutDirection.current))
             .padding(start = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s16),
     ) {
-        Pane(1f, Modifier.padding(bottom = bottom), content = bike)
+        Pane(1f, Modifier.windowInsetsPadding(statusBar).padding(top = top, bottom = bottom), content = bike)
         Pane(
             CARDS_WEIGHT,
             Modifier
-                .verticalScroll(rememberScrollState())
-                .padding(top = spacing.s8, bottom = bottom),
+                .verticalScroll(rememberPageScrollState())
+                .windowInsetsPadding(statusBar)
+                .padding(top = top, bottom = bottom),
             verticalArrangement = Arrangement.spacedBy(gap),
             content = cards,
         )
