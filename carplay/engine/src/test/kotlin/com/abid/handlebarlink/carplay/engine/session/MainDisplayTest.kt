@@ -89,12 +89,12 @@ class MainDisplayTest {
     @Test
     fun `each area's safe insets shrink its safe area, which still lets CarPlay draw outside it`() {
         // diplay_display.py (ours, after DiPlay): poco-safe-landscape areas=[(1920, 960), (922, 1920)]
-        // insets=[(28, 28, 28, 56), (27, 74, 27, 54)] initial=0; poco-safe-portrait the same with initial=1, 312 mm.
+        // insets=[(28, 28, 28, 28), (27, 74, 27, 54)] initial=0; poco-safe-portrait the same with initial=1, 312 mm.
         val config =
             POCO_LANDSCAPE.copy(
                 viewAreas =
                     listOf(
-                        CarPlayViewArea(1920, 960, safe = CarPlayInsets(28, 28, 28, 56)),
+                        CarPlayViewArea(1920, 960, safe = CarPlayInsets(28, 28, 28, 28)),
                         CarPlayViewArea(922, 1920, safe = CarPlayInsets(27, 74, 27, 54)),
                     ),
             )

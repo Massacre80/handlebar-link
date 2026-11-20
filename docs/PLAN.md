@@ -655,11 +655,12 @@ What changed in behaviour:
   top under the notch. Each area now declares a `safeArea` (with `drawUIOutsideSafeArea`, so wallpaper and maps still
   fill the screen) measured from the phone, never fixed numbers, so it suits any phone: `screenEdges` reads the largest
   window's insets (rounded corners, the cutout turned back to the upright phone, the navigation bar's strip ignoring
-  visibility) and `safeInsets` keeps every edge r(1 - 1/sqrt 2) clear of the corners, the bottom clear of the
-  navigation bar, and upright the top and bottom clear of the cutout; scaled to each area per axis, rounded up, under a
+  visibility) and `safeInsets` keeps every edge r(1 - 1/sqrt 2) clear of the corners and, upright, the bottom clear of
+  the navigation bar (CarPlay docks along it) and the top and bottom clear of the cutout; on its side CarPlay docks on a
+  side edge, so the bottom clears only the corners (the owner found the navigation strip too much there); scaled to each area per axis, rounded up, under a
   quarter of a side. The navigation bar's strip, not the wider `mandatorySystemGestures` strip: the owner found that
   one too much room under the dock. The Poco: corners 104, cutout 86, navigation bar 63 → portrait 27,74,27,54 and
-  landscape 28,28,28,56 (left, top, right, bottom, canvas pixels). Verified on the Poco with the iPhone: the dock and
+  landscape 28,28,28,28 (left, top, right, bottom, canvas pixels). Verified on the Poco with the iPhone: the dock and
   icons move in, the wallpaper still reaches the edges. Logged in `carplay.screen … corner= cutoutEnds= navigationBar=`
   and `carplay.picture … safe=`.
 - **Log.** Each attempt: `carplay.picture display=2246x1080 negotiated=1920x1920 viewArea=0:1920x922+0+0

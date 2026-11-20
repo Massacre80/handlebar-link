@@ -30,15 +30,15 @@ class ScreenEdgesTest {
     }
 
     @Test
-    fun `the cutout counts only upright, and the navigation bar only at the bottom`() {
+    fun `the cutout and the navigation bar count only upright, the navigation bar at the bottom`() {
         // No corners; cutout 80 at the top, navigation bar 60; area = window, so screen pixels stay as they are.
         val edges = ScreenEdges(cutoutTop = 80, navigationBar = 60)
 
         assertThat(safeInsets(edges, CarPlayOrientation.PORTRAIT, WindowSize(1080, 2400), CarPlayViewArea(1080, 2400)))
             .isEqualTo(CarPlayInsets(0, 80, 0, 60))
-        // On its side the window already leaves the cutout out.
+        // On its side the window already leaves the cutout out, and CarPlay docks on a side edge, not the bottom.
         assertThat(safeInsets(edges, CarPlayOrientation.LANDSCAPE, WindowSize(2320, 1080), CarPlayViewArea(2320, 1080)))
-            .isEqualTo(CarPlayInsets(0, 0, 0, 60))
+            .isEqualTo(CarPlayInsets.NONE)
     }
 
     @Test

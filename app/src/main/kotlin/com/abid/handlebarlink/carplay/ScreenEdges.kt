@@ -38,9 +38,11 @@ data class ScreenEdges(
  * controls, for a screen with [edges]: the area's safe area ([CarPlayViewArea.safe]). In screen pixels first:
  * - every edge stays clear of the rounded corners: a rectangle inset by r(1 - 1/√2) on each side has its corners
  *   exactly on a corner of radius r, so nothing square is cut off;
- * - the bottom also clears the navigation bar's strip, the swipe-up handle's, so the dock never sits under it;
- * - upright, the top and bottom also clear the cutout. On its side the window already leaves the cutout's strip out
- *   ([carPlayWindow]), so only the corners and the navigation bar's strip remain.
+ * - upright, the bottom also clears the navigation bar's strip, the swipe-up handle's: CarPlay docks along the bottom
+ *   there, so the dock never sits under it; and the top and bottom clear the cutout;
+ * - on its side CarPlay docks on a side edge and nothing sits along the bottom, so the bottom clears only the corners,
+ *   like the top (the owner found the navigation strip too much there, 2026-11-20; the iPhone too keeps a smaller
+ *   home-indicator inset in landscape). The window already leaves the cutout's strip out ([carPlayWindow]).
  *
  * Then scaled to the area across each axis (the display stretches the area over the window per axis) and rounded up,
  * so the clear band is never thinner than measured. Each inset is held under a quarter of its side, so a broken
@@ -55,7 +57,7 @@ internal fun safeInsets(
     val corner = ceil(edges.cornerRadius * (1 - sqrt(HALF))).toInt()
     val upright = orientation == CarPlayOrientation.PORTRAIT
     val top = if (upright) max(edges.cutoutTop, corner) else corner
-    val bottom = maxOf(if (upright) edges.cutoutBottom else 0, edges.navigationBar, corner)
+    val bottom = if (upright) maxOf(edges.cutoutBottom, edges.navigationBar, corner) else corner
 
     fun across(pixels: Int) = scaled(pixels, area.width, window.width)
 

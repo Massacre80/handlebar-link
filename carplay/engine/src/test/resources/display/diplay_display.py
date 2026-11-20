@@ -191,15 +191,16 @@ for name, cw, ch, area, vw, vh, touches in [
         print("  touch(%r, %r) -> (%r, %r)" % ((x, y) + touch(c, x, y)))
 
 
-# OURS, not DiPlay: safe areas measured from the phone (app CarPlaySafeArea.kt, owner 2026-11-20), an independent
-# transcription of the rule. A rectangle inset by r(1 - 1/sqrt 2) has its corners on a rounded corner of radius r; the
-# bottom also clears the navigation bar's strip; upright, the top and bottom clear the cutout ends (on its side the window
-# already leaves the cutout strip out). Screen pixels scaled to the area per axis, rounded up, under a quarter side.
+# OURS, not DiPlay: safe areas measured from the phone (app ScreenEdges.kt, owner 2026-11-20), an independent
+# transcription of the rule. A rectangle inset by r(1 - 1/sqrt 2) has its corners on a rounded corner of radius r;
+# upright, the bottom also clears the navigation bar's strip (CarPlay docks along it) and the top and bottom clear the
+# cutout ends; on its side only the corners (CarPlay docks on a side edge; the window already leaves the cutout strip
+# out). Screen pixels scaled to the area per axis, rounded up, under a quarter side.
 def safe_insets(edges, portrait, window, area):
     radius, cut_top, cut_bottom, navigation = edges
     corner = math.ceil(radius * (1 - math.sqrt(0.5)))
     top = max(cut_top, corner) if portrait else corner
-    bottom = max(cut_bottom if portrait else 0, navigation, corner)
+    bottom = max(cut_bottom, navigation, corner) if portrait else corner  # on its side CarPlay docks on a side edge
 
     def scaled(px, a, w):
         return 0 if px <= 0 or w <= 0 else min(math.ceil(px * a / w), (a - 1) // 4)

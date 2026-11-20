@@ -168,14 +168,14 @@ class CarPlayCanvasTest {
     @Test
     fun `each area keeps CarPlay's controls clear of the Poco's corners, notch and navigation bar`() {
         // diplay_display.py safe_insets with POCO_EDGES (104, 86, 0, 63), cutout 86:
-        // poco-safe-landscape areas=[(1920, 960), (922, 1920)] insets=[(28, 28, 28, 56), (27, 74, 27, 54)] initial=0
+        // poco-safe-landscape areas=[(1920, 960), (922, 1920)] insets=[(28, 28, 28, 28), (27, 74, 27, 54)] initial=0
         val edges = ScreenEdges(cornerRadius = 104, cutoutTop = 86, cutoutBottom = 0, navigationBar = 63)
 
         val config = carPlayCanvas(1080, 2246, 60f, LANDSCAPE, cutout = 86, decoderTakes = poco, edges = edges)
 
         assertThat(config.viewAreas).isEqualTo(
             listOf(
-                CarPlayViewArea(1920, 960, safe = CarPlayInsets(28, 28, 28, 56)),
+                CarPlayViewArea(1920, 960, safe = CarPlayInsets(28, 28, 28, 28)),
                 CarPlayViewArea(922, 1920, safe = CarPlayInsets(27, 74, 27, 54)),
             ),
         )
@@ -185,14 +185,14 @@ class CarPlayCanvasTest {
 
     @Test
     fun `a plain canvas declares its one area to carry the safe insets, and none without edges`() {
-        // safe_insets((104, 0, 0, 84), False, (2246, 1080), (2246, 1080)) = (31, 31, 31, 84)
+        // safe_insets((104, 0, 0, 84), False, (2246, 1080), (2246, 1080)) = (31, 31, 31, 31)
         val edges = ScreenEdges(cornerRadius = 104, navigationBar = 84)
         val never: (Int) -> Boolean = { false }
 
         val config = carPlayCanvas(1080, 2246, 60f, LANDSCAPE, decoderTakes = never, edges = edges)
 
         assertThat(config.viewAreas)
-            .isEqualTo(listOf(CarPlayViewArea(2246, 1080, safe = CarPlayInsets(31, 31, 31, 84))))
+            .isEqualTo(listOf(CarPlayViewArea(2246, 1080, safe = CarPlayInsets(31, 31, 31, 31))))
         assertThat(carPlayCanvas(1080, 2246, 60f, LANDSCAPE, decoderTakes = never).viewAreas).isEqualTo(emptyList())
     }
 
