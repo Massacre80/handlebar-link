@@ -36,4 +36,19 @@ class RailGapTest {
     fun `one tab has no gap to share`() {
         assertThat(railGap(347.dp, 6.dp, 52.dp, count = 1, minimum = 4.dp)).isEqualTo(4.dp)
     }
+
+    private fun tab(height: Dp) = railTab(height, inset = 6.dp, count = 5, minimumGap = 4.dp, tallest = 74.dp)
+
+    @Test
+    fun `a tall rail gives each tab the bar's tab turned on its side`() {
+        // 5 x 74 + 2 x 6 + 4 x 4 = 398 dp fits in 420.
+        assertThat(tab(420.dp)).isEqualTo(74.dp)
+        assertThat(tab(Dp.Infinity)).isEqualTo(74.dp)
+    }
+
+    @Test
+    fun `a short rail shares its height so the tabs and the smallest gaps fit`() {
+        // The Poco on its side, about 330 dp: (330 - 2 x 6 - 4 x 4) / 5 = 60.4 dp, still taller than the 52 dp width.
+        assertThat(tab(330.dp)).isEqualTo(60.4.dp)
+    }
 }

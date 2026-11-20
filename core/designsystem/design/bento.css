@@ -128,7 +128,7 @@
   --size-hero-card: 224px;     /* Bento bike card */
   --size-stat-card: 186px;     /* Bento stat cards */
   --size-tab-bar: 64px;
-  --size-tab-rail: 86px;       /* landscape tab rail: the selected tab (74) and the bar's 6 px inset each side */
+  --size-tab-rail: 64px;       /* landscape tab rail: the bar on its side, the tab (52) and the 6 px inset each side */
   --size-content-max: 600px;   /* widest content column: the compact width class (< 600 dp) */
   --size-handle-width: 40px;
   --size-handle-height: 5px;

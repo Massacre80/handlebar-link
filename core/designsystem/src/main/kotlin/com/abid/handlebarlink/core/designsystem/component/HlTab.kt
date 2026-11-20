@@ -138,8 +138,12 @@ public fun HlTabRail(
             .border(HlTheme.strokes.hairline, colors.glassEdge, CircleShape),
         contentAlignment = Alignment.TopCenter,
     ) {
-        val tab = DpSize(sizes.tabRail - inset * 2, sizes.tab)
-        val gap = railGap(maxHeight, inset, tab.height, tabs.size, HlTheme.spacing.s4)
+        // The bar's tab turned on its side: narrow (the bar's 52 dp) and as tall as the bar's tab is wide, unless the
+        // rail is too short for that (owner 2026-11-20: the chip was wide and short; it should be taller but thinner).
+        val minimumGap = HlTheme.spacing.s4
+        val tab =
+            DpSize(sizes.tabRail - inset * 2, railTab(maxHeight, inset, tabs.size, minimumGap, sizes.tabWidth))
+        val gap = railGap(maxHeight, inset, tab.height, tabs.size, minimumGap)
         val target = with(LocalDensity.current) { (inset + (tab.height + gap) * selected).toPx() }
         val chipY by animateFloatAsState(target, HlTheme.motion.layout(), label = "tab chip")
         Chip(tab, Modifier.offset { IntOffset(0, chipY.roundToInt()) })
@@ -153,6 +157,22 @@ public fun HlTabRail(
             }
         }
     }
+}
+
+/**
+ * The height of each of the rail's [count] tabs: [tallest] (the bar's tab width, so the rail's tab is the bar's
+ * turned on its side), or less when [height] cannot hold them with the [inset] at both ends and [minimumGap] between
+ * them; [tallest] when the height is unbounded.
+ */
+internal fun railTab(
+    height: Dp,
+    inset: Dp,
+    count: Int,
+    minimumGap: Dp,
+    tallest: Dp,
+): Dp {
+    if (height == Dp.Infinity || count < 1) return tallest
+    return minOf(tallest, (height - inset * 2 - minimumGap * (count - 1)) / count)
 }
 
 /**
