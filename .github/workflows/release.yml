@@ -53,12 +53,14 @@ jobs:
         with:
           cache-provider: basic
 
-      - name: Check and build signed release
+      # `check` (including screenshot tests) is the CI workflow's job; a release only needs the APK.
+      # The mandatory local gate is `./gradlew check` before the release commit (AGENTS.md).
+      - name: Build signed release
         env:
           HL_KEYSTORE_PATH: ${{ runner.temp }}/handlebarlink.jks
           HL_MFI_DIR: ${{ runner.temp }}/carplay-mfi
         run: >-
-          ./gradlew check assembleRelease --console=plain
+          ./gradlew assembleRelease --console=plain
           -Pcarplay.mfi.dir="$HL_MFI_DIR/offline-mfi"
 
       - name: Verify APK identity, signing and checksum
