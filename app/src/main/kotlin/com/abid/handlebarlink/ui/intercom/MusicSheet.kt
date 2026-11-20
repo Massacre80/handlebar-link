@@ -16,7 +16,7 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.HlHeader
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
-import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
+import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ui.devices.kindIcon
@@ -64,7 +64,7 @@ fun MusicSheet(
                     )
                 }
             }
-            HlQuietButton(stringResource(R.string.cancel), onCancel, Modifier.fillMaxWidth())
+            HlSecondaryButton(stringResource(R.string.cancel), onCancel)
         }
     }
 }

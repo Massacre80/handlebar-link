@@ -155,7 +155,10 @@ public fun HlStepRow(
     }
 }
 
-/** A quiet text button ("Cancel"). */
+/**
+ * A quiet text button for a page's lesser action ("Make visible again", "Continue without"). Sheets dismiss with
+ * [HlSecondaryButton] instead, full width under their main action (owner, 2026-11-20), as dialogs do.
+ */
 @Composable
 public fun HlQuietButton(
     label: String,

@@ -37,7 +37,7 @@ internal fun Sheet() {
         }
         Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s8)) {
             HlButton("Save device", onClick = {})
-            HlQuietButton("Cancel", onClick = {})
+            HlSecondaryButton("Cancel", onClick = {})
         }
     }
 }

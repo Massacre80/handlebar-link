@@ -38,7 +38,7 @@ import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlHeader
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
-import com.abid.handlebarlink.core.designsystem.component.HlQuietButton
+import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlSectionLabel
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
 import com.abid.handlebarlink.core.designsystem.component.HlTextField
@@ -90,7 +90,7 @@ fun DeviceSheet(
             }
             Column(Modifier.padding(top = spacing.s4), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
                 HlButton(stringResource(R.string.device_save), onSave, Modifier.fillMaxWidth())
-                HlQuietButton(stringResource(R.string.cancel), onCancel, Modifier.fillMaxWidth())
+                HlSecondaryButton(stringResource(R.string.cancel), onCancel)
             }
         }
     }

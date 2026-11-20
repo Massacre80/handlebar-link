@@ -93,6 +93,12 @@ Key rules (details in 01 §5, 03 §7):
   the balanced strategy), in the design system's rows (`HlNavRow`, `HlValueRow`, `HlSwitchRow`, `HlOptionRow`,
   `SignalCard`) and the app's own (pairing search, setup search and problem rows, permission rows, the Handlebar card,
   the meter and iPhone-pairing cards).
+- Sheets dismiss with the secondary button (owner, 2026-11-20): Cancel is `HlSecondaryButton` (well fill, hairline edge,
+  52 dp pill), full width as the sheet's last item, under the main action where there is one (Add device's "What is
+  it?": Save, then Cancel), as in dialogs. Changed: the CarPlay screen picker, the handlebar action chooser (and the
+  intercom's assistant button, which uses it), Calls, Music and the device sheet; the iPhone sheet has no Cancel (its
+  Forget was already secondary). `HlQuietButton` stays for pages' lesser actions (Make visible again, Rename, Continue
+  without).
 - Security: nothing exported unless a system permission guards it; no secrets in git (the future
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 
