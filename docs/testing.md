@@ -107,7 +107,7 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
 - Screenshot tests (Compose Preview Screenshot Testing as an AGP test suite, `hl.screenshot`): `@PreviewTest`
   previews in `src/screenshotTest/kotlin` of `:core:designsystem` (every component, both looks, font 1 and
   1.5) and `:app` (every page, both looks, the nine sizes and 400x500 at font 1.5; the setup states at the
-  411 × 856 artboard, Night also at font 1.5 and its bike stages at the nine sizes). Expect 36 + 244 images
+  411 × 856 artboard, Night also at font 1.5 and its bike stages at the nine sizes). Expect 36 + 254 images
   (lesson 20; :app went from 144 to 170 with the CarPlay tab, off at the nine sizes and 400x500 at font 1.5, on and
   connecting at the artboard and font 1.5, and Home's card connecting at the artboard; then +35 with the CarPlay flow v2: the tab not set
   up at the nine sizes and font 1.5, connecting, connected and Wi-Fi off at the artboard and font 1.5, the switch off
@@ -117,7 +117,9 @@ then +21 for 7 more (setup Linking/Done, pairing steps/Waiting/Paired, Devices, 
 the design system +4 for the tab rail; dropping Rides on 2026-11-20 removed no screenshot test, since the Rides page
 had none, so the counts hold, but every image with the tab bar or rail (four tabs now), the design system's tab bar,
 rail and component sheet, Settings, Permissions and setup's "You're set" (one row) change and are recorded again; the same day every row with a subtext and a trailing element moved its text 4 dp
-further from it and balanced its lines, so most page images change too). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+further from it and balanced its lines, so most page images change too; then +10 for the Devices tab's empty hero:
+`IntercomNone` now over the tab bar, `IntercomNoneBento` at the artboard and font 1.5, and Devices none Night and Bento
+at `@Landscape`). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

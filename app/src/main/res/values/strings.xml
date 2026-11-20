@@ -51,7 +51,16 @@
     <string name="add_device">Add device</string>
     <string name="add_device_short">Add</string>
     <string name="add_device_detail">Intercom or earbuds</string>
-    <string name="intercom_empty_detail">Add your helmet intercom to see its battery, and where calls and music play.</string>
+    <!-- The Devices tab with nothing added (Paper "Devices 1 — No intercom yet"). -->
+    <string name="intercom_tag_not_set_up">Not set up</string>
+    <string name="intercom_add_title">Add your intercom</string>
+    <string name="intercom_add_detail">Pair your helmet intercom once. Calls, music and directions then play in your helmet.</string>
+    <string name="intercom_intro_battery">Battery on Home</string>
+    <string name="intercom_intro_battery_detail">Its charge, at a glance before you ride</string>
+    <string name="intercom_intro_audio">Calls and music in your helmet</string>
+    <string name="intercom_intro_audio_detail">CarPlay plays through the intercom</string>
+    <string name="intercom_intro_button">Intercom button</string>
+    <string name="intercom_intro_button_detail">Siri, or the action you choose</string>
     <string name="intercom_connect">Connect</string>
     <string name="intercom_reconnecting">Connecting…</string>
     <string name="intercom_reconnect_unsupported">This phone\'s Android doesn\'t let apps reconnect. Turn the intercom off and on.</string>

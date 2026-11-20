@@ -26,7 +26,6 @@ import com.abid.handlebarlink.R
 import com.abid.handlebarlink.core.designsystem.component.DeviceTile
 import com.abid.handlebarlink.core.designsystem.component.HlActionRow
 import com.abid.handlebarlink.core.designsystem.component.HlBatteryLevel
-import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlCardAction
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
@@ -40,20 +39,16 @@ import com.abid.handlebarlink.core.designsystem.component.HlValueRow
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.devices.AssistantHandler
 import com.abid.handlebarlink.ui.controls.actionName
-import com.abid.handlebarlink.ui.devices.ADD_DEVICE_FROM_DEVICES
 import com.abid.handlebarlink.ui.devices.kindIcon
 import com.abid.handlebarlink.ui.devices.kindName
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.pageTop
-import com.abid.handlebarlink.ui.navigation.containerContent
-import com.abid.handlebarlink.ui.navigation.containerTransform
-import com.abid.handlebarlink.ui.navigation.rememberContainerTransform
 
 /**
  * The Intercom tab (research of 2026-11-18): the primary device as on Home; where calls and music play
  * (Android's public routing) and how to change it; what the intercom's assistant button does; the primary among
- * several; its details, the maker's app and removal. Nothing added: how to add.
+ * several; its details, the maker's app and removal. Nothing added: the hero that adds one ([NoIntercom]).
  */
 @Composable
 fun IntercomScreen(
@@ -61,6 +56,11 @@ fun IntercomScreen(
     actions: IntercomActions,
     contentPadding: PaddingValues,
 ) {
+    val primary = state.primary
+    if (primary == null) {
+        NoIntercom(actions.onAdd, contentPadding)
+        return
+    }
     val spacing = HlTheme.spacing
     // Upright the 600 dp column, centred; on its side the whole frame between the start margin and the rail, the
     // rail's room (in contentPadding) holding its gap, so the page shares Home's and the CarPlay tab's margins.
@@ -89,32 +89,11 @@ fun IntercomScreen(
             HlTheme.colors.ink,
             Modifier.semantics { heading() },
         )
-        val primary = state.primary
-        if (primary == null) {
-            Empty(actions.onAdd)
-        } else {
-            PrimaryCard(primary, state.reconnect, actions.onReconnect)
-            Audio(state, primary, actions)
-            AssistantButton(state, actions.onAssistant)
-            if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
-            Details(primary, state.vendorApp, actions)
-        }
-    }
-}
-
-@Composable
-private fun Empty(onAdd: () -> Unit) {
-    val transform = rememberContainerTransform(ADD_DEVICE_FROM_DEVICES, expanded = false)
-    Column(verticalArrangement = Arrangement.spacedBy(HlTheme.spacing.s12)) {
-        HlText(stringResource(R.string.intercom_none), HlTheme.typography.lead, HlTheme.colors.ink)
-        HlText(stringResource(R.string.intercom_empty_detail), HlTheme.typography.body, HlTheme.colors.inkMuted)
-        // Grows into Add device, as Home's tile does.
-        HlButton(
-            stringResource(R.string.add_device),
-            onAdd,
-            Modifier.fillMaxWidth().containerTransform(transform).containerContent(transform),
-            chevron = true,
-        )
+        PrimaryCard(primary, state.reconnect, actions.onReconnect)
+        Audio(state, primary, actions)
+        AssistantButton(state, actions.onAssistant)
+        if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
+        Details(primary, state.vendorApp, actions)
     }
 }
 

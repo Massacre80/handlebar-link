@@ -93,6 +93,13 @@ Key rules (details in 01 §5, 03 §7):
   the balanced strategy), in the design system's rows (`HlNavRow`, `HlValueRow`, `HlSwitchRow`, `HlOptionRow`,
   `SignalCard`) and the app's own (pairing search, setup search and problem rows, permission rows, the Handlebar card,
   the meter and iPhone-pairing cards).
+- The Devices tab with nothing added (owner's design, Paper "Devices 1 — No intercom yet" and "Devices 1L"): the
+  CarPlay tab's "No iPhone yet" hero with the headset (`NoIntercom`): the dial, "NOT SET UP", "Add your intercom", the
+  balanced subtext, the brand Add device (still the container transform into Add device), then a glass group of three
+  information rows without a chevron (`HlValueRow` with an icon well: Battery on Home, Calls and music in your helmet,
+  Intercom button; the music note `HlIcons.Music` is new, path data from the artboard). No page title, as on the
+  CarPlay tab. The hero's parts are shared in `ui/frame/TabHero.kt` (`HeroState`, `HeroColumn`, `HeroPanes`); on its
+  side the hero | the button and the rows, as the CarPlay tab.
 - Sheets dismiss with the secondary button (owner, 2026-11-20): Cancel is `HlSecondaryButton` (well fill, hairline edge,
   52 dp pill), full width as the sheet's last item, under the main action where there is one (Add device's "What is
   it?": Save, then Cancel), as in dialogs. Changed: the CarPlay screen picker, the handlebar action chooser (and the
@@ -166,9 +173,8 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   its pages and Add device keep the 600 dp column, centred in the space left by the mirrored sides and the rail.
   Sheets keep their centred 600 dp width. A hero's centred subtext keeps to `size-hero-text` (260 dp, `heroTextMax`;
   Paper "Tab 1L — No iPhone yet, landscape (Night)": "Pair it once here. CarPlay then" over "connects by itself on
-  every ride.", balanced by `centred()`): the CarPlay tab's hero, the waiting screens' centred lines (setup and
-  iPhone pairing) and the empty Garage tab; upright the column sets the width as before. The Devices tab's empty
-  state is left-aligned, not a hero, so it is not limited. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
+  every ride.", balanced by `centred()`): the CarPlay tab's hero, the Devices tab's empty hero, the waiting screens'
+  centred lines (setup and iPhone pairing) and the empty Garage tab; upright the column sets the width as before. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
   side) and their panes scroll to the screen edge. The switch photo is never drawn past its own 1024 px
   (`diagramSide`), and its callouts frost it (`glassBlur`, the cards' glass).
 - **The bike never overlaps the header:** the header has its own band and the bike fits the space left (whole, not

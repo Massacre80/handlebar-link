@@ -41,6 +41,7 @@ import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeUiState
 import com.abid.handlebarlink.ui.home.LinkStatus
 import com.abid.handlebarlink.ui.intercom.IntercomScreen
+import com.abid.handlebarlink.ui.intercom.IntercomUiState
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
 import com.abid.handlebarlink.ui.intercom.PreviewIntercom
 import com.abid.handlebarlink.ui.later.LaterScreen
@@ -137,6 +138,23 @@ fun DevicesNightLandscape() =
     RailFrame(HlThemeVariant.NIGHT, selected = tabIndex(IntercomRoute)) {
         IntercomScreen(PreviewIntercom, NoIntercomActions, it)
     }
+
+// Nothing added (Paper "Devices 1L"): the hero | Add device and the rows, as the CarPlay tab's panes.
+@Composable
+private fun NoIntercom(variant: HlThemeVariant) =
+    RailFrame(variant, selected = tabIndex(IntercomRoute)) {
+        IntercomScreen(IntercomUiState(), NoIntercomActions, it)
+    }
+
+@PreviewTest
+@Landscape
+@Composable
+fun DevicesNoneNightLandscape() = NoIntercom(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Landscape
+@Composable
+fun DevicesNoneBentoLandscape() = NoIntercom(HlThemeVariant.BENTO)
 
 @PreviewTest
 @Landscape

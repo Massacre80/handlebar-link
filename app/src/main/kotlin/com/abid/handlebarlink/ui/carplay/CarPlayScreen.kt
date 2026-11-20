@@ -2,41 +2,19 @@ package com.abid.handlebarlink.ui.carplay
 
 import android.Manifest
 import androidx.annotation.StringRes
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
-import androidx.compose.foundation.layout.calculateEndPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.carplay.CarPlayOrientation
@@ -50,22 +28,16 @@ import com.abid.handlebarlink.core.designsystem.component.HlBackground
 import com.abid.handlebarlink.core.designsystem.component.HlButton
 import com.abid.handlebarlink.core.designsystem.component.HlGroup
 import com.abid.handlebarlink.core.designsystem.component.HlGroupDivider
-import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlIcons
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
-import com.abid.handlebarlink.core.designsystem.component.HlTag
-import com.abid.handlebarlink.core.designsystem.component.HlTagTone
-import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.component.HlValueRow
-import com.abid.handlebarlink.core.designsystem.component.SignalRing
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.core.designsystem.theme.HlThemeVariant
-import com.abid.handlebarlink.core.designsystem.theme.centred
+import com.abid.handlebarlink.ui.frame.HeroColumn
+import com.abid.handlebarlink.ui.frame.HeroState
 import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
-import com.abid.handlebarlink.ui.frame.heroTextMax
-import com.abid.handlebarlink.ui.frame.pageTop
 import com.abid.handlebarlink.ui.permissions.Access
 import java.time.Instant
 
@@ -83,29 +55,13 @@ fun CarPlayScreen(
     contentPadding: PaddingValues,
     onScreen: () -> Unit = {},
 ) {
-    val spacing = HlTheme.spacing
     if (LocalWindowLayout.current == WindowLayout.PANES) {
         CarPlayPanes(state, onAction, onIphone, onScreen, contentPadding)
         return
     }
-    BoxWithConstraints(
-        Modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.pageTop)
-            .padding(contentPadding),
-    ) {
-        Column(
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .heightIn(min = maxHeight)
-                .padding(horizontal = spacing.s16, vertical = spacing.s16),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(spacing.s24, Alignment.CenterVertically),
-        ) {
-            Hero(state.hero, onAction, Modifier.widthIn(max = HlTheme.sizes.contentMax))
-            StatusList(state, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
-        }
+    HeroColumn(contentPadding) {
+        Hero(state.hero, onAction, Modifier.widthIn(max = HlTheme.sizes.contentMax))
+        StatusList(state, onIphone, onScreen, Modifier.widthIn(max = HlTheme.sizes.contentMax))
     }
 }
 
@@ -125,29 +81,19 @@ private fun Hero(
     }
 }
 
-/** The dial, the state tag, the title and the detail line. */
+/** The dial, the state tag, the title and the detail line ([HeroState] with the CarPlay mark). */
 @Composable
 internal fun ColumnScope.HeroState(hero: CarPlayHero) {
-    val colors = HlTheme.colors
-    val spacing = HlTheme.spacing
-    HeroDial(hero.tone, hero.progress)
-    HlTag(stringResource(hero.tag), Modifier.padding(top = spacing.s4), tagTone(hero.tone), dot = true)
     // The hero changes by itself (starting, running, needs you): TalkBack reads the new title politely. Not the
     // detail, whose retry countdown ticks every second.
-    HlText(
+    HeroState(
+        HlIcons.CarPlay,
+        hero.tone,
+        hero.progress,
+        stringResource(hero.tag),
         stringResource(hero.title),
-        HlTheme.typography.headline.centred(),
-        colors.ink,
-        Modifier.semantics {
-            heading()
-            liveRegion = LiveRegionMode.Polite
-        },
-    )
-    HlText(
         hero.detail.words(),
-        HlTheme.typography.body.centred(),
-        colors.inkMuted,
-        Modifier.padding(horizontal = spacing.s8).widthIn(max = heroTextMax()),
+        liveTitle = true,
     )
 }
 
@@ -167,43 +113,6 @@ internal fun HeroActions(
         }
     }
 }
-
-/** The CarPlay mark in the signal ring: lit by step while starting, whole when running, danger when it needs you. */
-@Composable
-private fun HeroDial(
-    tone: SignalTone,
-    progress: Float?,
-) {
-    val colors = HlTheme.colors
-    val motion = HlTheme.motion
-    val color by animateColorAsState(
-        when (tone) {
-            SignalTone.ERROR -> colors.danger
-            SignalTone.IDLE -> colors.inkMuted
-            SignalTone.PROGRESS, SignalTone.ON -> colors.brand
-        },
-        motion.fade(),
-    )
-    val lit by animateFloatAsState(progress ?: 1f, motion.fade())
-    Box(contentAlignment = Alignment.Center) {
-        // Needs you: the disc takes the ring's red at the design's 8 %, so the whole hero reads as one error state
-        // (owner, 2026-11-20: the neutral or green disc inside the red ring looked half green); else the raised disc.
-        val disc = if (tone == SignalTone.ERROR) color.copy(alpha = ERROR_DISC) else colors.raisedLo
-        SignalRing(color, colors.track, disc, progress = lit, size = HlTheme.sizes.gauge)
-        HlIcon(HlIcons.CarPlay, if (tone == SignalTone.IDLE) colors.ink else color, size = HlTheme.sizes.icon * 2)
-    }
-}
-
-/**
- * The hero's state tag tone (Paper "CarPlay — flow v2"): running and starting brand, needs you danger, the quiet states
- * (Ready, Not set up, Stopped) muted; drawn by the design system's [HlTag] with its dot.
- */
-internal fun tagTone(tone: SignalTone): HlTagTone =
-    when (tone) {
-        SignalTone.ON, SignalTone.PROGRESS -> HlTagTone.BRAND
-        SignalTone.ERROR -> HlTagTone.DANGER
-        SignalTone.IDLE -> HlTagTone.QUIET
-    }
 
 /** The iPhone, the Link and the CarPlay screen, in one group. */
 @Composable
@@ -329,6 +238,3 @@ private fun CarPlayBentoPreview() {
         HlBackground(Modifier.fillMaxSize()) { CarPlayScreen(PreviewCarPlayWifiOff, {}, {}, PaddingValues()) }
     }
 }
-
-/** The error disc's tint over the ring's red (Paper "Tab 4 — Needs you": danger at 8 %). */
-private const val ERROR_DISC = 0.08f

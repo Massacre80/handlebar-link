@@ -107,6 +107,9 @@ public object HlIcons {
     /** Does nothing. */
     @DrawableRes public val None: Int = R.drawable.hl_ic_none
 
+    /** Music: a note (calls and music in the helmet). */
+    @DrawableRes public val Music: Int = R.drawable.hl_ic_music
+
     /** A voice assistant (a microphone). */
     @DrawableRes public val Voice: Int = R.drawable.hl_ic_voice
 

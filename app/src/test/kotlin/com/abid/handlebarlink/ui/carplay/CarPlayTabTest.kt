@@ -15,6 +15,7 @@ import com.abid.handlebarlink.carplay.engine.android.pairing.PairedIphone
 import com.abid.handlebarlink.carplay.engine.android.video.CarPlayVideoStats
 import com.abid.handlebarlink.core.designsystem.component.HlTagTone
 import com.abid.handlebarlink.core.designsystem.component.SignalTone
+import com.abid.handlebarlink.ui.frame.tagTone
 import com.abid.handlebarlink.ui.permissions.Access
 import org.junit.Test
 import java.time.Instant

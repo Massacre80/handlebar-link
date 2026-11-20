@@ -58,6 +58,7 @@ import com.abid.handlebarlink.ui.later.LaterScreen
 import com.abid.handlebarlink.ui.navigation.CarPlayRoute
 import com.abid.handlebarlink.ui.navigation.GarageRoute
 import com.abid.handlebarlink.ui.navigation.HomeRoute
+import com.abid.handlebarlink.ui.navigation.IntercomRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.navigation.tabIndex
 import com.abid.handlebarlink.ui.permissions.Access
@@ -525,8 +526,21 @@ fun IntercomNight() = Intercom(HlThemeVariant.NIGHT, PreviewIntercom)
 @Composable
 fun IntercomBento() = Intercom(HlThemeVariant.BENTO, PreviewIntercom.copy(handler = AssistantHandler.Other("Google")))
 
+// Nothing added (Paper "Devices 1 — No intercom yet"): the hero over the tab bar, as the CarPlay tab's not set up.
+@Composable
+private fun NoIntercom(variant: HlThemeVariant) =
+    TabFrame(variant, selected = tabIndex(IntercomRoute)) {
+        IntercomScreen(IntercomUiState(), NoIntercomActions, it)
+    }
+
 @PreviewTest
 @Artboard
 @LargeText
 @Composable
-fun IntercomNone() = Intercom(HlThemeVariant.NIGHT, IntercomUiState())
+fun IntercomNone() = NoIntercom(HlThemeVariant.NIGHT)
+
+@PreviewTest
+@Artboard
+@LargeText
+@Composable
+fun IntercomNoneBento() = NoIntercom(HlThemeVariant.BENTO)
