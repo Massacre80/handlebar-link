@@ -1,11 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Path data verbatim from the design file "CB350RS" (Paper "BikePlay card B", the card's corner mark). Drawn black;
-     tinted with a colour token. -->
+<!-- The BikePlay mark for the card's corner (16 dp, heavier stroke as Paper draws it): the same paths as hl_ic_carplay, Paper "Icons", "v1 + gap · icon A". Drawn black; tinted with a colour token. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <path android:pathData="M6.44 2H17.55C21.11 2 22 2.89 22 6.44V12.77C22 16.33 21.11 17.21 17.56 17.21H6.44C2.89 17.22 2 16.33 2 12.78V6.44C2 2.89 2.89 2 6.44 2Z" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineJoin="round" />
-    <path android:pathData="M12 17.22V22M7.5 22H16.5" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" />
+    <path android:pathData="M2 17.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0Z" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M15 17.5a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0 -7 0Z" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M3 12H8.5C9.5 10 14 9.5 16 11.5" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M18.5 17.5L14.5 7.5H12.75" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M9 12L11.5 17.5L14.375 17.5" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M4.5 2h2a1.5 1.5 0 0 1 1.5 1.5v4.5a1.5 1.5 0 0 1 -1.5 1.5h-2a1.5 1.5 0 0 1 -1.5 -1.5v-4.5a1.5 1.5 0 0 1 1.5 -1.5Z" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
+    <path android:pathData="M10.5 4.5a2 2 0 0 1 0 2.5" android:strokeColor="#FF000000" android:strokeWidth="1.8" android:strokeLineCap="round" android:strokeLineJoin="round" />
 </vector>

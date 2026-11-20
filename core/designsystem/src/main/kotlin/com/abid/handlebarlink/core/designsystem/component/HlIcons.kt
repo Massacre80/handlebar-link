@@ -38,7 +38,7 @@ public object HlIcons {
     /** Home tab. */
     @DrawableRes public val Home: Int = R.drawable.hl_ic_home
 
-    /** CarPlay tab and card. */
+    /** BikePlay tab, rows and sheets: a roadster with its linked iPhone (Paper "Icons", "v1 + gap · icon A"). */
     @DrawableRes public val CarPlay: Int = R.drawable.hl_ic_carplay
 
     /** Garage tab. */
@@ -56,7 +56,7 @@ public object HlIcons {
     /** Forward. */
     @DrawableRes public val ChevronRight: Int = R.drawable.hl_ic_chevron_right
 
-    /** BikePlay's mark on its instrument card (the monitor without its inner line, stroke 1.8). */
+    /** BikePlay's mark on its instrument card: the same roadster with a heavier stroke (1.8) for 16 dp. */
     @DrawableRes public val BikePlayMark: Int = R.drawable.hl_ic_bikeplay_mark
 
     /** Play: Open and Start BikePlay. */
