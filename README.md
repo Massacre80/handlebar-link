@@ -36,6 +36,24 @@ CarPlay.
 - **Diagnostics** — logs stay on the phone; you can export a report, but nothing is sent
   anywhere.
 
+## Screenshots
+
+The phone rides on its side, so these are the real landscape layout with the nav rail on the
+end. Default Night look, no bike or iPhone paired yet.
+
+| | |
+|---|---|
+| ![Home](docs/screenshots/home.png) | ![BikePlay](docs/screenshots/bikeplay.png) |
+| **Home** — the bike and the BikePlay card. | **BikePlay** — the tab before an iPhone is paired. |
+| ![Garage](docs/screenshots/garage.png) | ![Devices](docs/screenshots/devices.png) |
+| **Garage** — next service and what's coming up. | **Devices** — pairing a helmet intercom. |
+| ![Handlebar controls](docs/screenshots/handlebar.png) | ![Permissions](docs/screenshots/permissions.png) |
+| **Handlebar controls** — what each button does while riding, ringing, or on a call. | **Permissions** — what the app uses, and why. |
+
+The other look is Bento, lighter and all in cards:
+
+![Bento look](docs/screenshots/bento.png)
+
 ## Requirements
 
 - A spare Android phone, **Android 12 (API 31) or newer**, ARM. Built and tested on a Poco
