@@ -38,4 +38,4 @@ First public release, built from the `v2` line that replaces the early prototype
 - Not an Apple-certified product. CarPlay depends on a builder-supplied accessory identity
   and may stop working after an iOS update. See the README's CarPlay notice.
 
-[2.0.0]: https://github.com/Devsed-official/handlebar-link/releases/tag/v2.0.0
+[2.0.0]: https://github.com/Massacre80/handlebar-link/releases/tag/v2.0.0

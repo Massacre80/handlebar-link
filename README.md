@@ -46,7 +46,7 @@ iPhone through CarPlay; the mounted phone does not need its own internet connect
 
 ## Install
 
-1. Open [Releases](https://github.com/Devsed-official/handlebar-link/releases/latest) and download `handlebar-link-2.0.0.apk`.
+1. Open [Releases](https://github.com/Massacre80/handlebar-link/releases/latest) and download `handlebar-link-2.0.0.apk`.
 2. Verify it: compare its SHA-256 with the `.sha256` file in the release
    (`shasum -a 256 -c handlebar-link-2.0.0.apk.sha256`).
 3. Open the APK and allow installation from the source you used, then tap **Install**.
