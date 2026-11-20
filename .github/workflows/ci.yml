@@ -67,7 +67,22 @@ jobs:
           retention-days: 7
 
       - name: Check (format, detekt, lint, tests, coverage, module boundaries)
-        run: ./gradlew check --console=plain
+        env:
+          RECORDING: ${{ inputs.record-screenshots || contains(github.event.head_commit.message, '[record screenshots]') }}
+        # Screenshot references are not committed yet (owner: record CI screenshots later; docs/LESSONS.md 26, 132).
+        # On a recording run the references were just made above, so verify the full suite; otherwise keep the
+        # screenshot COMPILE gate (it catches API/compile breaks) but skip the image comparison, which has nothing
+        # to compare against on a clean checkout and would fail every push.
+        run: |
+          if [ "$RECORDING" = "true" ]; then
+            ./gradlew check --console=plain
+          else
+            ./gradlew check --console=plain \
+              -x :core:designsystem:testDebugScreenshotTestDefaultTestSuite \
+              -x :app:testDebugScreenshotTestDefaultTestSuite \
+              :core:designsystem:compileDebugScreenshotTestKotlin \
+              :app:compileDebugScreenshotTestKotlin
+          fi
 
       - name: Release build (R8)
         run: ./gradlew assembleRelease --console=plain
