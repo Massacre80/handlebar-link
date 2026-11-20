@@ -1,10 +1,13 @@
 package com.abid.handlebarlink.ui.handlebar
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
@@ -15,7 +18,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.paint
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.Layout
@@ -27,8 +29,12 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.Constraints
 import com.abid.handlebarlink.R
 import com.abid.handlebarlink.controls.RiderAction
+import com.abid.handlebarlink.core.designsystem.component.Backdrop
 import com.abid.handlebarlink.core.designsystem.component.HlIcon
 import com.abid.handlebarlink.core.designsystem.component.HlText
+import com.abid.handlebarlink.core.designsystem.component.backdropSource
+import com.abid.handlebarlink.core.designsystem.component.glassBlur
+import com.abid.handlebarlink.core.designsystem.component.rememberBackdrop
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
 import com.abid.handlebarlink.ui.controls.actionIcon
 import com.abid.handlebarlink.ui.controls.actionName
@@ -44,9 +50,6 @@ internal fun SwitchDiagram(
     callouts: List<KeyCallout>,
     modifier: Modifier = Modifier,
 ) {
-    val colors = HlTheme.colors
-    val spacing = HlTheme.spacing
-    val outline = HlTheme.strokes.outline
     val ends = remember(callouts.size) { Array(callouts.size) { Offset.Zero } }
     val description = diagramDescription(callouts)
     val photo = painterResource(R.drawable.handlebar_switch)
@@ -54,13 +57,36 @@ internal fun SwitchDiagram(
         photo.intrinsicSize.width
             .takeIf { it.isFinite() }
             ?.roundToInt() ?: Constraints.Infinity
+    // The photo is its own layer so the callouts can frost it (glass, as the cards over the bike) without
+    // recording themselves: owner 2026-11-20, the Night chips showed the photo sharp through them.
+    val backdrop = rememberBackdrop()
+    Box(modifier.squareUpTo(photoPixels).clip(RoundedCornerShape(HlTheme.radii.card))) {
+        Image(
+            photo,
+            contentDescription = null,
+            modifier = Modifier.matchParentSize().backdropSource(backdrop),
+            contentScale = ContentScale.Crop,
+        )
+        Callouts(callouts, backdrop, ends, description)
+    }
+}
+
+/** The callouts in the nearest corners, with a line from each key to its callout drawn under them. */
+@Composable
+private fun Callouts(
+    callouts: List<KeyCallout>,
+    backdrop: Backdrop,
+    ends: Array<Offset>,
+    description: String,
+) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    val outline = HlTheme.strokes.outline
     Layout(
-        content = { callouts.forEach { Callout(it) } },
+        content = { callouts.forEach { Callout(it, backdrop) } },
         modifier =
-            modifier
-                .squareUpTo(photoPixels)
-                .clip(RoundedCornerShape(HlTheme.radii.card))
-                .paint(photo, contentScale = ContentScale.Crop)
+            Modifier
+                .fillMaxSize()
                 .drawBehind {
                     val line = outline.toPx()
                     callouts.forEachIndexed { index, callout ->
@@ -138,7 +164,10 @@ internal fun diagramSide(
 
 /** A key's callout: its press as an icon and a name (dimmed when nothing); the call key's in brand. */
 @Composable
-private fun Callout(callout: KeyCallout) {
+private fun Callout(
+    callout: KeyCallout,
+    backdrop: Backdrop,
+) {
     if (callout.call) {
         CallCallout(callout)
         return
@@ -150,6 +179,7 @@ private fun Callout(callout: KeyCallout) {
     Row(
         Modifier
             .clip(CircleShape)
+            .glassBlur(backdrop)
             .background(colors.surfaceInverse)
             .padding(horizontal = spacing.s12, vertical = spacing.s8),
         verticalAlignment = Alignment.CenterVertically,

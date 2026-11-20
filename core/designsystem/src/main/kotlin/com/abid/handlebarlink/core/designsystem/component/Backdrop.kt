@@ -69,6 +69,13 @@ public fun Modifier.backdropBlur(
     base: Color = Color.Transparent,
 ): Modifier = this then BackdropBlurElement(backdrop, blur, saturation, base)
 
+/**
+ * The design's frosted glass over [backdrop]: [backdropBlur] with the cards' and the tab bar's own blur and
+ * saturation, for glass outside the design system's components (a chip over a photo). The backdrop must be opaque
+ * where the glass lies, or the sharp original shows through ([backdropBlur]'s base); a photo is.
+ */
+public fun Modifier.glassBlur(backdrop: Backdrop): Modifier = backdropBlur(backdrop, GLASS_BLUR, GLASS_SATURATION)
+
 private data class BackdropSourceElement(
     val backdrop: Backdrop,
 ) : ModifierNodeElement<BackdropSourceNode>() {
