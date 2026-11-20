@@ -42,6 +42,11 @@ dependencies {
     implementation(libs.androidx.navigation3.ui)
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.kotlinx.serialization.core)
+    // Garage (docs/PLAN.md "Garage"): its records in a typed DataStore as JSON (DataStore guide), and the daily
+    // reminder check in WorkManager, which keeps its schedule across reboots.
+    implementation(libs.androidx.datastore)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.androidx.work.runtime.ktx)
 
     testImplementation(projects.core.testing)
     testImplementation(projects.bike.linkTest)

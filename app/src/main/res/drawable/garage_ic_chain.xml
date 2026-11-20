@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A chain link (Clean and lube chain, Chain and sprockets). Path data from the design file "CB350RS" (Paper, page "Garage"). Drawn black; tinted with a colour token. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path android:pathData="M9.5 14.5l5-5M10.6 6.2l1.6-1.6a4 4 0 0 1 5.7 5.7l-1.6 1.6M13.4 17.8l-1.6 1.6a4 4 0 0 1-5.7-5.7l1.6-1.6" android:strokeColor="#FF000000" android:strokeWidth="1.6" android:strokeLineCap="round" android:strokeLineJoin="round" />
+</vector>
