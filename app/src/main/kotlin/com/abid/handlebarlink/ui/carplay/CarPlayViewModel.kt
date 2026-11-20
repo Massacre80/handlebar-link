@@ -6,7 +6,6 @@ import com.abid.handlebarlink.carplay.CarPlayCoordinator
 import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.CarPlaySettings
 import com.abid.handlebarlink.carplay.CarPlayStatus
-import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayState
@@ -27,8 +26,11 @@ class CarPlayStatusLines
         coordinator: CarPlayCoordinator,
         time: TimeProvider,
     ) {
+        /** CarPlay's status as the screens show it (steady, [CarPlayCoordinator.status]). */
+        val status: Flow<CarPlayStatus> = coordinator.status
+
         /** The current line. */
-        val lines: Flow<CarPlayLine> = carPlayLines(coordinator.status, time)
+        val lines: Flow<CarPlayLine> = carPlayLines(status, time)
     }
 
 /**
@@ -44,7 +46,7 @@ class CarPlayViewModel
         private val settings: CarPlaySettings,
         pairing: IphonePairing,
         lines: CarPlayStatusLines,
-        video: CarPlayVideoStatsSource,
+        quality: SteadyLinkQuality,
         private val conditions: SetupConditions,
     ) : ViewModel() {
         /** The page's state; Ready until loaded. */
@@ -53,9 +55,10 @@ class CarPlayViewModel
                 coordinator.status,
                 pairing.iphones(),
                 pairing.chosen(),
-                combine(lines.lines, video.stats(), settings.orientation, ::Triple),
-            ) { status, iphones, chosen, (line, stats, orientation) ->
-                carPlayTab(status, iphones, chosen, line, stats, orientation, bluetoothOn(status))
+                combine(lines.lines, quality.quality, settings.orientation, ::Triple),
+            ) { status, iphones, chosen, (line, quality, orientation) ->
+                // The Link row's quality comes steady from its own flow, not from each window ([steadyQuality]).
+                carPlayTab(status, iphones, chosen, line, null, orientation, bluetoothOn(status)).withQuality(quality)
             }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), CarPlayUiState())
 
         /** Bluetooth's state, read only when the engine says it is unavailable (a Binder call, not on every update). */

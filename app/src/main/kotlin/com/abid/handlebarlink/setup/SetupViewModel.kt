@@ -5,13 +5,17 @@ import android.content.IntentSender
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.data.BikeSettings
 import com.abid.handlebarlink.data.SelectedBike
+import com.abid.handlebarlink.steady.stableState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -56,6 +60,7 @@ data class SetupUiState(
  * [findBike] (they need the Activity); everything else happens here.
  */
 @HiltViewModel
+@Suppress("LongParameterList") // One per collaborator Hilt injects; the clock times the steady pages.
 class SetupViewModel
     @Inject
     constructor(
@@ -64,14 +69,16 @@ class SetupViewModel
         private val association: MeterAssociation,
         private val bonding: MeterBonding,
         private val bikes: BikeSettings,
+        time: TimeProvider,
         logger: Logger,
     ) : ViewModel() {
         private val log = logger.child("setup")
         private val state = MutableStateFlow(SetupUiState())
         private var scan: Job? = null
 
-        /** Setup's state. */
-        val uiState: StateFlow<SetupUiState> = state.asStateFlow()
+        /** Setup's state, steady ([steady]): a wait that ends at once (a meter already paired) never flashes. */
+        val uiState: StateFlow<SetupUiState> =
+            state.steady(time).stateIn(viewModelScope, SharingStarted.Eagerly, state.value)
 
         /** Welcome → the meter steps. */
         fun start() {
@@ -221,3 +228,21 @@ class SetupViewModel
             const val SCAN_MS = 15_000L
         }
     }
+
+/**
+ * Setup's state as its pages show it (docs/PLAN.md "Stable live indicators"): Linking and Pairing are waits for
+ * Android, shown only once they last the show delay and then kept the minimum time, as AndroidX's
+ * `ContentLoadingProgressBar` does for progress. Every other page, a problem and a new consent screen to launch
+ * show at once; the list, the search and the rest of a page change in place.
+ */
+internal fun Flow<SetupUiState>.steady(time: TimeProvider): Flow<SetupUiState> =
+    stableState(
+        time,
+        stateOf = { it.step to it.problem },
+        immediate = { shown, next ->
+            next.problem != null || (next.consent != null && next.consent != shown.consent) || next.step !in WAITS
+        },
+    )
+
+/** The pages that wait for Android. */
+private val WAITS = setOf(SetupStep.LINKING, SetupStep.PAIRING)

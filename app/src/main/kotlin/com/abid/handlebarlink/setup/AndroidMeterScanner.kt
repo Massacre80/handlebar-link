@@ -11,6 +11,7 @@ import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
 import com.abid.handlebarlink.bike.protocol.SabUuids
 import com.abid.handlebarlink.core.common.log.Logger
+import com.abid.handlebarlink.core.common.time.TimeProvider
 import com.abid.handlebarlink.data.PairedMeters
 import com.abid.handlebarlink.di.IoDispatcher
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,7 +29,8 @@ import javax.inject.Inject
  * hardware filter: on the bike, scans filtered on the service returned nothing before the meter was found
  * unfiltered (cause not established, SAB_PROTOCOL.md §1.1), and the fallback needs every device. Names
  * end in bytes that are not text and are cleaned ([cleanName]). What a meter advertises is logged once per
- * address. The collector sets the time limit and cancelling stops the scan.
+ * address. Each device's signal is smoothed and held ([MeterSignals]) so its bars and word stay steady. The collector
+ * sets the time limit and cancelling stops the scan.
  */
 class AndroidMeterScanner
     @Inject
@@ -36,6 +38,7 @@ class AndroidMeterScanner
         @param:ApplicationContext private val context: Context,
         private val pairedMeters: PairedMeters,
         @param:IoDispatcher private val io: CoroutineDispatcher,
+        private val time: TimeProvider,
         logger: Logger,
     ) : MeterScanner {
         private val log = logger.child("setup.scan")
@@ -61,6 +64,7 @@ class AndroidMeterScanner
                         ?: throw SetupException(SetupProblem.BLUETOOTH_OFF)
                 val found = LinkedHashMap<String, FoundMeter>()
                 val seen = ScanTally()
+                val signals = MeterSignals()
                 val callback =
                     object : ScanCallback() {
                         override fun onScanResult(
@@ -83,7 +87,8 @@ class AndroidMeterScanner
                                         "connectable" to result.isConnectable,
                                     )
                                 }
-                                found[address] = FoundMeter(name, address, result.rssi, honda)
+                                val signal = signals.level(address, result.rssi, time.elapsedMillis())
+                                found[address] = FoundMeter(name, address, result.rssi, honda, signal = signal)
                                 // Honda meters first, then the order they were first seen: a list sorted by
                                 // signal kept jumping under the rider's thumb (owner, 2026-11-17).
                                 trySend(found.values.sortedByDescending { it.honda })

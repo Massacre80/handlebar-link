@@ -9,7 +9,6 @@ import com.abid.handlebarlink.carplay.CarPlayDisplayHint
 import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
-import com.abid.handlebarlink.carplay.engine.CarPlayState
 import com.abid.handlebarlink.carplay.engine.CarPlayViewArea
 import com.abid.handlebarlink.carplay.engine.TouchContact
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
@@ -18,7 +17,6 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -100,7 +98,8 @@ class CarPlayDisplayViewModel
         /** The page's state. */
         val uiState: StateFlow<CarPlayDisplayUiState> =
             combine(
-                link?.state?.map { it is CarPlayState.Connected } ?: flowOf(false),
+                // The steady status, as the line beside it: a drop of a moment flashes neither overlay nor text.
+                lines.status.map { it.isConnected() },
                 lines.lines,
                 hint.shown,
             ) { connected, line, shown -> CarPlayDisplayUiState(connected, line, hintDue = !shown) }

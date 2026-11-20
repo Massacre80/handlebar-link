@@ -10,12 +10,14 @@ data class FoundMeter(
     val name: String,
     /** Its Bluetooth address. */
     val address: String,
-    /** Signal strength in dBm (`ScanResult.getRssi`). */
+    /** Signal strength in dBm (`ScanResult.getRssi`), the last advertisement's. */
     val rssi: Int,
     /** A Honda meter by its name ([isHondaMeter]); other devices are listed after, as a fallback. */
     val honda: Boolean = true,
     /** Already paired with this phone: choosing it skips linking and pairing. */
     val paired: Boolean = false,
+    /** The signal as shown: smoothed, with hysteresis and held ([MeterSignals]); [rssi]'s own level by default. */
+    val signal: SignalLevel = signalLevel(rssi),
 )
 
 /**
