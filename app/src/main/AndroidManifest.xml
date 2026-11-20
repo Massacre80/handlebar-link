@@ -22,16 +22,23 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
-    <!-- Recording rides (speed, distance, route; owner, 2026-11-17), asked on "You're set" while the app is in
-         use. Precise and approximate together, as the location-permissions guide asks. -->
-    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
-    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Location only for CarPlay's Wi-Fi Direct group on Android 12/12L (carplay/CarPlayPermissions; API 33+ uses
+         NEARBY_WIFI_DEVICES below): precise and approximate asked together, as the location-permissions guide asks.
+         maxSdkVersion 32, as the wifi-permissions guide allows when nothing else relies on precise location: ride
+         logging, which did, was dropped (owner, 2026-11-20); our scans assert neverForLocation and companion-device
+         pairing needs no location permission (bt-permissions). -->
+    <uses-permission
+        android:name="android.permission.ACCESS_FINE_LOCATION"
+        android:maxSdkVersion="32" />
+    <uses-permission
+        android:name="android.permission.ACCESS_COARSE_LOCATION"
+        android:maxSdkVersion="32" />
     <!-- Our own CarPlay receiver (carplay/, docs/PLAN.md "CarPlay receiver", permissions table decided
          2026-11-19). It runs in RideService under the same connectedDevice type: CHANGE_WIFI_STATE alone meets
          that type's runtime prerequisite, and BLUETOOTH_CONNECT does too (FGS service types), so no type changes.
          BLUETOOTH_CONNECT: the RFCOMM dial to the iPhone (also declared by :bike:link-android for the meter).
          NEARBY_WIFI_DEVICES: the Wi-Fi Direct group on API 33+; nothing is located with it, so neverForLocation
-         (API 31-32 use ACCESS_FINE_LOCATION, asked with ACCESS_COARSE_LOCATION, both declared above). ACCESS_LOCAL_NETWORK: Android 17 blocks the local
+         (API 31-32 use ACCESS_FINE_LOCATION, asked with ACCESS_COARSE_LOCATION, both declared above up to API 32). ACCESS_LOCAL_NETWORK: Android 17 blocks the local
          network for apps targeting SDK 37 without it (local-network-permission guide); unknown, so ignored,
          before. INTERNET: Android requires it for every socket, also the local ones to the iPhone; the Poco has
          no internet connection of its own. ACCESS_WIFI_STATE and CHANGE_WIFI_STATE: Wi-Fi Direct (wifi-direct

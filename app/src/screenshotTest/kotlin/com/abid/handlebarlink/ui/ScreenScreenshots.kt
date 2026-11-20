@@ -55,7 +55,11 @@ import com.abid.handlebarlink.ui.intercom.IntercomUiState
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
 import com.abid.handlebarlink.ui.intercom.PreviewIntercom
 import com.abid.handlebarlink.ui.later.LaterScreen
+import com.abid.handlebarlink.ui.navigation.CarPlayRoute
+import com.abid.handlebarlink.ui.navigation.GarageRoute
+import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.navigation.tabIndex
 import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.settings.ModeScreen
 import com.abid.handlebarlink.ui.settings.NoActions
@@ -97,12 +101,14 @@ private fun TabFrame(
 private fun Home(variant: HlThemeVariant) =
     TabFrame(
         variant,
-        selected = 0,
+        selected = tabIndex(HomeRoute),
     ) { HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = it) }
 
 @Composable
 private fun Garage(variant: HlThemeVariant) =
-    TabFrame(variant, selected = 3) { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it) }
+    TabFrame(variant, selected = tabIndex(GarageRoute)) {
+        LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it)
+    }
 
 @Composable
 private fun Settings(variant: HlThemeVariant) =
@@ -147,7 +153,7 @@ fun EmptyTabBento() = Garage(HlThemeVariant.BENTO)
 private fun CarPlay(
     variant: HlThemeVariant,
     state: CarPlayUiState,
-) = TabFrame(variant, selected = 2) {
+) = TabFrame(variant, selected = tabIndex(CarPlayRoute)) {
     CarPlayScreen(state, onAction = {}, onIphone = {}, contentPadding = it)
 }
 
@@ -235,7 +241,7 @@ fun CarPlayMicrophoneBento() = CarPlay(HlThemeVariant.BENTO, PreviewCarPlayMicro
 // Home's CarPlay card with our own receiver connecting (HomeNight and HomeBento show its line before a ride).
 @Composable
 private fun HomeCarPlay(variant: HlThemeVariant) =
-    TabFrame(variant, selected = 0) {
+    TabFrame(variant, selected = tabIndex(HomeRoute)) {
         HomeScreen(
             HomeUiState(LinkStatus.CONNECTED, carPlay = PreviewCarPlayConnectingLine),
             onSettings = {},

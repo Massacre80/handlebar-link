@@ -91,10 +91,30 @@ Key rules (details in 01 §5, 03 §7):
   CarPlay identity files are injected from `~/.carlink-private` at build time); R8 on.
 
 Navigation (UI.3, from the Navigation 3 "multiple back stacks" recipe and the Navigation principles):
-five tabs, each with its own saved back stack; Home is the fixed start destination and the app exits
+four tabs (Home, CarPlay, Garage, Devices; Rides was dropped, see below), each with its own saved back stack; Home is the fixed start destination and the app exits
 through it (Back from another tab's root goes to Home); switching tabs replaces the other tab's entries;
 each page gets saved UI state and its own ViewModel scope (entry decorators). Settings opens on Home's
 stack as a full page without the tab bar. Tabs without a feature show an empty page.
+
+### Rides dropped (owner, 2026-11-20: "remove the rides feature, not needed anymore")
+
+- **Gone:** the Rides tab (`RidesRoute`, its tab, its empty page, `HlIcons.Rides` and its drawable, the strings
+  `tab_rides`, `later_rides`, `no_rides`) and ride logging's location permission: the "Location" row on setup's
+  "You're set" step (now the notifications only, `SetupAccess.rows`) and on Settings › Permissions, so Allow all no
+  longer asks for it (`SettingsPermission`, tested in `SettingsPermissionTest` and `SetupAccessTest`, planted bugs
+  caught), `rememberLocationAccess` and the background-recording note. Bento Home's distance card (shown only for a
+  meter that reports speed and odometer) says "No data yet" instead of "No rides yet".
+- **Kept:** the riding session (`RideService`, `RideCoordinator`, `RideStarter`, `RideAutoStart`, "ride" in
+  auto-start and controls): that is the bike link and CarPlay running while riding, not ride logging.
+- **Location that remains:** `ACCESS_FINE_LOCATION` with `ACCESS_COARSE_LOCATION`, now `maxSdkVersion="32"`, only for
+  CarPlay's Wi-Fi Direct group on Android 12/12L (`carPlayPermissions`; API 33+ uses `NEARBY_WIFI_DEVICES` with
+  `neverForLocation`). The wifi-permissions guide allows the cap when nothing else relies on precise location, and
+  nothing does: our BLE scan and the pairing page's classic discovery use `BLUETOOTH_SCAN` with `neverForLocation`,
+  companion-device pairing "doesn't require location permissions" (bt-permissions; it needs Location *services* on,
+  `SetupProblem.LOCATION_OFF`, which reads a setting and needs no permission), and nothing calls `discoverPeers`,
+  `requestPeers`, Wi-Fi scans or a location provider (CarPlay's GPS forwarding to the iPhone is not built).
+- The tab bar and rail hold four tabs; on the Poco and the emulator on their side each rail tab is now the bar's tab
+  turned on its side (74 dp, `RailGapTest`).
 
 ### Landscape layout (owner, 2026-11-20: "the width overall is very bad, fix it properly")
 
@@ -130,7 +150,7 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   or heading in the first pane, the step's words and actions in the second; Find my bike and Make visible stay under
   the heading so they are on screen), the CarPlay tab (dial, tag, title, detail | actions and the status rows), the
   Handlebar page (`SubPagePanes`: the switch as large as the pane's height allows | situations, keys, reset).
-  The tab pages (Devices, Rides, Garage) fill the frame like Home (the same margins as Home's cards); Settings and
+  The tab pages (Devices, Garage) fill the frame like Home (the same margins as Home's cards); Settings and
   its pages and Add device keep the 600 dp column, centred in the space left by the mirrored sides and the rail.
   Sheets keep their centred 600 dp width. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
   side) and their panes scroll to the screen edge. The switch photo is never drawn past its own 1024 px
@@ -419,7 +439,7 @@ merged manifest keeps one of each), requested in the app's existing permission f
 | `INTERNET` | Any socket: the AirPlay listener, the iPhone's streams. The Poco has no internet connection; nothing leaves the bike. | normal |
 | `ACCESS_LOCAL_NETWORK` | Android 17 blocks the local network for apps targeting SDK 37 (ours) unless granted; covers inbound connections from the iPhone and mDNS. | runtime (API 37+), *Nearby devices* group |
 | `NEARBY_WIFI_DEVICES` with `neverForLocation` | `WifiP2pManager.createGroup()` and group info on API 33+. | runtime, *Nearby devices* group |
-| `ACCESS_FINE_LOCATION` with `ACCESS_COARSE_LOCATION` (already declared) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). Asked together (2026-11-20): "If you try to request only ACCESS_FINE_LOCATION, the system ignores the request on some releases of Android 12" (location permissions guide); precise must be chosen. Location *services* need not be on: the Wi-Fi Direct guide asks for Location Mode only for `discoverPeers`, `discoverServices` and `requestPeers`, which the port never calls (it only creates and reads its own group). **Limit (12/12L only):** the group is created only while the app is in the foreground (review of AOSP android12, 2026-11-20: Wi-Fi Direct checks the fine-location app op, which a background `connectedDevice` service does not hold; unverified on a device), so a ride woken on ignition with the screen off retries until the rider opens the app. A while-visible `location` service type would lift it; not added (Android 12 only, the Poco runs 17). | runtime |
+| `ACCESS_FINE_LOCATION` with `ACCESS_COARSE_LOCATION` (declared by the app, `maxSdkVersion="32"` since ride logging was dropped 2026-11-20) | The same Wi-Fi Direct calls on Android 12/12L (API 31-32). Asked together (2026-11-20): "If you try to request only ACCESS_FINE_LOCATION, the system ignores the request on some releases of Android 12" (location permissions guide); precise must be chosen. Location *services* need not be on: the Wi-Fi Direct guide asks for Location Mode only for `discoverPeers`, `discoverServices` and `requestPeers`, which the port never calls (it only creates and reads its own group). **Limit (12/12L only):** the group is created only while the app is in the foreground (review of AOSP android12, 2026-11-20: Wi-Fi Direct checks the fine-location app op, which a background `connectedDevice` service does not hold; unverified on a device), so a ride woken on ignition with the screen off retries until the rider opens the app. A while-visible `location` service type would lift it; not added (Android 12 only, the Poco runs 17). | runtime |
 | `ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE` | Wi-Fi Direct (required by the Wi-Fi Direct guide). | normal |
 | ~~`ACCESS_NETWORK_STATE`, `CHANGE_WIFI_MULTICAST_STATE`~~ | Dropped in C2: mDNS goes through `NsdManager`, which needs only `INTERNET` (AOSP `NsdService.connect`, Connectivity main :2310) and advertises on the group interface itself; no socket binds to a `Network`. | — |
 | `BLUETOOTH_SCAN` (`neverForLocation`, already declared by the app) | `cancelDiscovery()` before the RFCOMM dial when granted ("Connect Bluetooth devices"); the app's pairing flow runs a classic discovery. Not required for CarPlay. | runtime |

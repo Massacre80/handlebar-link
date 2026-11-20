@@ -6,7 +6,7 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import org.junit.Test
 
-/** The tab rail's spacing: its five tabs spread over the height the app gives it. */
+/** The tab rail's spacing: its tabs (five here, the app's four below) spread over the height the app gives it. */
 class RailGapTest {
     private fun gap(height: Dp) = railGap(height, inset = 6.dp, tab = 52.dp, count = 5, minimum = 4.dp)
 
@@ -50,5 +50,16 @@ class RailGapTest {
     fun `a short rail shares its height so the tabs and the smallest gaps fit`() {
         // The Poco on its side, about 330 dp: (330 - 2 x 6 - 4 x 4) / 5 = 60.4 dp, still taller than the 52 dp width.
         assertThat(tab(330.dp)).isEqualTo(60.4.dp)
+    }
+
+    @Test
+    fun `the app's four tabs get the bar's tab turned on its side, on the Poco and the emulator`() {
+        // Since Rides was dropped (owner, 2026-11-20). The Poco on its side, about 330 dp: (330 - 2 x 6 - 3 x 4) / 4
+        // = 76.5 dp would fit, so each tab is the bar's 74; the gaps share 330 - 2 x 6 - 4 x 74 = 22 dp three ways.
+        assertThat(railTab(330.dp, inset = 6.dp, count = 4, minimumGap = 4.dp, tallest = 74.dp)).isEqualTo(74.dp)
+        assertThat(railGap(330.dp, inset = 6.dp, tab = 74.dp, count = 4, minimum = 4.dp)).isEqualTo(22.dp / 3)
+        // The emulator, 347 dp: 347 - 2 x 6 - 4 x 74 = 39 dp over three gaps.
+        assertThat(railTab(347.dp, inset = 6.dp, count = 4, minimumGap = 4.dp, tallest = 74.dp)).isEqualTo(74.dp)
+        assertThat(railGap(347.dp, inset = 6.dp, tab = 74.dp, count = 4, minimum = 4.dp)).isEqualTo(13.dp)
     }
 }

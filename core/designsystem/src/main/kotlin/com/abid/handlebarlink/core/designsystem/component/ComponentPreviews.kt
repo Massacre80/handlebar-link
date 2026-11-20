@@ -191,13 +191,13 @@ internal fun SmartButtons() {
     HlOptionRow(HlIcons.MicOff, "Mute or unmute", "Your mic", selected = false, onClick = {}, accent = true)
 }
 
+/** The app's four tabs (Rides was dropped, owner 2026-11-20). */
 internal val PreviewTabs =
     listOf(
         HlTab(HlIcons.Home, "Home"),
-        HlTab(HlIcons.Rides, "Rides"),
         HlTab(HlIcons.CarPlay, "CarPlay"),
         HlTab(HlIcons.Garage, "Garage"),
-        HlTab(HlIcons.Intercom, "Intercom"),
+        HlTab(HlIcons.Intercom, "Devices"),
     )
 
 /** The buttons: the main one, the secondary ghost one (Paper "Handlebar 7": Reset to default) and it disabled. */

@@ -19,8 +19,8 @@
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
     <!-- WifiP2pManager.createGroup / requestGroupInfo on Android 13+ (wifi-permissions); no location is derived.
-         On Android 12/12L the same calls need ACCESS_FINE_LOCATION, which the app already declares for ride
-         recording (without maxSdkVersion), so it is not repeated here. -->
+         On Android 12/12L the same calls need ACCESS_FINE_LOCATION, which the app declares for exactly this (with
+         ACCESS_COARSE_LOCATION, maxSdkVersion 32) and asks with CarPlay's permissions, so it is not repeated here. -->
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />

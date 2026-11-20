@@ -213,7 +213,10 @@ private fun BentoBike(
     }
 }
 
-/** Today's distance and the next service: empty until ride logging and the Garage exist. */
+/**
+ * Today's distance and the next service: shown only for a meter that reports speed and odometer (rideData), empty until
+ * there is a source for them (the app logs no rides: the Rides feature was dropped, owner 2026-11-20).
+ */
 @Composable
 internal fun BentoStats() {
     val spacing = HlTheme.spacing
@@ -231,7 +234,7 @@ internal fun BentoStats() {
                 verticalArrangement = Arrangement.spacedBy(spacing.s10, Alignment.CenterVertically),
             ) {
                 TickRing(stringResource(R.string.no_value), stringResource(R.string.km_today), progress = null)
-                HlText(stringResource(R.string.no_rides), type.label, colors.inkMuted)
+                HlText(stringResource(R.string.no_data), type.label, colors.inkMuted)
             }
         }
         HlCard(Modifier.weight(1f).fillMaxSize()) {

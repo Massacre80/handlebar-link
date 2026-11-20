@@ -29,13 +29,13 @@ annotation class Artboard
 
 private val Meter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
 
-private val NoActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {}, {})
+private val NoActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {})
 
 @Composable
 private fun Setup(
     variant: HlThemeVariant,
     state: SetupUiState,
-    access: SetupAccess = SetupAccess(Access.GRANTED, Access.ASK),
+    access: SetupAccess = SetupAccess(Access.ASK),
 ) {
     HlTheme(variant) {
         HlBackground(Modifier.fillMaxSize()) { SetupScreen(state, access, NoActions) }

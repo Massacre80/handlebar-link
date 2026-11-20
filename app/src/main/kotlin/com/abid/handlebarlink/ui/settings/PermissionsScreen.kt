@@ -15,9 +15,9 @@ import com.abid.handlebarlink.ui.permissions.PermissionList
 
 /**
  * Settings › Permissions: what each one is for, and its call to action (the white pill) until it is allowed.
- * [onAct] asks for permission [SettingsAccess] index (nearby, notifications, location, display over other apps,
- * modify system settings, and CarPlay), or opens Android's
- * settings page for one refused for good; [onAllowAll] walks every missing one.
+ * [onAct] asks for the permission at [SettingsPermission] index (nearby, notifications, display over other apps, modify
+ * system settings, and CarPlay), or opens Android's settings page for one refused for good; [onAllowAll] walks every
+ * missing one.
  */
 @Composable
 fun PermissionsScreen(
@@ -29,8 +29,8 @@ fun PermissionsScreen(
     SubPage(stringResource(R.string.settings_permissions), onBack) {
         HlText(stringResource(R.string.permissions_intro), HlTheme.typography.body, HlTheme.colors.inkMuted)
         PermissionList(
-            (ROWS + CARPLAY_ROW).zip(access.all()).mapIndexed { index, (row, status) ->
-                PermissionItem(row.first, row.second, status, onAct = { onAct(index) })
+            SettingsPermission.entries.map { row ->
+                PermissionItem(row.title, row.why, access[row], onAct = { onAct(row.ordinal) })
             },
         )
         // While anything is missing, Allow all (under the list, what it will do below it) walks through it
@@ -51,15 +51,3 @@ fun PermissionsScreen(
         }
     }
 }
-
-private val ROWS =
-    listOf(
-        R.string.permission_nearby to R.string.permission_nearby_why,
-        R.string.permission_notifications to R.string.permission_notifications_why,
-        R.string.permission_location to R.string.permission_location_why,
-        R.string.permission_overlay to R.string.permission_overlay_why,
-        R.string.permission_brightness to R.string.permission_brightness_why,
-    )
-
-/** Shown last (SettingsAccess.carPlay). */
-private val CARPLAY_ROW = R.string.permission_carplay to R.string.permission_carplay_why

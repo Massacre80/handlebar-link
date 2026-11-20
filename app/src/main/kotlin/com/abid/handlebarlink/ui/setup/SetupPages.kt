@@ -43,7 +43,6 @@ import com.abid.handlebarlink.setup.SetupProblem
 import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupUiState
 import com.abid.handlebarlink.ui.permissions.Access
-import com.abid.handlebarlink.ui.permissions.PermissionItem
 import com.abid.handlebarlink.ui.permissions.PermissionList
 
 /** "Link your CB350": the bike running off the left, the promise, Start. */
@@ -280,23 +279,8 @@ internal fun DonePage(
                 stringResource(R.string.setup_done_text, name),
                 Modifier.padding(horizontal = spacing.s24 - setupSides()),
             )
-            PermissionList(
-                listOf(
-                    PermissionItem(
-                        R.string.permission_notifications,
-                        R.string.permission_notifications_why,
-                        access.notifications,
-                        actions.onNotifications,
-                    ),
-                    PermissionItem(
-                        R.string.permission_location,
-                        R.string.permission_location_why,
-                        access.location,
-                        actions.onLocation,
-                    ),
-                ),
-            )
-            // No button: Home opens by itself once both are allowed (owner, 2026-11-17). A refusal for good
+            PermissionList(access.rows(actions))
+            // No button: Home opens by itself once they are allowed (owner, 2026-11-17). A refusal for good
             // must not trap the rider, so then they may continue without it.
             if (access.blocked) {
                 HlQuietButton(stringResource(R.string.setup_continue_without), actions.onHome)

@@ -85,30 +85,25 @@ import com.abid.handlebarlink.ui.navigation.ModeRoute
 import com.abid.handlebarlink.ui.navigation.NavigationState
 import com.abid.handlebarlink.ui.navigation.Navigator
 import com.abid.handlebarlink.ui.navigation.PermissionsRoute
-import com.abid.handlebarlink.ui.navigation.RidesRoute
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import com.abid.handlebarlink.ui.navigation.SheetSceneStrategy
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
 import com.abid.handlebarlink.ui.navigation.ThemeRoute
 import com.abid.handlebarlink.ui.navigation.pageTransition
 import com.abid.handlebarlink.ui.navigation.rememberNavigationState
+import com.abid.handlebarlink.ui.navigation.tabIndex
 import com.abid.handlebarlink.ui.navigation.toDecoratedEntries
 import com.abid.handlebarlink.ui.permissions.Access
-import com.abid.handlebarlink.ui.permissions.AccessState
 import com.abid.handlebarlink.ui.permissions.rememberAllowAll
-import com.abid.handlebarlink.ui.permissions.rememberBrightnessAccess
 import com.abid.handlebarlink.ui.permissions.rememberCarPlayAccess
-import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberNearbyAccess
-import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
-import com.abid.handlebarlink.ui.permissions.rememberOverlayAccess
 import com.abid.handlebarlink.ui.settings.ModeScreen
 import com.abid.handlebarlink.ui.settings.PermissionsScreen
-import com.abid.handlebarlink.ui.settings.SettingsAccess
 import com.abid.handlebarlink.ui.settings.SettingsActions
 import com.abid.handlebarlink.ui.settings.SettingsScreen
 import com.abid.handlebarlink.ui.settings.SettingsViewModel
 import com.abid.handlebarlink.ui.settings.ThemeScreen
+import com.abid.handlebarlink.ui.settings.rememberAllAccess
 import com.abid.handlebarlink.ui.setup.SetupRoute
 
 /**
@@ -202,7 +197,6 @@ private fun BoxScope.Tabs(main: MainViewModel) {
                     onHandlebar = { navigator.navigate(HandlebarRoute) },
                 )
             }
-            entry<RidesRoute> { LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, barSpace) }
             carPlayEntries(navigator, barSpace)
             entry<GarageRoute> { LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, barSpace) }
             intercomEntries(navigator, barSpace)
@@ -265,7 +259,7 @@ private fun BoxScope.FloatingTabBar(
     ) {
         HlTabBar(
             tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
-            selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
+            selected = tabIndex(state.topLevelRoute),
             onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
             modifier =
                 Modifier
@@ -297,7 +291,7 @@ private fun BoxScope.FloatingTabRail(
     ) {
         HlTabRail(
             tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
-            selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
+            selected = tabIndex(state.topLevelRoute),
             onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
             // As tall as the pages' content (the system bars, then 8 dp, like Home's panes), on every page.
             modifier =
@@ -373,47 +367,6 @@ private fun SettingsEntry(
         ),
     )
 }
-
-/** The permissions Settings shows (each re-read on every resume), CarPlay's last. */
-private class AllAccess(
-    /** In Settings' order, the index [PermissionsScreen] acts on: SettingsAccess.all(). */
-    val inOrder: List<AccessState>,
-) {
-    val nearby: AccessState get() = inOrder[NEARBY]
-
-    fun statuses() =
-        SettingsAccess(
-            inOrder[NEARBY].status,
-            inOrder[NOTIFICATIONS].status,
-            inOrder[LOCATION].status,
-            inOrder[OVERLAY].status,
-            inOrder[BRIGHTNESS].status,
-            inOrder[CARPLAY].status,
-        )
-
-    /** Positions in [inOrder]. */
-    private companion object {
-        const val NEARBY = 0
-        const val NOTIFICATIONS = 1
-        const val LOCATION = 2
-        const val OVERLAY = 3
-        const val BRIGHTNESS = 4
-        const val CARPLAY = 5
-    }
-}
-
-@Composable
-private fun rememberAllAccess() =
-    AllAccess(
-        listOf(
-            rememberNearbyAccess(),
-            rememberNotificationAccess(),
-            rememberLocationAccess(),
-            rememberOverlayAccess(),
-            rememberBrightnessAccess(),
-            rememberCarPlayAccess(),
-        ),
-    )
 
 /**
  * Starts the ride while the app is on screen (a foreground service may only start then; [startsRideOnResume]): for

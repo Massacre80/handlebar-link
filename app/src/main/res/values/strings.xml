@@ -44,7 +44,6 @@
     <string name="odometer">Odometer</string>
     <string name="next_service">Next service</string>
     <string name="km_today">km today</string>
-    <string name="no_rides">No rides yet</string>
     <string name="service_not_set">Set it in Garage</string>
     <string name="intercom">Intercom</string>
     <string name="intercom_none">No intercom yet</string>
@@ -238,11 +237,9 @@
 
     <!-- Tabs -->
     <string name="tab_home">Home</string>
-    <string name="tab_rides">Rides</string>
     <string name="tab_carplay">CarPlay</string>
     <string name="tab_garage">Garage</string>
     <string name="tab_devices">Devices</string>
-    <string name="later_rides">Your rides appear here once ride logging exists.</string>
     <string name="later_garage">Odometer, service and bike details will live here.</string>
 
     <!-- CarPlay page and Home's CarPlay card: our own receiver (ui/carplay/) -->
@@ -437,7 +434,7 @@
     <string name="mode_not_designed">Not designed yet for %1$s</string>
     <string name="settings_permissions_all">All allowed</string>
     <string name="settings_permissions_some">Allowed: %1$d of %2$d</string>
-    <string name="settings_permissions_detail">Nearby devices, notifications, location and three Android settings</string>
+    <string name="settings_permissions_detail">Nearby devices, notifications, CarPlay and two Android settings</string>
     <string name="permissions_intro">What the app may use, and why. Tap one that is not allowed yet.</string>
     <string name="theme_night">Night</string>
     <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
@@ -453,8 +450,6 @@
     <string name="permission_nearby_why">Connects to your bike\'s meter</string>
     <string name="permission_notifications">Notifications</string>
     <string name="permission_notifications_why">Shows the ride and asks for help when needed</string>
-    <string name="permission_location">Location</string>
-    <string name="permission_location_why">Records your rides: speed, distance and route</string>
     <string name="permission_overlay">Display over other apps</string>
     <string name="permission_overlay_why">Lets a handlebar press open CarPlay or this app, and shows what the press did on top of CarPlay</string>
     <string name="permissions_allow_all_how">Allow all takes you through each one that is still missing. Android asks for some in a short dialog, so tap Allow. For the others it opens its own settings screen: switch Handlebar Link on there, then go back, and the next one opens by itself.</string>
@@ -506,8 +501,8 @@
     <string name="setup_pairing_title">Pairing with your bike</string>
     <string name="setup_pairing_text">Confirm on the phone. If the meter asks too, confirm it there.</string>
     <string name="setup_done_title">You\'re set</string>
-    <string name="setup_done_text">%1$s is paired. Two last things so the app can do its job:</string>
-    <string name="setup_done_auto">Home opens once both are allowed</string>
+    <string name="setup_done_text">%1$s is paired. One last thing so the app can do its job:</string>
+    <string name="setup_done_auto">Home opens once it is allowed</string>
     <string name="setup_continue_without">Continue without</string>
     <string name="setup_none_found">No meter found</string>
     <string name="setup_problem_bluetooth">Bluetooth is off</string>

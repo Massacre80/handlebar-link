@@ -64,7 +64,7 @@ fun SetupScreen(
 }
 
 private val PreviewMeter = FoundMeter("HONDA BTU 2040", "AA:BB:CC:DD:EE:FF", rssi = -55)
-private val PreviewActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {}, {})
+private val PreviewActions = SetupActions({}, {}, {}, {}, {}, {}, {}, {})
 
 @Composable
 private fun SetupPreview(
@@ -74,7 +74,7 @@ private fun SetupPreview(
     HlTheme(variant) {
         HlBackground(
             Modifier.fillMaxSize(),
-        ) { SetupScreen(state, SetupAccess(Access.GRANTED, Access.ASK), PreviewActions) }
+        ) { SetupScreen(state, SetupAccess(Access.ASK), PreviewActions) }
     }
 }
 

@@ -45,8 +45,6 @@ data class SettingsAccess(
     val nearby: Access,
     /** Notifications. */
     val notifications: Access,
-    /** Location (recording rides). */
-    val location: Access,
     /** Display over other apps (what a press did, shown over CarPlay). */
     val overlay: Access,
     /** Modify system settings (screen brightness from the handlebar). */
@@ -173,9 +171,6 @@ private fun BikeSection(
     }
 }
 
-/** The permissions in Settings' order (CarPlay's last). */
-internal fun SettingsAccess.all(): List<Access> = listOf(nearby, notifications, location, overlay, brightness, carPlay)
-
 /** Sample state for previews and screenshot tests. */
 internal val PreviewSettings =
     SettingsUiState(
@@ -186,7 +181,7 @@ internal val PreviewSettings =
 
 /** Sample access for previews and screenshot tests: one of each status. */
 internal val PreviewAccess =
-    SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK, Access.ASK, Access.ASK)
+    SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK, Access.ASK)
 
 /** Actions that do nothing, for previews and screenshot tests. */
 internal val NoActions = SettingsActions({}, {}, {}, {}, {}, {})

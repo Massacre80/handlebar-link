@@ -92,7 +92,7 @@ fun LaterScreen(
 private fun LaterNightPreview() {
     HlTheme(HlThemeVariant.NIGHT) {
         HlBackground(Modifier.fillMaxSize()) {
-            LaterScreen(HlIcons.Rides, R.string.tab_rides, R.string.later_rides, PaddingValues())
+            LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, PaddingValues())
         }
     }
 }

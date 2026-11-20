@@ -44,7 +44,12 @@ import com.abid.handlebarlink.ui.intercom.IntercomScreen
 import com.abid.handlebarlink.ui.intercom.NoIntercomActions
 import com.abid.handlebarlink.ui.intercom.PreviewIntercom
 import com.abid.handlebarlink.ui.later.LaterScreen
+import com.abid.handlebarlink.ui.navigation.CarPlayRoute
+import com.abid.handlebarlink.ui.navigation.GarageRoute
+import com.abid.handlebarlink.ui.navigation.HomeRoute
+import com.abid.handlebarlink.ui.navigation.IntercomRoute
 import com.abid.handlebarlink.ui.navigation.TOP_LEVEL_DESTINATIONS
+import com.abid.handlebarlink.ui.navigation.tabIndex
 import com.abid.handlebarlink.ui.permissions.Access
 import com.abid.handlebarlink.ui.settings.NoActions
 import com.abid.handlebarlink.ui.settings.PreviewAccess
@@ -91,7 +96,7 @@ private fun RailFrame(
 
 @Composable
 private fun Home(variant: HlThemeVariant) =
-    RailFrame(variant, selected = 0) {
+    RailFrame(variant, selected = tabIndex(HomeRoute)) {
         HomeScreen(HomeUiState(LinkStatus.CONNECTED), onSettings = {}, contentPadding = it)
     }
 
@@ -109,7 +114,9 @@ fun HomeBentoLandscape() = Home(HlThemeVariant.BENTO)
 private fun CarPlay(
     variant: HlThemeVariant,
     state: CarPlayUiState,
-) = RailFrame(variant, selected = 2) { CarPlayScreen(state, onAction = {}, onIphone = {}, contentPadding = it) }
+) = RailFrame(variant, selected = tabIndex(CarPlayRoute)) {
+    CarPlayScreen(state, onAction = {}, onIphone = {}, contentPadding = it)
+}
 
 @PreviewTest
 @Landscape
@@ -127,13 +134,15 @@ fun CarPlayWifiOffBentoLandscape() = CarPlay(HlThemeVariant.BENTO, PreviewCarPla
 @Landscape
 @Composable
 fun DevicesNightLandscape() =
-    RailFrame(HlThemeVariant.NIGHT, selected = 4) { IntercomScreen(PreviewIntercom, NoIntercomActions, it) }
+    RailFrame(HlThemeVariant.NIGHT, selected = tabIndex(IntercomRoute)) {
+        IntercomScreen(PreviewIntercom, NoIntercomActions, it)
+    }
 
 @PreviewTest
 @Landscape
 @Composable
 fun GarageBentoLandscape() =
-    RailFrame(HlThemeVariant.BENTO, selected = 3) {
+    RailFrame(HlThemeVariant.BENTO, selected = tabIndex(GarageRoute)) {
         LaterScreen(HlIcons.Garage, R.string.tab_garage, R.string.later_garage, it)
     }
 
@@ -144,7 +153,7 @@ private fun Setup(
     variant: HlThemeVariant,
     state: SetupUiState,
 ) = Panes(variant) {
-    SetupScreen(state, SetupAccess(Access.GRANTED, Access.ASK), SetupActions({}, {}, {}, {}, {}, {}, {}, {}, {}))
+    SetupScreen(state, SetupAccess(Access.ASK), SetupActions({}, {}, {}, {}, {}, {}, {}, {}))
 }
 
 @PreviewTest

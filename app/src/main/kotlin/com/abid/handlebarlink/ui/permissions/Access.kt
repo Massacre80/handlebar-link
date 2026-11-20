@@ -1,6 +1,7 @@
 package com.abid.handlebarlink.ui.permissions
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -180,27 +181,27 @@ fun rememberRuntimeAccess(permission: String): AccessState = rememberRuntimeAcce
 fun rememberSetupAccess(onResult: (Boolean) -> Unit): AccessState =
     rememberRuntimeAccess(listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT), onResult)
 
-/**
- * Location for recording rides (owner, 2026-11-17: speed, distance and route on the Rides tab): precise and
- * approximate asked together, while the app is in use (location permissions); granted only when precise is,
- * since a ride needs it. Background recording during a ride comes with the Rides milestone.
- */
-@Composable
-fun rememberLocationAccess(): AccessState =
-    rememberRuntimeAccess(listOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION))
+/** What [rememberNearbyAccess] asks for: Bluetooth to the meter. */
+internal fun nearbyPermissions(): List<String> = listOf(Manifest.permission.BLUETOOTH_CONNECT)
 
 /** Bluetooth to the meter. */
 @Composable
-fun rememberNearbyAccess(): AccessState = rememberRuntimeAccess(Manifest.permission.BLUETOOTH_CONNECT)
+fun rememberNearbyAccess(): AccessState = rememberRuntimeAccess(nearbyPermissions())
+
+/**
+ * What [rememberNotificationAccess] asks for on Android [sdk]: a runtime permission from Android 13, nothing before.
+ * Lint's InlinedApi cannot see a guard on the [sdk] parameter; the guard is the `if`.
+ */
+@SuppressLint("InlinedApi") // A string constant copied in at compile time, added only when [sdk] has it.
+internal fun notificationPermissions(sdk: Int): List<String> =
+    if (sdk >= Build.VERSION_CODES.TIRAMISU) listOf(Manifest.permission.POST_NOTIFICATIONS) else emptyList()
 
 /** The ride and problem notifications: a runtime permission from Android 13, always allowed before. */
 @Composable
-fun rememberNotificationAccess(): AccessState =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        rememberRuntimeAccess(Manifest.permission.POST_NOTIFICATIONS)
-    } else {
-        remember { AccessState(Access.GRANTED) }
-    }
+fun rememberNotificationAccess(): AccessState {
+    val permissions = notificationPermissions(Build.VERSION.SDK_INT)
+    return if (permissions.isEmpty()) remember { AccessState(Access.GRANTED) } else rememberRuntimeAccess(permissions)
+}
 
 private fun granted(
     context: Context,

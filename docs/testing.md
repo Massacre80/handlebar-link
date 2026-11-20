@@ -114,7 +114,9 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
   at the artboard; in-app iPhone pairing and the iPhone sheet in `CarPlayScreenshots.kt`, 25 images; then +39 for the
 landscape layout, `LandscapeScreenshots.kt`: 13 pages at `@Landscape`'s 914 x 411, 817 x 393 and 817 x 393 at font 1.5,
 then +21 for 7 more (setup Linking/Done, pairing steps/Waiting/Paired, Devices, Garage);
-the design system +4 for the tab rail). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
+the design system +4 for the tab rail; dropping Rides on 2026-11-20 removed no screenshot test, since the Rides page
+had none, so the counts hold, but every image with the tab bar or rail (four tabs now), the design system's tab bar,
+rail and component sheet, Settings, Permissions and setup's "You're set" (one row) change and are recorded again). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);
   2. push with `[record screenshots]` in the commit message (or run the CI workflow by hand with

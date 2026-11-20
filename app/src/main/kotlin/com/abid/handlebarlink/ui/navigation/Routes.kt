@@ -18,10 +18,6 @@ interface OverlayRoute : NavKey
 @Serializable
 data object HomeRoute : NavKey
 
-/** Rides tab. */
-@Serializable
-data object RidesRoute : NavKey
-
 /** CarPlay tab. */
 @Serializable
 data object CarPlayRoute : NavKey
@@ -163,12 +159,17 @@ data class TopLevelDestination(
     @param:StringRes val label: Int,
 )
 
-/** The tabs, in the design's order ("Component · Tab bar"). Home first: it is the start destination. */
+/**
+ * The tabs, in the design's order ("Component · Tab bar") less Rides, dropped with ride logging (owner, 2026-11-20:
+ * "remove the rides feature, not needed anymore"). Home first: it is the start destination.
+ */
 val TOP_LEVEL_DESTINATIONS: List<TopLevelDestination> =
     listOf(
         TopLevelDestination(HomeRoute, HlIcons.Home, R.string.tab_home),
-        TopLevelDestination(RidesRoute, HlIcons.Rides, R.string.tab_rides),
         TopLevelDestination(CarPlayRoute, HlIcons.CarPlay, R.string.tab_carplay),
         TopLevelDestination(GarageRoute, HlIcons.Garage, R.string.tab_garage),
         TopLevelDestination(IntercomRoute, HlIcons.Intercom, R.string.tab_devices),
     )
+
+/** The position of [route]'s tab in [TOP_LEVEL_DESTINATIONS]; -1 when [route] is no tab's root. */
+fun tabIndex(route: NavKey): Int = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == route }

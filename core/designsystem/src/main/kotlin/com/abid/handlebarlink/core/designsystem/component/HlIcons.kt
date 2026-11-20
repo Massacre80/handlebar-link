@@ -38,9 +38,6 @@ public object HlIcons {
     /** Home tab. */
     @DrawableRes public val Home: Int = R.drawable.hl_ic_home
 
-    /** Rides tab. */
-    @DrawableRes public val Rides: Int = R.drawable.hl_ic_rides
-
     /** CarPlay tab and card. */
     @DrawableRes public val CarPlay: Int = R.drawable.hl_ic_carplay
 

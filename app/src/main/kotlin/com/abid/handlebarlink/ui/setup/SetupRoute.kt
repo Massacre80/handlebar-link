@@ -26,7 +26,6 @@ import com.abid.handlebarlink.setup.SetupProblem
 import com.abid.handlebarlink.setup.SetupStep
 import com.abid.handlebarlink.setup.SetupViewModel
 import com.abid.handlebarlink.ui.permissions.Access
-import com.abid.handlebarlink.ui.permissions.rememberLocationAccess
 import com.abid.handlebarlink.ui.permissions.rememberNotificationAccess
 import com.abid.handlebarlink.ui.permissions.rememberSetupAccess
 import kotlinx.coroutines.delay
@@ -52,8 +51,7 @@ private fun SetupContent(viewModel: SetupViewModel) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val nearby = rememberSetupAccess { granted -> if (granted) viewModel.findBike() else viewModel.permissionRefused() }
     val notifications = rememberNotificationAccess()
-    val location = rememberLocationAccess()
-    val access = SetupAccess(notifications.status, location.status)
+    val access = SetupAccess(notifications.status)
     AutoHome(state.step == SetupStep.DONE && access.complete, viewModel::finish)
     val enableBluetooth =
         rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
@@ -100,7 +98,6 @@ private fun SetupContent(viewModel: SetupViewModel) {
             onChoose = viewModel::choose,
             onSearchAgain = viewModel::search,
             onNotifications = notifications::act,
-            onLocation = location::act,
             onHome = viewModel::finish,
         ),
     )

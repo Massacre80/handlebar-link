@@ -196,7 +196,7 @@ internal fun NightHeader(
     }
 }
 
-/** Service and trip gauges: empty until the Garage and ride logging exist. */
+/** Service and trip gauges: shown only for a meter that reports speed and odometer (rideData), empty until then. */
 @Composable
 internal fun NightGauges(modifier: Modifier) {
     val spacing = HlTheme.spacing
