@@ -131,7 +131,7 @@ stack as a full page without the tab bar. Tabs without a feature show an empty p
   nothing does: our BLE scan and the pairing page's classic discovery use `BLUETOOTH_SCAN` with `neverForLocation`,
   companion-device pairing "doesn't require location permissions" (bt-permissions; it needs Location *services* on,
   `SetupProblem.LOCATION_OFF`, which reads a setting and needs no permission), and nothing calls `discoverPeers`,
-  `requestPeers`, Wi-Fi scans or a location provider (CarPlay's GPS forwarding to the iPhone is not built).
+  `requestPeers`, Wi-Fi scans or a location provider (CarPlay's GPS forwarding to the iPhone: building, see "C6 location").
 - The tab bar and rail hold four tabs; on the Poco and the emulator on their side each rail tab is now the bar's tab
   turned on its side (74 dp, `RailGapTest`).
 
@@ -1094,6 +1094,38 @@ the iPhone's `/command disableBluetooth`; we declined the tunnel and kept iAP2 a
   `carplay.iap2.tunnel.peer_eof`, `carplay.handoff.tunnel_lost`.
 - **Unverified on the device:** that the iPhone completes identification and authentication over our tunnel, and
   whether the iPhone's internet then behaves as on CarLink.
+
+### C6 location: the bike's GPS to the iPhone (2026-11-21, building; worktree `carplay-location`)
+
+Why (ride, owner 2026-11-21): with the iPhone in a pocket, only the **map position** lagged — "very very late",
+long freezes then big jumps — while the map image, music and streaming (all over Wi-Fi) were flawless. A pocketed
+phone keeps losing GNSS lock; its own GPS is the one thing not carried over Wi-Fi. The Poco is bolted to the bars
+with a clear view of the sky and holds a steady fix, so it feeds that fix to the iPhone, as a car with a roof
+antenna does. CarPlay works without it (uses the iPhone's GPS, 06-diplay-connection-sequence.md:486); granting it
+makes the bike the source.
+
+- **Transport:** the iAP2 Location Information messages are **runtime-tunnel only** (B-iap2-messages.md:121; DiPlay
+  `transport/Iap2LocationClient.kt`): `0xFFFA StartLocationInformation` (iPhone->acc), `0xFFFB LocationInformation`
+  (acc->iPhone), `0xFFFC StopLocationInformation`. They ride the C5 Wi-Fi tunnel (now proven: the iPhone's internet
+  is solid on the bike, 2026-11-21), never the Bluetooth bootstrap.
+- **NMEA** (built, `:carplay:protocol` `location/Nmea.kt`, tested against DiPlay's vectors): `$GPGGA` + `$GPRMC`
+  byte for byte as DiPlay's `NmeaLocationEncoder` — UTC, fix quality 1 / 8 satellites, HDOP from accuracy
+  (metres / 5, 0.5..50, else 1.0), altitude (else 0.0), RMC speed in knots (else 0.00), empty course without a
+  bearing. `CarPlayLocationFix` requires the sample's own timestamp (no clock read in the engine).
+- **Identification:** the Bluetooth bootstrap forces location off (as DiPlay, B-iap2-messages.md:129); only the
+  tunnel's identification declares the location capability, and adds `0xFFFA`/`0xFFFC` received and `0xFFFB` sent.
+- **The reporter** (next, `:carplay:engine`, as DiPlay `Iap2LocationReporter`): start on `0xFFFA` (its params are the
+  sentence types the iPhone wants), send the latest fix once a second as `0xFFFB`, stop on `0xFFFC`, a disconnect or a
+  lost permission. The subscription belongs to the link: a request on Bluetooth never authorises output on the tunnel.
+- **The GPS source** (`:app`/`:carplay:engine-android`): the Poco's own fix from the platform location APIs at ~1 Hz,
+  only while BikePlay is connected and the permission is held; off otherwise (no background location).
+- **Permission:** an **optional** `LOCATION` row on Settings > Permissions (`ACCESS_FINE_LOCATION`, uncapped from its
+  Android-12 Wi-Fi-Direct cap), in Allow all, **not** in `carPlayPermissions()` so it never blocks BikePlay. Owner's
+  call (2026-11-21): no separate screen or toggle, the grant is the switch; the row appears only once forwarding works.
+- **Privacy:** the location only ever goes to the rider's own paired iPhone; the Poco has no internet, so it never
+  leaves the bike. Nothing is logged but coarse rates and counts, never a coordinate.
+- **Unverified until the device:** that the iPhone fuses/uses the accessory fix and the pocketed-phone lag goes; the
+  sentence set the iPhone asks for; behaviour on lock loss.
 
 ### C5 audio: sound and the microphone (2026-11-19, worktree `carplay-c5-audio`)
 
