@@ -113,11 +113,17 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   Upright the sides are zero: no change.
 - **Navigation:** the floating tab bar becomes `HlTabRail` (design system, next to `HlTabBar`: the same glass pill,
   tabs, labels, chip spring and backdrop blur, stacked; `size-tab-rail` 86 dp = the chip and the bar's 6 dp inset each
-  side) on the **end edge**, where CarPlay keeps its dock (owner, 2026-11-20), centred between the system bars, 16 dp
-  in from the mirrored side. Tab pages get the rail's room as end padding (`barSpace`: rail + 16 dp each side) and the
-  navigation bar as bottom padding instead of the bar's room. Tab pages' second pane is clipped below the status bar
-  and a status-bar protection is drawn over tab pages, so nothing runs under the clock.
-- **Two panes** (equal width, 16 dp gutter, each scrolling on its own when it runs out of height): Home Night (the
+  side) on the **end edge**, where CarPlay keeps its dock (owner, 2026-11-20), 16 dp in from the mirrored side. It
+  fills the height between the system bars less 8 dp, the same band as Home's panes, on every tab page, its tabs
+  spread evenly (`railGap`); the chip and the tabs are the rail's inner width, so the chip is 6 dp from every edge as
+  in the bar. Tab pages get the rail's room as end padding (`railSpace`): the content's start margin, its gap to the
+  rail and the rail's end margin are one width, the mirrored side + 16 dp (owner: "the right side padding is totally
+  wrong"; measured 168 / 168 / 168 px on the emulator), and the navigation bar as bottom padding. The room reaches the
+  pages as one `LivePadding` that reads the current value: Navigation 3 keeps a page's entry content from its first
+  show, and a plain `PaddingValues` captured there missed the insets that arrive after the first frame. Tab pages'
+  second pane is clipped below the status bar and a status-bar protection is drawn over tab pages, so nothing runs
+  under the clock.
+- **Two panes** (equal width, Home's cards pane 1.2 x the bike's, 16 dp gutter, each scrolling on its own when it runs out of height): Home Night (the
   wordmark, pill and settings in their own band over the whole bike on its ground, `FittedBike`; the cards: device tile
   and Add device side by side, Handlebar, CarPlay), Home Bento (pill and settings over the bike card filling the pane,
   its bike sized to the room under the name; the cards in portrait order), setup and in-app iPhone pairing (bike, ring
