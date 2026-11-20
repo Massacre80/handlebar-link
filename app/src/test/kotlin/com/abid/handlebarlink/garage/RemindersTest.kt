@@ -193,11 +193,12 @@ class RemindersTest {
     }
 
     @Test
-    fun `the latest reading is the newest by time, not the highest`() {
+    fun `the latest reading is the newest by time, so a corrected typo wins over a higher one`() {
         val data =
             GarageData(
                 odometer =
                     listOf(
+                        OdometerReading(16_860, Instant.parse("2026-11-18T09:00:00Z").toEpochMilli()),
                         reading(15_860),
                         OdometerReading(14_100, Instant.parse("2026-09-02T00:00:00Z").toEpochMilli()),
                     ),

@@ -440,6 +440,16 @@ Defaults, owner to confirm (all rider-editable):
 | Colourway | the one render the app has: "Matte Massive Grey Metallic" ("Matte Grey" in rows) | Honda India's colours (HMSI releases and model pages): 2021 Radiant Red Metallic, Black with Pearl Sports Yellow; 2023 Athletic Blue Metallic, Matte Massive Grey Metallic, Radiant Red Metallic, Black with Pearl Sports Yellow; New Hue (Oct 2023) Sports Red, Athletic Blue Metallic; 2025 Pearl Igneous Black, Pearl Deep Ground Gray, Mat Axis Gray Metallic, Rebel Red Metallic; 2026 adds Pearl Siren Blue. The render (matte grey, yellow pinstripe) is matched to Matte Massive Grey by eye. Other colourways need renders: the same 1200 x 864 side view on a transparent ground, one per colour; until then the sheet lists only colourways with a render. |
 | Notification | once a day; per stage as above | Ours. |
 
+Tests (`app/src/test/.../garage/`, 44, an injected fixed clock): due by date and km, whichever first, the soon and
+overdue thresholds on their boundaries, ordering, the riding rate, restart on logging, readings, alerts per stage and
+target, the hero, the JSON file. 13 planted bugs, each failing a named test (read from the result XMLs, file restored
+and compared after each): due today as overdue; the less urgent of date and km; state order ignored; a km reminder
+without a rate last; the gauge by time only; any kind restarting the count; an older service moving it back; a past
+entry's reading dated now; the same stage notified again; the target never changing; no week-before stage; the latest
+reading by km (survived at first: the test's older reading was also the lower one; the test now has a corrected
+typo); the hero tagging the service. Previews (`GaragePreviews.kt`, `GarageSheetPreviews.kt`) and screenshot tests
+(`GarageScreenshots.kt`: Night upright, large text, on its side, the sheets); references are recorded on Linux CI.
+
 Not built: editing or deleting a log entry; the first-service (1,000 km) reminder for a new bike; the colourway
 changing Home's bike (one render); companion disassociation on Forget; Bento.
 
