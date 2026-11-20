@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -34,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -65,6 +67,7 @@ import com.abid.handlebarlink.ui.frame.LocalWindowLayout
 import com.abid.handlebarlink.ui.frame.WindowLayout
 import com.abid.handlebarlink.ui.frame.currentWindowLayout
 import com.abid.handlebarlink.ui.frame.pageSides
+import com.abid.handlebarlink.ui.frame.railSpace
 import com.abid.handlebarlink.ui.handlebar.handlebarEntries
 import com.abid.handlebarlink.ui.home.HomeScreen
 import com.abid.handlebarlink.ui.home.HomeViewModel
@@ -167,11 +170,14 @@ private fun BoxScope.Tabs(main: MainViewModel) {
     val spacing = HlTheme.spacing
     val panes = LocalWindowLayout.current == WindowLayout.PANES
     val navigationBar = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val side = WindowInsets.pageSides.asPaddingValues().calculateLeftPadding(LayoutDirection.Ltr)
     val barSpace =
         if (panes) {
-            // On its side, room for the rail on the end edge (its width and a 16 dp gap either side) and the
-            // navigation bar below; the mirrored sides come from each page's insets (WindowInsets.pageTop).
-            PaddingValues(end = HlTheme.sizes.tabRail + spacing.s16 * 2, bottom = navigationBar)
+            // On its side, room for the rail on the end edge and the navigation bar below. Pages pad both sides by
+            // the mirrored side (WindowInsets.pageTop) and set their content 16 dp in, so the content's margin
+            // to the screen's start, its gap to the rail and the rail's margin to the end are one width:
+            // side + 16 dp (owner, 2026-11-20: "the right side padding is totally wrong").
+            PaddingValues(end = railSpace(side, spacing.s16, HlTheme.sizes.tabRail), bottom = navigationBar)
         } else {
             // Pages leave room for the floating bar: its height, its 20 dp gap and the navigation bar.
             PaddingValues(bottom = HlTheme.sizes.tabBar + spacing.s20 * 2 + navigationBar)
@@ -267,9 +273,9 @@ private fun BoxScope.FloatingTabBar(
 }
 
 /**
- * The tab rail floating on the end edge on its side (where CarPlay keeps its dock), centred between the system bars
- * and as far from the edge as the pages' content is from the other one (the mirrored sides, then 16 dp); it slides
- * away on full pages like the bar.
+ * The tab rail floating on the end edge on its side (where CarPlay keeps its dock): as tall as the pages' content
+ * between the system bars and as far from the edge as the pages' content is from the other one (the mirrored side,
+ * then 16 dp); it slides away on full pages like the bar.
  */
 @Composable
 private fun BoxScope.FloatingTabRail(
@@ -288,11 +294,13 @@ private fun BoxScope.FloatingTabRail(
             tabs = TOP_LEVEL_DESTINATIONS.map { HlTab(it.icon, stringResource(it.label)) },
             selected = TOP_LEVEL_DESTINATIONS.indexOfFirst { it.route == state.topLevelRoute },
             onSelect = { navigator.navigate(TOP_LEVEL_DESTINATIONS[it].route) },
+            // As tall as the pages' content (the system bars, then 8 dp, like Home's panes), on every page.
             modifier =
                 Modifier
+                    .fillMaxHeight()
                     .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Vertical))
                     .windowInsetsPadding(WindowInsets.pageSides)
-                    .padding(end = HlTheme.spacing.s16),
+                    .padding(end = HlTheme.spacing.s16, top = HlTheme.spacing.s8, bottom = HlTheme.spacing.s8),
             backdrop = backdrop,
         )
     }

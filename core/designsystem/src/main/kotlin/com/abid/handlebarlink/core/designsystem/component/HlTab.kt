@@ -39,7 +39,9 @@ import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpOffset
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
@@ -90,7 +92,7 @@ public fun HlTabBar(
         val others = (maxWidth - inset * 2 - sizes.tabWidth) / (tabs.size - 1).coerceAtLeast(1)
         val target = with(LocalDensity.current) { (inset + others * selected).toPx() }
         val chipX by animateFloatAsState(target, HlTheme.motion.layout(), label = "tab chip")
-        Chip(Modifier.offset { IntOffset(chipX.roundToInt(), 0) })
+        Chip(DpSize(sizes.tabWidth, sizes.tab), Modifier.offset { IntOffset(chipX.roundToInt(), 0) })
         LookaheadScope {
             Row(
                 Modifier.fillMaxSize().padding(horizontal = inset).selectableGroup(),
@@ -106,9 +108,11 @@ public fun HlTabBar(
 
 /**
  * The floating tab rail ("Component · Tab bar" stood on its end, for landscape): the same glass pill, tabs, labels
- * and raised chip as [HlTabBar], stacked from the top. Every tab keeps the chip's size, so the chip only slides
- * (the same spring) and nothing resizes. The app floats it on the screen's end edge, centred vertically, where
- * CarPlay keeps its dock (owner, 2026-11-20); it is [HlSizes.tabRail] wide.
+ * and raised chip as [HlTabBar]. Every tab and the chip are the rail's inner width ([HlSizes.tabRail] less the bar's
+ * 6 dp inset each side, so the chip sits 6 dp from every edge like the bar's) and a tab's height; the chip only
+ * slides (the same spring). Given a height (the app fills the height between the page's top and bottom margins, so
+ * the rail is the same on every page), the tabs spread evenly over it, never closer than 4 dp; without one it wraps
+ * them. The app floats it on the screen's end edge, where CarPlay keeps its dock (owner, 2026-11-20).
  */
 @Composable
 public fun HlTabRail(
@@ -122,8 +126,7 @@ public fun HlTabRail(
     val sizes = HlTheme.sizes
     val bar = HlTheme.shadows.bar
     val inset = HlTheme.spacing.s6
-    val gap = HlTheme.spacing.s4
-    Box(
+    BoxWithConstraints(
         modifier
             .width(sizes.tabRail)
             .dropShadow(
@@ -135,27 +138,49 @@ public fun HlTabRail(
             .border(HlTheme.strokes.hairline, colors.glassEdge, CircleShape),
         contentAlignment = Alignment.TopCenter,
     ) {
-        val target = with(LocalDensity.current) { (inset + (sizes.tab + gap) * selected).toPx() }
+        val tab = DpSize(sizes.tabRail - inset * 2, sizes.tab)
+        val gap = railGap(maxHeight, inset, tab.height, tabs.size, HlTheme.spacing.s4)
+        val target = with(LocalDensity.current) { (inset + (tab.height + gap) * selected).toPx() }
         val chipY by animateFloatAsState(target, HlTheme.motion.layout(), label = "tab chip")
-        Chip(Modifier.offset { IntOffset(0, chipY.roundToInt()) })
+        Chip(tab, Modifier.offset { IntOffset(0, chipY.roundToInt()) })
         Column(
             Modifier.padding(vertical = inset).selectableGroup(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(gap),
         ) {
-            tabs.forEachIndexed { index, tab -> RailItem(tab, index == selected) { onSelect(index) } }
+            tabs.forEachIndexed { index, item ->
+                TabItem(item, index == selected, Modifier.size(tab)) { onSelect(index) }
+            }
         }
     }
 }
 
+/**
+ * The gap between the rail's [count] tabs of [tab] height: what [height] leaves after them and the [inset] at both
+ * ends, shared evenly, never less than [minimum]; [minimum] when the height is unbounded.
+ */
+internal fun railGap(
+    height: Dp,
+    inset: Dp,
+    tab: Dp,
+    count: Int,
+    minimum: Dp,
+): Dp {
+    if (height == Dp.Infinity || count < 2) return minimum
+    return maxOf(minimum, (height - inset * 2 - tab * count) / (count - 1))
+}
+
 /** The raised chip under the active tab: one shape that moves, never one per tab. */
 @Composable
-private fun Chip(modifier: Modifier) {
+private fun Chip(
+    size: DpSize,
+    modifier: Modifier,
+) {
     val colors = HlTheme.colors
     val chip = HlTheme.shadows.chip
     Box(
         modifier
-            .size(HlTheme.sizes.tabWidth, HlTheme.sizes.tab)
+            .size(size)
             .then(
                 if (HlTheme.variant == HlThemeVariant.BENTO) {
                     Modifier.dropShadow(
@@ -187,25 +212,17 @@ private fun RowScope.BarItem(
         } else {
             Modifier.weight(1f).animateBounds(lookahead, Modifier.height(sizes.tab), bounds)
         }
-    TabItem(tab, active, size, onClick)
+    TabItem(tab, active, size, onClick = onClick)
 }
 
-/** A tab of the rail: the chip's size, active or not. */
-@Composable
-private fun RailItem(
-    tab: HlTab,
-    active: Boolean,
-    onClick: () -> Unit,
-) {
-    TabItem(tab, active, Modifier.size(HlTheme.sizes.tabWidth, HlTheme.sizes.tab), onClick)
-}
-
-/** A tab's icon and label in [size], recoloured when it becomes [active]; shared by the bar and the rail. */
+/**
+ * A tab's icon and label, sized by [modifier], recoloured when it becomes [active]; shared by the bar and the rail.
+ */
 @Composable
 private fun TabItem(
     tab: HlTab,
     active: Boolean,
-    size: Modifier,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val colors = HlTheme.colors
@@ -218,7 +235,7 @@ private fun TabItem(
     )
     val press = remember { MutableInteractionSource() }
     Column(
-        size
+        modifier
             .pressScale(press, motion)
             // A pill clip would shave long labels at large text; the press area stays rounded.
             .clip(RoundedCornerShape(HlTheme.radii.control))

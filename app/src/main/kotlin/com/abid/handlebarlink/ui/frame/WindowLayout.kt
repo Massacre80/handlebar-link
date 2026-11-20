@@ -3,6 +3,7 @@ package com.abid.handlebarlink.ui.frame
 import androidx.compose.material3.adaptive.currentWindowAdaptiveInfoV2
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.unit.Dp
 import androidx.window.core.layout.WindowSizeClass
 
 /**
@@ -45,3 +46,14 @@ fun currentWindowLayout(): WindowLayout = windowLayout(currentWindowAdaptiveInfo
  * unless they provide [WindowLayout.PANES] themselves (the landscape screenshots), so the portrait references hold.
  */
 val LocalWindowLayout = compositionLocalOf { WindowLayout.COLUMN }
+
+/**
+ * A tab page's end padding beside the rail, beyond the mirrored [side] every page already pads: the rail's [width],
+ * its [margin] to the screen's edge, and a gap to the content as wide as the content's own margin at the start
+ * ([side] + [margin]), so start margin, gap and the rail's end margin are all equal.
+ */
+fun railSpace(
+    side: Dp,
+    margin: Dp,
+    width: Dp,
+): Dp = width + margin + side + margin

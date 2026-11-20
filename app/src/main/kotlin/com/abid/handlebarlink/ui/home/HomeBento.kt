@@ -93,7 +93,7 @@ internal fun HomeBento(
             verticalArrangement = Arrangement.spacedBy(spacing.s8),
         ) {
             BentoTopRow(state.link, actions.onSettings)
-            BentoBikeCard(state.rideData)
+            BentoBikeCard(state.rideData, Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard))
             if (state.rideData) BentoStats()
             CarPlayCard(state.carPlay)
             BentoDevices(state.device, actions)
@@ -149,14 +149,14 @@ internal fun BentoDevices(
 }
 
 /**
- * The bike card: name and details, the render, and the odometer once the meter reports it ([rideData]). Upright it
- * has the design's height; [fitted] (landscape) it fills [modifier]'s height and the bike shrinks to the room under
- * the name, so the two never overlap.
+ * The bike card: name and details, the render, and the odometer once the meter reports it ([rideData]). Upright the
+ * caller gives it the design's height ([HlSizes.heroCard]); [fitted] (landscape) it fills [modifier]'s height and the
+ * bike shrinks to the room under the name, so the two never overlap.
  */
 @Composable
 internal fun BentoBikeCard(
     rideData: Boolean,
-    modifier: Modifier = Modifier.fillMaxWidth().height(HlTheme.sizes.heroCard),
+    modifier: Modifier = Modifier,
     fitted: Boolean = false,
 ) {
     val spacing = HlTheme.spacing

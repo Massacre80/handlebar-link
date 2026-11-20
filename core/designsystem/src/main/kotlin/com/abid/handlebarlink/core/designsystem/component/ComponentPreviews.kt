@@ -222,24 +222,6 @@ private fun Everything() {
     }
 }
 
-/** The landscape tab rail on the second tab, beside a page edge. */
-@Composable
-internal fun Rail() {
-    HlTabRail(PreviewTabs, selected = 1, onSelect = {})
-}
-
-@Preview(name = "Night · tab rail", widthDp = 160, heightDp = 340)
-@Composable
-private fun NightRailPreview() {
-    Gallery(HlThemeVariant.NIGHT) { Rail() }
-}
-
-@Preview(name = "Bento · tab rail", widthDp = 160, heightDp = 340)
-@Composable
-private fun BentoRailPreview() {
-    Gallery(HlThemeVariant.BENTO) { Rail() }
-}
-
 @Preview(name = "Night · components", widthDp = 411, heightDp = 1900)
 @Composable
 private fun NightComponentsPreview() {

@@ -82,8 +82,8 @@ internal fun HomeBentoPanes(
 }
 
 /**
- * The two panes, equally wide, inside the page's frame (status bar, mirrored sides, then [contentPadding]: the
- * rail's room, and the navigation bar inside each pane). Each pane is set 16 dp in from the frame and 8 dp from the other; [bike]
+ * The two panes inside the page's frame (status bar, mirrored sides, then [contentPadding]: the
+ * rail's room, and the navigation bar inside each pane). The panes start 16 dp in from the frame, 16 dp apart; [bike]
  * fills the pane's height, [cards] scroll, [gap] apart. Neither pane draws under the status bar or the rail.
  */
 @Composable
@@ -95,8 +95,8 @@ private fun HomePanes(
 ) {
     val spacing = HlTheme.spacing
     // The bottom room (the navigation bar) goes inside each pane, so the cards scroll to the screen's edge and
-    // their shadows are not cut off above the navigation bar.
-    val bottom = contentPadding.calculateBottomPadding() + spacing.s16
+    // their shadows are not cut off above the navigation bar. 8 dp above and below, like the tab rail.
+    val bottom = contentPadding.calculateBottomPadding() + spacing.s8
     Row(
         Modifier
             .fillMaxSize()
@@ -105,8 +105,9 @@ private fun HomePanes(
             .padding(start = spacing.s16),
         horizontalArrangement = Arrangement.spacedBy(spacing.s16),
     ) {
-        Pane(Modifier.padding(bottom = bottom), content = bike)
+        Pane(1f, Modifier.padding(bottom = bottom), content = bike)
         Pane(
+            CARDS_WEIGHT,
             Modifier
                 .verticalScroll(rememberScrollState())
                 .padding(top = spacing.s8, bottom = bottom),
@@ -118,13 +119,20 @@ private fun HomePanes(
 
 @Composable
 private fun RowScope.Pane(
+    weight: Float,
     modifier: Modifier,
     verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
-        Modifier.weight(1f).fillMaxHeight().then(modifier),
+        Modifier.weight(weight).fillMaxHeight().then(modifier),
         verticalArrangement = verticalArrangement,
         content = content,
     )
 }
+
+/**
+ * The cards pane is a fifth wider than the bike's: the bike is fitted to whatever its pane leaves, while the cards'
+ * names need the width (Bento's "No intercom yet" was cut off in two equal panes beside the rail, 2026-11-20).
+ */
+private const val CARDS_WEIGHT = 1.2f
