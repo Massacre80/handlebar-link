@@ -132,20 +132,30 @@ internal class AirPlayReceiver(
     }
 
     /**
-     * One view area as DiPlay's `areaDict` writes it (AirPlayInfoPlist.kt:242-286) for a display without its own safe
-     * area: the rectangle, then a safe area of the same rectangle that lets CarPlay draw outside it
-     * (`drawUIOutsideSafeArea`, DiPlay's default true, AirPlayPersistence.kt:1456-1458).
+     * One view area as DiPlay's `areaDict` writes it (AirPlayInfoPlist.kt:242-286): the rectangle, then its safe
+     * area, the rectangle less the area's [CarPlayViewArea.safe] insets (the whole rectangle without them, as DiPlay's
+     * turning square), with `drawUIOutsideSafeArea` (DiPlay's default true, AirPlayPersistence.kt:1456-1458) so the
+     * wallpaper and maps still reach the area's edges.
      */
     private fun area(area: CarPlayViewArea): Plist {
-        val rectangle =
-            listOf(
+        val inset = area.safe
+        val safe =
+            linkedMapOf(
+                "widthPixels" to Plist.of(area.width - inset.left - inset.right),
+                "heightPixels" to Plist.of(area.height - inset.top - inset.bottom),
+                "originXPixels" to Plist.of(area.originX + inset.left),
+                "originYPixels" to Plist.of(area.originY + inset.top),
+                "drawUIOutsideSafeArea" to Plist.Bool(true),
+            )
+        return Plist.Dict(
+            linkedMapOf(
                 "widthPixels" to Plist.of(area.width),
                 "heightPixels" to Plist.of(area.height),
                 "originXPixels" to Plist.of(area.originX),
                 "originYPixels" to Plist.of(area.originY),
-            )
-        val safe = Plist.Dict((rectangle + ("drawUIOutsideSafeArea" to Plist.Bool(true))).toMap())
-        return Plist.Dict((rectangle + ("safeArea" to safe)).toMap())
+                "safeArea" to Plist.Dict(safe),
+            ),
+        )
     }
 
     companion object {

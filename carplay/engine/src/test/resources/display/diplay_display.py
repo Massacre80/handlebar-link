@@ -92,20 +92,24 @@ def negotiate(screen_long, screen_short, cutout, portrait, fps, takes):
                 initial=initial)
 
 
-def area_dict(w, h, area):  # AirPlayInfoPlist.kt:242-286, no display safe area, drawOutside true
+def area_dict(w, h, area, inset=(0, 0, 0, 0)):  # AirPlayInfoPlist.kt:242-286, drawOutside true
     if area is None:
         left = top = 0; right = bottom = 0
     else:
         left, top = 0, 0
         right, bottom = w - area[0], h - area[1]
     view = dict(widthPixels=w - left - right, heightPixels=h - top - bottom, originXPixels=left, originYPixels=top)
-    safe = dict(view)
+    # OURS, not DiPlay (its turning square drops the safe area, HOST:5124-5145): the area's own safe insets
+    # (l, t, r, b) shrink its safe area; (0, 0, 0, 0) is DiPlay's safe area, the whole area.
+    il, it, ir, ib = inset
+    safe = dict(widthPixels=view["widthPixels"] - il - ir, heightPixels=view["heightPixels"] - it - ib,
+                originXPixels=left + il, originYPixels=top + it)
     safe["drawUIOutsideSafeArea"] = True
     view["safeArea"] = safe
     return view
 
 
-def display_entry(n):  # AirPlayInfoPlist.kt:201-240
+def display_entry(n, insets=None):  # AirPlayInfoPlist.kt:201-240
     w, h = n["width"], n["height"]
     e = {
         "uuid": UUID, "type": 110, "maxFPS": snap_fps(n["fps"]),
@@ -115,7 +119,10 @@ def display_entry(n):  # AirPlayInfoPlist.kt:201-240
         "uiAppearanceMode": 0, "uiAppearanceSetting": 0, "mapAppearanceMode": 0, "mapAppearanceSetting": 0,
     }
     areas = n["areas"]
-    e["viewAreas"] = [area_dict(w, h, a) for a in areas] if areas else [area_dict(w, h, None)]
+    if insets:
+        e["viewAreas"] = [area_dict(w, h, a, i) for a, i in zip(areas, insets)]
+    else:
+        e["viewAreas"] = [area_dict(w, h, a) for a in areas] if areas else [area_dict(w, h, None)]
     e["initialViewArea"] = 0 if not areas else min(max(n["initial"], 0), len(areas) - 1)
     if areas and len(areas) > 1:
         e["viewAreaTransitionControl"] = True
@@ -178,3 +185,36 @@ for name, cw, ch, area, vw, vh, touches in [
     print(name, "content=(%r, %r, %r, %r)" % c, "bounds=%s" % (surface_bounds(c),))
     for (x, y) in touches:
         print("  touch(%r, %r) -> (%r, %r)" % ((x, y) + touch(c, x, y)))
+
+
+# OURS, not DiPlay: safe areas measured from the phone (app CarPlaySafeArea.kt, owner 2026-11-20), an independent
+# transcription of the rule. A rectangle inset by r(1 - 1/sqrt 2) has its corners on a rounded corner of radius r; the
+# bottom also clears the navigation bar's strip; upright, the top and bottom clear the cutout ends (on its side the window
+# already leaves the cutout strip out). Screen pixels scaled to the area per axis, rounded up, under a quarter side.
+def safe_insets(edges, portrait, window, area):
+    radius, cut_top, cut_bottom, navigation = edges
+    corner = math.ceil(radius * (1 - math.sqrt(0.5)))
+    top = max(cut_top, corner) if portrait else corner
+    bottom = max(cut_bottom if portrait else 0, navigation, corner)
+
+    def scaled(px, a, w):
+        return 0 if px <= 0 or w <= 0 else min(math.ceil(px * a / w), (a - 1) // 4)
+
+    return (scaled(corner, area[0], window[0]), scaled(top, area[1], window[1]),
+            scaled(corner, area[0], window[0]), scaled(bottom, area[1], window[1]))
+
+
+# The Poco F1 as Android reports it: corners 104 px (top; bottom 0), cutout 86 px at the top, navigation bar 63 px.
+POCO_EDGES = (104, 86, 0, 63)
+for name, portrait in [("poco-safe-landscape", False), ("poco-safe-portrait", True)]:
+    n = negotiate(2246, 1080, 86, portrait, 60, lambda s: s <= 2176)
+    land_window, port_window = (2246 - 86, 1080), (1080, 2246)
+    insets = [safe_insets(POCO_EDGES, False, land_window, n["areas"][0]),
+              safe_insets(POCO_EDGES, True, port_window, n["areas"][1])]
+    e = display_entry(n, insets)
+    data = plistlib.dumps(e, fmt=plistlib.FMT_BINARY, sort_keys=False)
+    print(name, "areas=%s" % n["areas"], "insets=%s" % insets, "initial=%d" % e["initialViewArea"],
+          "bytes=%d" % len(data))
+    if out:
+        with open(os.path.join(out, name + ".bplist"), "wb") as f:
+            f.write(data)

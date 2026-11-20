@@ -154,17 +154,44 @@ public data class CarPlayConfig(
  * A rectangle of the canvas CarPlay can draw in (DiPlay AirPlayViewArea, AirPlayConfig.kt:50-56): [width] x [height]
  * pixels with its top-left corner at [originX], [originY]. DiPlay anchors every area of a turning screen's square at
  * the canvas's top-left corner (CarPlayViewAreas.kt:197-200).
+ *
+ * [safe]: how far in from each of the area's edges CarPlay keeps its controls (the dock, buttons, lists), while its
+ * wallpaper and maps still fill the whole area: the area's `safeArea` with `drawUIOutsideSafeArea`
+ * (AirPlayInfoPlist.kt:263-283). The phone's own rounded corners, cutout and navigation bar go here, so nothing
+ * CarPlay draws to be touched sits under them. None leaves the safe area the whole area (DiPlay's turning square).
  */
 public data class CarPlayViewArea(
     val width: Int,
     val height: Int,
     val originX: Int = 0,
     val originY: Int = 0,
+    val safe: CarPlayInsets = CarPlayInsets.NONE,
 ) {
     internal fun fitsIn(
         canvasWidth: Int,
         canvasHeight: Int,
     ): Boolean =
         width > 0 && height > 0 && originX >= 0 && originY >= 0 &&
-            originX + width <= canvasWidth && originY + height <= canvasHeight
+            originX + width <= canvasWidth && originY + height <= canvasHeight &&
+            safe.fitsIn(width, height)
+}
+
+/** Distances in pixels in from the [left], [top], [right] and [bottom] edges of a rectangle. */
+public data class CarPlayInsets(
+    val left: Int = 0,
+    val top: Int = 0,
+    val right: Int = 0,
+    val bottom: Int = 0,
+) {
+    /** Whether these insets leave some of a [width] x [height] rectangle (none is negative). */
+    internal fun fitsIn(
+        width: Int,
+        height: Int,
+    ): Boolean = left >= 0 && top >= 0 && right >= 0 && bottom >= 0 && left + right < width && top + bottom < height
+
+    /** The insets everyone needs: none. */
+    public companion object {
+        /** No insets. */
+        public val NONE: CarPlayInsets = CarPlayInsets()
+    }
 }

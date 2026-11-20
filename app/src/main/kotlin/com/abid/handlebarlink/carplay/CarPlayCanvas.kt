@@ -5,6 +5,7 @@ import android.hardware.display.DisplayManager
 import android.view.Display
 import android.view.WindowManager
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
+import com.abid.handlebarlink.carplay.engine.CarPlayInsets
 import com.abid.handlebarlink.carplay.engine.CarPlayViewArea
 import com.abid.handlebarlink.carplay.engine.android.screenDecoderTakes
 import com.abid.handlebarlink.core.common.log.Logger
@@ -93,6 +94,10 @@ internal fun carPlayWindow(
  *    (CarPlayViewAreas.kt:191-192).
  * 6. Frame rate: the refresh rate in 30..60 (CarLink asks 60 of a decoder that carries it, PicturePolicy.kt:131); the
  *    engine snaps it to DiPlay's steps of 5.
+ * 7. Safe areas (ours, not DiPlay's: its turning square drops the safe area, CarPlayHostActivity.kt:5124-5145, so
+ *    CarLink draws the dock into the corners and under the navigation handle): each area keeps CarPlay's controls
+ *    clear of the phone's [edges] in that area's orientation ([safeInsets]); the plain canvas then declares its one
+ *    area to carry it.
  */
 @Suppress("LongParameterList") // The screen's measured facts and the decoder's answer, each one input of the rules.
 internal fun carPlayCanvas(
@@ -103,6 +108,7 @@ internal fun carPlayCanvas(
     cutout: Int = 0,
     decoderTakes: (side: Int) -> Boolean = { true },
     base: CarPlayConfig = CarPlayConfig(),
+    edges: ScreenEdges = ScreenEdges.NONE,
 ): CarPlayConfig {
     val landscape = carPlayWindow(screenWidth, screenHeight, CarPlayOrientation.LANDSCAPE, cutout)
     val portrait = carPlayWindow(screenWidth, screenHeight, CarPlayOrientation.PORTRAIT, cutout)
@@ -114,22 +120,27 @@ internal fun carPlayCanvas(
     val widthMm = REFERENCE_WIDTH_MM * (width.toDouble() / maximumWidth)
     val heightMm = widthMm * height / width
     val fps = refreshRate.toInt().coerceIn(MIN_FPS, MAX_FPS)
-    val side =
-        squareSide(max(width, height), decoderTakes)
-            ?: return base.copy(
-                widthPixels = width,
-                heightPixels = height,
-                widthMillimetres = reportedMm(widthMm),
-                heightMillimetres = reportedMm(heightMm),
-                maxFps = fps,
-                viewAreas = emptyList(),
-                initialViewArea = 0,
-            )
+    val side = squareSide(max(width, height), decoderTakes)
+    if (side == null) {
+        val whole = CarPlayViewArea(width, height)
+        val safe = safeInsets(edges, orientation, window, whole)
+        return base.copy(
+            widthPixels = width,
+            heightPixels = height,
+            widthMillimetres = reportedMm(widthMm),
+            heightMillimetres = reportedMm(heightMm),
+            maxFps = fps,
+            viewAreas = if (safe == CarPlayInsets.NONE) emptyList() else listOf(whole.copy(safe = safe)),
+            initialViewArea = 0,
+        )
+    }
     val squareMm = if (width >= height) reportedMm(widthMm) else reportedMm(heightMm)
+    val wide = CarPlayViewArea(side, evenDown(side.toLong() * landscape.height / landscape.width))
+    val tall = CarPlayViewArea(evenDown(side.toLong() * portrait.width / portrait.height), side)
     val areas =
         listOf(
-            CarPlayViewArea(side, evenDown(side.toLong() * landscape.height / landscape.width)),
-            CarPlayViewArea(evenDown(side.toLong() * portrait.width / portrait.height), side),
+            wide.copy(safe = safeInsets(edges, CarPlayOrientation.LANDSCAPE, landscape, wide)),
+            tall.copy(safe = safeInsets(edges, CarPlayOrientation.PORTRAIT, portrait, tall)),
         )
     return base.copy(
         widthPixels = side,
@@ -210,11 +221,12 @@ fun interface CanvasOrientation {
 /**
  * Measures this phone's screen for [carPlayCanvas]: the default display's largest window
  * (`WindowManager.getMaximumWindowMetrics` through a window context, the documented way for a non-activity context:
- * Media projection guide, "Media projection size"), its cutout (`Display.getCutout`) and refresh rate, and asks the
- * screen decoder which square it takes ([screenDecoderTakes], once per side). The engine calls [config] at the start of
- * each connection attempt on its own thread (createCarPlayLink); the screen is measured once per process, on that first
- * call, never while Hilt builds objects (docs/LESSONS.md 60). The orientation is the one the coordinator last chose
- * ([use]); [reported] is the canvas the last attempt told the iPhone, for the CarPlay display.
+ * Media projection guide, "Media projection size"), its cutout (`Display.getCutout`) and refresh rate, the parts
+ * CarPlay's controls must stay out of (rounded corners, cutout ends, navigation bar: [screenEdges] from that window's
+ * insets), and asks the screen decoder which square it takes ([screenDecoderTakes], once per side). The engine calls
+ * [config] at the start of each connection attempt on its own thread (createCarPlayLink); the screen is measured once
+ * per process, on that first call, never while Hilt builds objects (docs/LESSONS.md 60). The orientation is the one the
+ * coordinator last chose ([use]); [reported] is the canvas the last attempt told the iPhone, for the CarPlay display.
  */
 @Singleton
 class CarPlayCanvas
@@ -250,13 +262,16 @@ class CarPlayCanvas
             val height: Int,
             val cutout: Int,
             val refresh: Float,
+            val edges: ScreenEdges,
         )
 
         private fun measure(): Screen {
             val displays = context.getSystemService(DisplayManager::class.java)
             val display = checkNotNull(displays.getDisplay(Display.DEFAULT_DISPLAY))
             val window = context.createWindowContext(display, WindowManager.LayoutParams.TYPE_APPLICATION, null)
-            val bounds = window.getSystemService(WindowManager::class.java).maximumWindowMetrics.bounds
+            val metrics = window.getSystemService(WindowManager::class.java).maximumWindowMetrics
+            val bounds = metrics.bounds
+            val edges = screenEdges(metrics.windowInsets, display.rotation)
             val cut = display.cutout
             val cutout =
                 if (cut == null) {
@@ -276,8 +291,11 @@ class CarPlayCanvas
                 "screen" to "${bounds.width()}x${bounds.height()}",
                 "cutout" to cutout,
                 "refresh" to display.refreshRate,
+                "corner" to edges.cornerRadius,
+                "cutoutEnds" to "${edges.cutoutTop}/${edges.cutoutBottom}",
+                "navigationBar" to edges.navigationBar,
             )
-            return Screen(bounds.width(), bounds.height(), cutout, display.refreshRate)
+            return Screen(bounds.width(), bounds.height(), cutout, display.refreshRate, edges)
         }
 
         /**
@@ -297,6 +315,7 @@ class CarPlayCanvas
                     orientation,
                     screen.cutout,
                     decoderTakes = { side -> squares.getOrPut(side) { screenDecoderTakes(side, side) } },
+                    edges = screen.edges,
                 )
             val window = carPlayWindow(screen.width, screen.height, orientation, screen.cutout)
             val area = config.startViewArea
@@ -306,6 +325,7 @@ class CarPlayCanvas
                 "negotiated" to "${config.widthPixels}x${config.heightPixels}",
                 "viewArea" to "${config.initialViewArea}:${area.width}x${area.height}+${area.originX}+${area.originY}",
                 "areas" to config.viewAreas.joinToString(",") { "${it.width}x${it.height}" }.ifEmpty { "none" },
+                "safe" to area.safe.let { "${it.left},${it.top},${it.right},${it.bottom}" },
                 "mm" to "${config.widthMillimetres}x${config.heightMillimetres}",
                 "fps" to config.maxFps,
                 "orientation" to orientation,

@@ -4,6 +4,7 @@ import assertk.assertThat
 import assertk.assertions.isEqualTo
 import assertk.assertions.isNull
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
+import com.abid.handlebarlink.carplay.engine.CarPlayInsets
 import com.abid.handlebarlink.carplay.engine.CarPlayViewArea
 import com.abid.handlebarlink.carplay.protocol.plist.BinaryPlistWriter
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
@@ -83,6 +84,31 @@ class MainDisplayTest {
                 (checkNotNull(info.array("displays")).single() as Plist.Dict).long("maxFPS")
             }
         assertThat(reported).isEqualTo(listOf(50L, 55L, 55L, 60L))
+    }
+
+    @Test
+    fun `each area's safe insets shrink its safe area, which still lets CarPlay draw outside it`() {
+        // diplay_display.py (ours, after DiPlay): poco-safe-landscape areas=[(1920, 960), (922, 1920)]
+        // insets=[(28, 28, 28, 56), (27, 74, 27, 54)] initial=0; poco-safe-portrait the same with initial=1, 312 mm.
+        val config =
+            POCO_LANDSCAPE.copy(
+                viewAreas =
+                    listOf(
+                        CarPlayViewArea(1920, 960, safe = CarPlayInsets(28, 28, 28, 56)),
+                        CarPlayViewArea(922, 1920, safe = CarPlayInsets(27, 74, 27, 54)),
+                    ),
+            )
+        assertThat(display(config).toHex()).isEqualTo(golden("poco-safe-landscape").toHex())
+        val portrait = config.copy(widthMillimetres = 312, heightMillimetres = 312, initialViewArea = 1)
+        assertThat(display(portrait).toHex()).isEqualTo(golden("poco-safe-portrait").toHex())
+    }
+
+    @Test
+    fun `safe insets that leave no room are refused`() {
+        val wide = CarPlayViewArea(1920, 960, safe = CarPlayInsets(left = 960, right = 960))
+        assertThat(runCatching { POCO_LANDSCAPE.copy(viewAreas = listOf(wide)) }.isFailure).isEqualTo(true)
+        val negative = CarPlayViewArea(1920, 960, safe = CarPlayInsets(top = -1))
+        assertThat(runCatching { POCO_LANDSCAPE.copy(viewAreas = listOf(negative)) }.isFailure).isEqualTo(true)
     }
 
     private companion object {
