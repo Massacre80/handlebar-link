@@ -52,14 +52,14 @@ fun CarPlayCardBento() = Gallery(HlThemeVariant.BENTO) { CarPlayStates() }
 @PreviewTest
 @FontScales
 @Composable
-fun InstrumentCardNight(
+internal fun InstrumentCardNight(
     @PreviewParameter(InstrumentSamples::class) sample: InstrumentSample,
 ) = Gallery(HlThemeVariant.NIGHT) { InstrumentState(sample) }
 
 @PreviewTest
 @FontScales
 @Composable
-fun InstrumentCardBento(
+internal fun InstrumentCardBento(
     @PreviewParameter(InstrumentSamples::class) sample: InstrumentSample,
 ) = Gallery(HlThemeVariant.BENTO) { InstrumentState(sample) }
 
