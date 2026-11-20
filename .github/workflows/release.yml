@@ -14,13 +14,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      HL_KEYSTORE_PATH: ${{ runner.temp }}/handlebarlink.jks
       HL_KEYSTORE_PASSWORD: ${{ secrets.HL_KEYSTORE_PASSWORD }}
       HL_KEY_ALIAS: ${{ secrets.HL_KEY_ALIAS }}
       HL_KEY_PASSWORD: ${{ secrets.HL_KEY_PASSWORD }}
       HL_KEYSTORE_B64: ${{ secrets.HL_KEYSTORE_B64 }}
       HL_MFI_B64: ${{ secrets.HL_MFI_B64 }}
-      HL_MFI_DIR: ${{ runner.temp }}/carplay-mfi
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -35,6 +33,9 @@ jobs:
           done
 
       - name: Decode signing key and CarPlay identity (never written to the repo)
+        env:
+          HL_KEYSTORE_PATH: ${{ runner.temp }}/handlebarlink.jks
+          HL_MFI_DIR: ${{ runner.temp }}/carplay-mfi
         run: |
           printf '%s' "$HL_KEYSTORE_B64" | base64 --decode > "$HL_KEYSTORE_PATH"
           chmod 600 "$HL_KEYSTORE_PATH"
@@ -53,6 +54,9 @@ jobs:
           cache-provider: basic
 
       - name: Check and build signed release
+        env:
+          HL_KEYSTORE_PATH: ${{ runner.temp }}/handlebarlink.jks
+          HL_MFI_DIR: ${{ runner.temp }}/carplay-mfi
         run: >-
           ./gradlew check assembleRelease --console=plain
           -Pcarplay.mfi.dir="$HL_MFI_DIR/offline-mfi"
