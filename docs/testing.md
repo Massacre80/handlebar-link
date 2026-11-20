@@ -112,7 +112,8 @@ with an on-device check (`docs/research/02-ble-connection.md` §6.5).
   connecting at the artboard and font 1.5, and Home's card connecting at the artboard; then +35 with the CarPlay flow v2: the tab not set
   up at the nine sizes and font 1.5, connecting, connected and Wi-Fi off at the artboard and font 1.5, the switch off
   at the artboard; in-app iPhone pairing and the iPhone sheet in `CarPlayScreenshots.kt`, 25 images; then +39 for the
-landscape layout, `LandscapeScreenshots.kt`: 13 pages at `@Landscape`'s 914 x 411, 817 x 393 and 817 x 393 at font 1.5;
+landscape layout, `LandscapeScreenshots.kt`: 13 pages at `@Landscape`'s 914 x 411, 817 x 393 and 817 x 393 at font 1.5,
+then +21 for 7 more (setup Linking/Done, pairing steps/Waiting/Paired, Devices, Garage);
 the design system +4 for the tab rail). References are recorded and verified on Linux CI only (lesson 26); `check` verifies them when
   `CI=true`. After an intended visual change:
   1. render the previews locally and look (`android preview render ...`);

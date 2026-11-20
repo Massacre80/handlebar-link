@@ -130,8 +130,11 @@ approved; landscape gets its own arrangement, decided once in `AppRoot` and read
   or heading in the first pane, the step's words and actions in the second; Find my bike and Make visible stay under
   the heading so they are on screen), the CarPlay tab (dial, tag, title, detail | actions and the status rows), the
   Handlebar page (`SubPagePanes`: the switch as large as the pane's height allows | situations, keys, reset).
-  Single-column pages (Devices, Rides, Garage, Settings and its pages, Add device) keep the 600 dp column, centred in
-  the space left by the mirrored sides and the rail. Sheets keep their centred 600 dp width.
+  The tab pages (Devices, Rides, Garage) fill the frame like Home (the same margins as Home's cards); Settings and
+  its pages and Add device keep the 600 dp column, centred in the space left by the mirrored sides and the rail.
+  Sheets keep their centred 600 dp width. Setup, pairing and Handlebar share one margin (`setupSides`: 24 dp on its
+  side) and their panes scroll to the screen edge. The switch photo is never drawn past its own 1024 px
+  (`diagramSide`), and its callouts frost it (`glassBlur`, the cards' glass).
 - **The bike never overlaps the header:** the header has its own band and the bike fits the space left (whole, not
   cropped); the Handlebar card is no longer laid over the bike (it showed the bike through its unblurred glass), and the
   switch photo on the Handlebar page is no longer blown up to 570 dp (1024 px source).
