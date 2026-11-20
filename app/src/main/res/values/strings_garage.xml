@@ -26,9 +26,9 @@
     <string name="garage_intro_service">Service</string>
     <string name="garage_intro_service_detail">When it’s due, by date or by km</string>
     <string name="garage_intro_papers">Papers</string>
-    <string name="garage_intro_papers_detail">Insurance, PUC and RC, before they run out</string>
+    <string name="garage_intro_papers_detail">Insurance, PUC and RC</string>
     <string name="garage_intro_own">Your own reminders</string>
-    <string name="garage_intro_own_detail">Tyres, chain, anything you’d rather not forget</string>
+    <string name="garage_intro_own_detail">Tyres, chain, anything else</string>
 
     <!-- Short names for the hero's tag -->
     <string name="garage_short_insurance">Insurance</string>
@@ -106,7 +106,7 @@
         <item quantity="other">You entered it %d days ago</item>
     </plurals>
     <string name="garage_colourway">Colourway</string>
-    <string name="garage_colourway_detail">The bike on Home and here</string>
+    <string name="garage_colourway_detail">On Home and here</string>
     <string name="garage_meter">Meter</string>
     <string name="garage_linked">Linked</string>
     <string name="garage_not_linked">Not linked</string>
