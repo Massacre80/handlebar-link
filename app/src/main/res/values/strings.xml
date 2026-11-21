@@ -454,7 +454,7 @@
     <string name="mode_not_designed">Not designed yet for %1$s</string>
     <string name="settings_permissions_all">All allowed</string>
     <string name="settings_permissions_some">Allowed: %1$d of %2$d</string>
-    <string name="settings_permissions_detail">Nearby devices, notifications, BikePlay and two Android settings</string>
+    <string name="settings_permissions_detail">Nearby devices, notifications, BikePlay, the bike\'s location and two Android settings</string>
     <string name="permissions_intro">What the app may use, and why. Tap one that is not allowed yet.</string>
     <string name="theme_night">Night</string>
     <string name="theme_night_detail">Dark, your bike as the hero, glass cards</string>
