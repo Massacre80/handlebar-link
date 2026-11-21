@@ -131,7 +131,7 @@ stack as a full page without the tab bar. Tabs without a feature show an empty p
   nothing does: our BLE scan and the pairing page's classic discovery use `BLUETOOTH_SCAN` with `neverForLocation`,
   companion-device pairing "doesn't require location permissions" (bt-permissions; it needs Location *services* on,
   `SetupProblem.LOCATION_OFF`, which reads a setting and needs no permission), and nothing calls `discoverPeers`,
-  `requestPeers`, Wi-Fi scans or a location provider (CarPlay's GPS forwarding to the iPhone: building, see "C6 location").
+  `requestPeers`, Wi-Fi scans or a location provider (CarPlay's GPS forwarding to the iPhone: built, device test open, see "C6 location").
 - The tab bar and rail hold four tabs; on the Poco and the emulator on their side each rail tab is now the bar's tab
   turned on its side (74 dp, `RailGapTest`).
 
@@ -1095,7 +1095,7 @@ the iPhone's `/command disableBluetooth`; we declined the tunnel and kept iAP2 a
 - **Unverified on the device:** that the iPhone completes identification and authentication over our tunnel, and
   whether the iPhone's internet then behaves as on CarLink.
 
-### C6 location: the bike's GPS to the iPhone (2026-11-21, building; worktree `carplay-location`)
+### C6 location: the bike's GPS to the iPhone (2026-11-21, built; device test open; worktree `carplay-location`)
 
 Why (ride, owner 2026-11-21): with the iPhone in a pocket, only the **map position** lagged — "very very late",
 long freezes then big jumps — while the map image, music and streaming (all over Wi-Fi) were flawless. A pocketed
@@ -1114,14 +1114,14 @@ makes the bike the source.
   bearing. `CarPlayLocationFix` requires the sample's own timestamp (no clock read in the engine).
 - **Identification:** the Bluetooth bootstrap forces location off (as DiPlay, B-iap2-messages.md:129); only the
   tunnel's identification declares the location capability, and adds `0xFFFA`/`0xFFFC` received and `0xFFFB` sent.
-- **The reporter** (next, `:carplay:engine`, as DiPlay `Iap2LocationReporter`): start on `0xFFFA` (its params are the
+- **The reporter** (`:carplay:engine` `session/LocationReporter.kt`, as DiPlay `Iap2LocationReporter`): start on `0xFFFA` (its params are the
   sentence types the iPhone wants), send the latest fix once a second as `0xFFFB`, stop on `0xFFFC`, a disconnect or a
   lost permission. The subscription belongs to the link: a request on Bluetooth never authorises output on the tunnel.
-- **The GPS source** (`:app`/`:carplay:engine-android`): the Poco's own fix from the platform location APIs at ~1 Hz,
-  only while BikePlay is connected and the permission is held; off otherwise (no background location).
-- **Permission:** an **optional** `LOCATION` row on Settings > Permissions (`ACCESS_FINE_LOCATION`, uncapped from its
-  Android-12 Wi-Fi-Direct cap), in Allow all, **not** in `carPlayPermissions()` so it never blocks BikePlay. Owner's
-  call (2026-11-21): no separate screen or toggle, the grant is the switch; the row appears only once forwarding works.
+- **The GPS source** (`:carplay:engine-android` `location/AndroidLocationPort.kt`): the Poco's own fix from the
+  platform location APIs at 1 Hz, only between the iPhone's 0xFFFA/0xFFFC; off otherwise (no background location).
+- **Permission:** an **optional** `LOCATION` row on Settings > Permissions (`ACCESS_FINE_LOCATION` with `COARSE`,
+  uncapped from the Android-12 Wi-Fi-Direct cap; declared in the app and engine-android manifests, lesson 130), in
+  Allow all, **not** in `carPlayPermissions()` so it never blocks BikePlay. Owner (2026-11-21): the grant is the switch.
 - **Privacy:** the location only ever goes to the rider's own paired iPhone; the Poco has no internet, so it never
   leaves the bike. Nothing is logged but coarse rates and counts, never a coordinate.
 - **Unverified until the device:** that the iPhone fuses/uses the accessory fix and the pocketed-phone lag goes; the
