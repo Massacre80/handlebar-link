@@ -24,6 +24,13 @@
     <uses-permission
         android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" />
+    <!-- The bike's own GPS, forwarded to the iPhone (C6 location, AndroidLocationPort): the Poco reads its fix and
+         streams it so the iPhone navigates off the bike, not a pocketed phone. Optional; without the grant the port
+         forwards nothing and the iPhone uses its own GPS. The app declares it uncapped and asks for it as the
+         optional "Bike location" permission. Approximate goes with precise (CoarseFineLocation; the rider may grant
+         only approximate, and Android 12 ignores a precise-only request). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Siri's and calls' microphone (docs/PLAN.md C5). Without the grant /info offers no microphone. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <!-- MODE_IN_COMMUNICATION and the loudspeaker for CarPlay calls (AudioManager.setMode,

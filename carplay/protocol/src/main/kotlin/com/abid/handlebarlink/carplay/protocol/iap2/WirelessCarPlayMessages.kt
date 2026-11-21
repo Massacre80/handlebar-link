@@ -168,8 +168,20 @@ public object WirelessCarPlayMessages {
         bluetoothMac: ByteArray,
         ssid: String,
         omitted: Set<Int> = emptySet(),
+        location: Boolean = false,
     ): Iap2Message {
         require(bluetoothMac.size == 6) { "Bluetooth MAC must be 6 bytes" }
+        // Location forwarding is offered only on the Wi-Fi tunnel (DiPlay forces it off on the Bluetooth bootstrap,
+        // B-iap2-messages.md:129): then the accessory sends 0xFFFB and accepts 0xFFFA/0xFFFC (LocationMessages).
+        val sent = if (location) MESSAGES_SENT + LocationMessages.LOCATION_INFORMATION else MESSAGES_SENT
+        val received =
+            if (location) {
+                MESSAGES_RECEIVED +
+                    LocationMessages.START_LOCATION_INFORMATION +
+                    LocationMessages.STOP_LOCATION_INFORMATION
+            } else {
+                MESSAGES_RECEIVED
+            }
         return iap2Message(Iap2MessageId.IDENTIFICATION_INFORMATION) {
             string(0, identity.name)
             string(1, identity.model)
@@ -177,8 +189,8 @@ public object WirelessCarPlayMessages {
             string(3, identity.serialNumber)
             string(4, identity.firmwareVersion)
             string(5, identity.hardwareVersion)
-            u16List(6, MESSAGES_SENT - omitted)
-            u16List(7, MESSAGES_RECEIVED - omitted)
+            u16List(6, sent - omitted)
+            u16List(7, received - omitted)
             u8(8, 0) // power providing capability: none on wireless
             u16(9, 20) // maximum current drawn from the device, as DiPlay
             group(10) {

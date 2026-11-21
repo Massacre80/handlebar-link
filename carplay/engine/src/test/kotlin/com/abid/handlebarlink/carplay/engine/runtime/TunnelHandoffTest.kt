@@ -6,6 +6,7 @@ package com.abid.handlebarlink.carplay.engine.runtime
 import assertk.assertThat
 import assertk.assertions.contains
 import assertk.assertions.containsExactly
+import assertk.assertions.doesNotContain
 import assertk.assertions.hasSize
 import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
@@ -27,6 +28,7 @@ import com.abid.handlebarlink.carplay.protocol.crypto.Ed25519KeyPair
 import com.abid.handlebarlink.carplay.protocol.crypto.Hkdf
 import com.abid.handlebarlink.carplay.protocol.crypto.X25519KeyPair
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2Message
+import com.abid.handlebarlink.carplay.protocol.iap2.LocationMessages
 import com.abid.handlebarlink.carplay.protocol.iap2.iap2Message
 import com.abid.handlebarlink.carplay.protocol.plist.BinaryPlistReader
 import com.abid.handlebarlink.carplay.protocol.plist.Plist
@@ -251,7 +253,7 @@ class TunnelHandoffTest {
         }
 
     @Test
-    fun `the tunnel identifies like Bluetooth, and disableBluetooth then closes the Bluetooth bootstrap`() =
+    fun `the tunnel identifies with location, and disableBluetooth then closes the Bluetooth bootstrap`() =
         runTest(timeout = TEST_TIMEOUT) {
             val link = started()
             val phone = connected()
@@ -266,8 +268,13 @@ class TunnelHandoffTest {
             assertThat(events("carplay.iap2.tunnel.ready").single().fields).containsExactly("handoffRequested" to false)
             assertThat(events("carplay.handoff.bluetooth_closed").single().fields)
                 .containsExactly("after_request_ms" to 0L, "was_open" to true, "from" to "BLUETOOTH")
-            // One implementation: the tunnel sent the very identification Bluetooth did.
-            assertThat(ready.identification.encode().toHex()).isEqualTo(phone.identification.encode().toHex())
+            // C6 location: the tunnel identification is the Bluetooth one plus the location messages (0xFFFB sent,
+            // 0xFFFA/0xFFFC received); the Bluetooth bootstrap never advertises them.
+            assertThat(ready.identification.parameter(6)!!.u16List()).contains(LocationMessages.LOCATION_INFORMATION)
+            assertThat(ready.identification.parameter(7)!!.u16List())
+                .contains(LocationMessages.START_LOCATION_INFORMATION)
+            assertThat(phone.identification.parameter(6)!!.u16List())
+                .doesNotContain(LocationMessages.LOCATION_INFORMATION)
             assertThat(events("carplay.handoff.fallback")).isEmpty()
         }
 

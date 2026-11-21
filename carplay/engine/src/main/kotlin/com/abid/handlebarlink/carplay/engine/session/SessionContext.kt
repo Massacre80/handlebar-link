@@ -4,6 +4,7 @@ import com.abid.handlebarlink.carplay.engine.CarPlayConfig
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
 import com.abid.handlebarlink.carplay.engine.spi.CarPlayPorts
+import com.abid.handlebarlink.carplay.engine.spi.LocationPort
 import com.abid.handlebarlink.carplay.engine.spi.MicrophoneOffer
 import com.abid.handlebarlink.carplay.engine.spi.NetworkPort
 import com.abid.handlebarlink.carplay.engine.spi.TcpConnection
@@ -50,6 +51,7 @@ internal class SessionPlatform(
     val sessions: ActiveSession get() = handoff.sessions
 
     val network: NetworkPort get() = ports.network
+    val location: LocationPort get() = ports.location
     val cipherName: String get() = ports.cipherName
     val media: MediaFactory get() = plugins.media
     val touches: TouchInput get() = plugins.touches

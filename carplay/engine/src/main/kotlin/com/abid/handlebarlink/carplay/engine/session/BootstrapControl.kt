@@ -2,11 +2,13 @@ package com.abid.handlebarlink.carplay.engine.session
 
 import com.abid.handlebarlink.carplay.engine.CarPlayError
 import com.abid.handlebarlink.carplay.engine.CarPlayException
+import com.abid.handlebarlink.carplay.engine.spi.LocationPort
 import com.abid.handlebarlink.carplay.protocol.iap2.AccessoryIdentity
 import com.abid.handlebarlink.carplay.protocol.iap2.CallStateUpdate
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2Message
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2MessageId
 import com.abid.handlebarlink.carplay.protocol.iap2.Iap2ProtocolException
+import com.abid.handlebarlink.carplay.protocol.iap2.LocationMessages
 import com.abid.handlebarlink.carplay.protocol.iap2.StartSession
 import com.abid.handlebarlink.carplay.protocol.iap2.WirelessCarPlayMessages
 import com.abid.handlebarlink.carplay.protocol.mfi.MfiIdentity
@@ -14,6 +16,9 @@ import com.abid.handlebarlink.core.common.log.Logger
 import com.abid.handlebarlink.core.common.time.TimeProvider
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /** What the bootstrap tells the iPhone. */
@@ -56,6 +61,10 @@ internal class BootstrapControl(
     private val milestones: BootstrapMilestones,
     /** Where the iPhone's CallStateUpdates go. */
     private val calls: CallStates,
+    /** Whether this link offers the bike's GPS (the Wi-Fi tunnel does; the Bluetooth bootstrap does not). */
+    private val location: Boolean = false,
+    /** The bike's GPS source, read while the iPhone is subscribed (only meaningful when [location]). */
+    private val locationPort: LocationPort = LocationPort.NONE,
 ) {
     private val firstStartSession = CompletableDeferred<Unit>()
     private var lastStartSessionAt = 0L
@@ -124,8 +133,24 @@ internal class BootstrapControl(
         WirelessCarPlayMessages.subscriptions().forEach { channel.send(it) }
     }
 
-    /** Answers the iPhone until the link ends. */
-    suspend fun serve(): Nothing {
+    /** Answers the iPhone until the link ends. On the tunnel, a child pump sends the bike's GPS while subscribed. */
+    suspend fun serve(): Nothing =
+        coroutineScope {
+            val reporter = LocationReporter(locationPort, log)
+            // The tunnel's GPS tick: while the iPhone is subscribed, send the latest fix about once a second
+            // (DiPlay's POLL_INTERVAL_MILLIS). channel.send is mutex-guarded, so it is safe beside the answer loop.
+            if (location) {
+                launch {
+                    while (true) {
+                        delay(LOCATION_POLL_MILLIS)
+                        reporter.latest()?.let { channel.send(it) }
+                    }
+                }
+            }
+            answer(reporter)
+        }
+
+    private suspend fun answer(reporter: LocationReporter): Nothing {
         val offers = WifiOffers()
         var startSessions = 0
         while (true) {
@@ -152,6 +177,12 @@ internal class BootstrapControl(
 
                 CallStateUpdate.MESSAGE_ID -> {
                     calls.accept(message)
+                }
+
+                LocationMessages.START_LOCATION_INFORMATION,
+                LocationMessages.STOP_LOCATION_INFORMATION,
+                -> {
+                    reporter.handle(message)
                 }
 
                 else -> {
@@ -203,6 +234,7 @@ internal class BootstrapControl(
             setup.bluetoothMac,
             setup.startSession.network.ssid,
             omitted,
+            location = location,
         )
 
     private fun response(request: Iap2Message): Iap2Message {
@@ -257,6 +289,9 @@ internal class BootstrapControl(
         /** AllPlay kAirPlayRetryMs and kAirPlayRetryMax (wireless_client.cpp:66-70). */
         const val NUDGE_AFTER = 3_000L
         const val MAX_NUDGES = 2
+
+        /** How often the tunnel sends the latest fix while the iPhone is subscribed (DiPlay's POLL_INTERVAL_MILLIS). */
+        const val LOCATION_POLL_MILLIS = 1_000L
 
         fun hex(id: Int) = "0x%04X".format(id)
     }

@@ -23,6 +23,7 @@ internal class AllAccess(
             overlay = this[SettingsPermission.OVERLAY].status,
             brightness = this[SettingsPermission.BRIGHTNESS].status,
             carPlay = this[SettingsPermission.CARPLAY].status,
+            location = this[SettingsPermission.LOCATION].status,
         )
 }
 

@@ -83,7 +83,16 @@ internal class IapTunnel(
             val channel = Iap2Channel(stream, context.platform.time, context.log, Iap2Channel.TUNNEL, link)
             launch { channel.run() }
             val control =
-                BootstrapControl(channel, setup, context.platform.time, context.log, NO_MILESTONES, handoff.calls)
+                BootstrapControl(
+                    channel,
+                    setup,
+                    context.platform.time,
+                    context.log,
+                    NO_MILESTONES,
+                    handoff.calls,
+                    location = true,
+                    locationPort = context.platform.location,
+                )
             // DiPlay runs the tunnel client without an overall limit, but each step within 5 min
             // (Iap2WirelessControlClient.kt:50-54, WirelessControlDeadline MAX_POLL_MILLIS :411-413), so a stalled
             // tunnel ends instead of becoming ready at some arbitrary moment much later.
