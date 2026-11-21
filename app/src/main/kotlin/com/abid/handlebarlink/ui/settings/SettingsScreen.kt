@@ -128,13 +128,25 @@ private fun BikeSection(
     actions: SettingsActions,
 ) {
     HlSection(stringResource(R.string.settings_bike)) {
-        val meters = state.meters
+        // The chosen bike is always shown, even when the paired-meter scan misses it: a bonded BLE meter keeps a
+        // null name, so a re-adopted meter (from its companion-device association) is not in [state.meters].
+        val bike = state.bike
+        val meters =
+            (state.meters ?: emptyList()).let {
+                if (bike != null &&
+                    it.none { m -> m.address == bike.address }
+                ) {
+                    it + bike
+                } else {
+                    it
+                }
+            }
         when {
-            nearby != Access.GRANTED -> {
+            meters.isEmpty() && nearby != Access.GRANTED -> {
                 HlValueRow(stringResource(R.string.bike_needs_nearby), hint = null, container = Color.Transparent)
             }
 
-            meters.isNullOrEmpty() -> {
+            meters.isEmpty() -> {
                 HlValueRow(
                     stringResource(R.string.bike_none_paired),
                     hint = stringResource(R.string.bike_pair_hint),
