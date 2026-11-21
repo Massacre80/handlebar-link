@@ -479,6 +479,8 @@
     </plurals>
     <string name="permission_carplay">BikePlay</string>
     <string name="permission_carplay_why">Bluetooth, Wi-Fi Direct and the local network to your iPhone, and the microphone for Siri and calls. Nothing is located with it</string>
+    <string name="permission_location">Bike location</string>
+    <string name="permission_location_why">Sends the bike\'s GPS to your iPhone, so the map keeps up while your phone is in a pocket</string>
     <string name="permission_brightness">Modify system settings</string>
     <string name="permission_brightness_why">Only for screen brightness: lets the handlebar make the screen brighter or dimmer</string>
     <string name="access_granted">Allowed</string>

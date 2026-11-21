@@ -51,6 +51,8 @@ data class SettingsAccess(
     val brightness: Access,
     /** CarPlay's Bluetooth, Wi-Fi Direct, local network and microphone. */
     val carPlay: Access,
+    /** The bike's GPS, forwarded to the iPhone (optional). */
+    val location: Access,
 )
 
 /** Settings' actions. */
@@ -181,7 +183,7 @@ internal val PreviewSettings =
 
 /** Sample access for previews and screenshot tests: one of each status. */
 internal val PreviewAccess =
-    SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK, Access.ASK)
+    SettingsAccess(Access.GRANTED, Access.ASK, Access.BLOCKED, Access.ASK, Access.ASK, Access.ASK)
 
 /** Actions that do nothing, for previews and screenshot tests. */
 internal val NoActions = SettingsActions({}, {}, {}, {}, {}, {})

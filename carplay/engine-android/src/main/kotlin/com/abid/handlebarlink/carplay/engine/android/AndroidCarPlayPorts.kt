@@ -16,6 +16,7 @@ import com.abid.handlebarlink.carplay.engine.android.credentials.AndroidCredenti
 import com.abid.handlebarlink.carplay.engine.android.credentials.AssetMfiSource
 import com.abid.handlebarlink.carplay.engine.android.credentials.FilePairingStore
 import com.abid.handlebarlink.carplay.engine.android.credentials.IdentityStore
+import com.abid.handlebarlink.carplay.engine.android.location.AndroidLocationPort
 import com.abid.handlebarlink.carplay.engine.android.net.AndroidNetworkPort
 import com.abid.handlebarlink.carplay.engine.android.wifi.AndroidWifiDirectPort
 import com.abid.handlebarlink.carplay.engine.android.wifi.StableNetworks
@@ -74,6 +75,7 @@ public fun createAndroidCarPlayPorts(
         screen = screen.port,
         audio = AndroidAudioPort(audio),
         microphone = AndroidMicrophonePort(audio),
+        location = AndroidLocationPort(platform, logger),
         cipherName = ChaCha20Poly1305.Transformation.ANDROID,
     )
 }

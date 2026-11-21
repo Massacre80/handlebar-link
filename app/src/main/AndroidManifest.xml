@@ -22,17 +22,15 @@
     <uses-permission
         android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation" />
-    <!-- Location only for CarPlay's Wi-Fi Direct group on Android 12/12L (carplay/CarPlayPermissions; API 33+ uses
-         NEARBY_WIFI_DEVICES below): precise and approximate asked together, as the location-permissions guide asks.
-         maxSdkVersion 32, as the wifi-permissions guide allows when nothing else relies on precise location: ride
-         logging, which did, was dropped (owner, 2026-11-20); our scans assert neverForLocation and companion-device
-         pairing needs no location permission (bt-permissions). -->
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="32" />
-    <uses-permission
-        android:name="android.permission.ACCESS_COARSE_LOCATION"
-        android:maxSdkVersion="32" />
+    <!-- ACCESS_FINE_LOCATION: the Wi-Fi Direct group on Android 12/12L (carplay/CarPlayPermissions; API 33+ uses
+         NEARBY_WIFI_DEVICES below), and the bike's own GPS forwarded to the iPhone on every release (C6 location,
+         docs/PLAN.md): the Poco reads its fix and streams it over the tunnel, so the cap was removed (2026-11-21).
+         It is an OPTIONAL runtime permission (Settings > Permissions > "Bike location"); without it BikePlay works
+         and the iPhone uses its own GPS. Approximate stays Android-12-only, asked with precise there as the
+         location-permissions guide requires; our scans assert neverForLocation and companion-device pairing needs
+         no location permission (bt-permissions). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Our own CarPlay receiver (carplay/, docs/PLAN.md "CarPlay receiver", permissions table decided
          2026-11-19). It runs in RideService under the same connectedDevice type: CHANGE_WIFI_STATE alone meets
          that type's runtime prerequisite, and BLUETOOTH_CONNECT does too (FGS service types), so no type changes.
