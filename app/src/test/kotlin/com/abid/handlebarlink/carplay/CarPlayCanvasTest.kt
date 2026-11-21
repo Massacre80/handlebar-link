@@ -31,6 +31,22 @@ class CarPlayCanvasTest {
             initialViewArea = 0,
         )
 
+    /**
+     * Portrait is a plain portrait display, not the turning square: iOS refuses a square whose initial area is the
+     * portrait one ("resolution not supported", device-confirmed 2026-11-21), so portrait declares the square's
+     * portrait-area size with that area's share of its reference physical size, one area, starting on itself.
+     */
+    private val portrait =
+        CarPlayConfig(
+            widthPixels = 922,
+            heightPixels = 1920,
+            widthMillimetres = 144,
+            heightMillimetres = 300,
+            maxFps = 60,
+            viewAreas = emptyList(),
+            initialViewArea = 0,
+        )
+
     @Test
     fun `the Poco in landscape gets DiPlay's 1920 square at 300 mm, starting on the landscape area`() {
         // poco-landscape window=2246x1080 canvas=1920x1920 mm=300x300 areas=[(1920, 922), (922, 1920)] initial=0
@@ -42,27 +58,25 @@ class CarPlayCanvasTest {
     }
 
     @Test
-    fun `the Poco in portrait gets the same square, starting on the portrait area`() {
-        // poco-portrait window=1080x2246 canvas=1920x1920 mm=300x300 areas=[(1920, 922), (922, 1920)] initial=1
+    fun `the Poco in portrait gets a plain portrait display, not a square iOS would refuse`() {
+        // poco-portrait window=1080x2246 display=922x1920 mm=144x300 no areas initial=0
         val config = carPlayCanvas(2246, 1080, 60f, PORTRAIT, decoderTakes = poco)
 
-        assertThat(config).isEqualTo(square.copy(initialViewArea = 1))
+        assertThat(config).isEqualTo(portrait)
         assertThat(config.orientation).isEqualTo(PORTRAIT)
         assertThat(carPlayWindow(2246, 1080, PORTRAIT)).isEqualTo(WindowSize(1080, 2246))
     }
 
     @Test
-    fun `a cutout strip shortens the landscape window and its area, and in portrait the long side's millimetres`() {
+    fun `a cutout strip shortens the landscape window and its area, and raises the portrait display's millimetres`() {
         // poco-landscape-cutout89 window=2157x1080 mm=300x300 areas=[(1920, 960), (922, 1920)] initial=0
-        // poco-portrait-cutout89 window=1080x2246 mm=312x312 areas=[(1920, 960), (922, 1920)] initial=1
+        // poco-portrait-cutout89 display=922x1920 mm=150x312 no areas initial=0 (312 x 922/1920 = 150 wide)
         val areas = listOf(CarPlayViewArea(1920, 960), CarPlayViewArea(922, 1920))
 
         assertThat(carPlayCanvas(1080, 2246, 60f, LANDSCAPE, cutout = 89, decoderTakes = poco))
             .isEqualTo(square.copy(viewAreas = areas))
         assertThat(carPlayCanvas(1080, 2246, 60f, PORTRAIT, cutout = 89, decoderTakes = poco))
-            .isEqualTo(
-                square.copy(widthMillimetres = 312, heightMillimetres = 312, viewAreas = areas, initialViewArea = 1),
-            )
+            .isEqualTo(portrait.copy(widthMillimetres = 150, heightMillimetres = 312))
         assertThat(carPlayWindow(1080, 2246, LANDSCAPE, cutout = 89)).isEqualTo(WindowSize(2157, 1080))
     }
 
@@ -179,8 +193,9 @@ class CarPlayCanvasTest {
                 CarPlayViewArea(922, 1920, safe = CarPlayInsets(27, 74, 27, 54)),
             ),
         )
+        // Portrait is a plain display with one area, carrying the portrait safe insets.
         assertThat(carPlayCanvas(1080, 2246, 60f, PORTRAIT, cutout = 86, decoderTakes = poco, edges = edges).viewAreas)
-            .isEqualTo(config.viewAreas)
+            .isEqualTo(listOf(CarPlayViewArea(922, 1920, safe = CarPlayInsets(27, 74, 27, 54))))
     }
 
     @Test
@@ -212,12 +227,13 @@ class CarPlayCanvasTest {
     @Test
     fun `a measured reference replaces DiPlay's 300 mm for the widest window`() {
         // resolvePhysicalSizeMm with reference 136: landscape 136 x 2160/2160 = 136 (the square reports it);
-        // portrait 136 x 1080/2160 = 68 wide, 68 x 2246/1080 = 141.4 -> 141 high (the square reports the long side).
+        // portrait is the plain display: 141 high (the long side), 141 x 922/1920 = 68 wide.
         val landscape = carPlayCanvas(1080, 2246, 60f, LANDSCAPE, cutout = 86, decoderTakes = poco, referenceMm = 136)
-        val portrait = carPlayCanvas(1080, 2246, 60f, PORTRAIT, cutout = 86, decoderTakes = poco, referenceMm = 136)
+        val portraitConfig =
+            carPlayCanvas(1080, 2246, 60f, PORTRAIT, cutout = 86, decoderTakes = poco, referenceMm = 136)
 
         assertThat(landscape.widthMillimetres to landscape.heightMillimetres).isEqualTo(136 to 136)
-        assertThat(portrait.widthMillimetres to portrait.heightMillimetres).isEqualTo(141 to 141)
+        assertThat(portraitConfig.widthMillimetres to portraitConfig.heightMillimetres).isEqualTo(68 to 141)
     }
 
     private companion object {

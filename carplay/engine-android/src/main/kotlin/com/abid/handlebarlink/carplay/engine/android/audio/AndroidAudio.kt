@@ -40,6 +40,9 @@ internal class AndroidAudioSystem(
 
     val renderers: RendererPlatform by lazy { AndroidRendererPlatform(this) }
 
+    /** Lets a track change's new media stream start on the warm buffer instead of a cold 300 ms. */
+    val warmth: MediaWarmth by lazy { MediaWarmth(platform.time) }
+
     /** The input or output ([flag]) device that is [device]'s side: same type and Bluetooth address. */
     fun device(
         flag: Int,
@@ -66,7 +69,8 @@ internal class AndroidAudioPort(
 ) : AudioPort {
     override fun open(stream: AudioStreamInfo): AudioPlayer {
         val platform = audio.platform
-        val renderer = AudioRenderer(stream, audio.renderers, audio.focus, audio.calls, platform.time, platform.log)
+        val renderer =
+            AudioRenderer(stream, audio.renderers, audio.focus, audio.calls, platform.time, platform.log, audio.warmth)
         val thread =
             Thread({
                 audioPriority()

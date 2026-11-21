@@ -29,6 +29,7 @@ class AudioRendererTest {
     private val modes = FakeAudioModes()
     private val headsets = CarPlayHeadsetSource { CarPlayHeadset() }
     private val calls = CallAudio(modes, headsets, log, ManualTime())
+    private val warmth = MediaWarmth(time)
     private val track get() = checkNotNull(platform.track)
 
     private val pcm48Mono = AudioFormat(AudioCodec.LPCM, 48_000, 1, 48_000)
@@ -38,7 +39,7 @@ class AudioRendererTest {
         audioType: String,
         format: AudioFormat,
         type: Int = 100,
-    ) = AudioRenderer(AudioStreamInfo(type, audioType, format, 0), platform, focus, calls, time, log)
+    ) = AudioRenderer(AudioStreamInfo(type, audioType, format, 0), platform, focus, calls, time, log, warmth)
 
     /** [count] bytes of the big-endian sample [value]. */
     private fun pcm(
@@ -159,11 +160,11 @@ class AudioRendererTest {
     }
 
     @Test
-    fun `music that runs dry pauses and queues its 300 ms again`() {
+    fun `music that runs dry pauses and resumes on the warm buffer, not the full 300 ms`() {
         val renderer = renderer("media", pcm48Stereo)
         check(renderer.prepare())
         assertThat(platform.requestedMode).isEqualTo(AudioTrack.PERFORMANCE_MODE_NONE)
-        // 300 ms of 48 kHz stereo is 57 600 bytes.
+        // Cold start: 300 ms of 48 kHz stereo is 57 600 bytes, reached by the 15th 4 KiB write.
         repeat(15) { renderer.packet(it, it * 1024L, pcm(4096, 0x0102)) }
         renderer.steps(15)
         assertThat(track.playing).isTrue()
@@ -174,11 +175,39 @@ class AudioRendererTest {
 
         assertThat(track.calls.takeLast(2)).containsExactly("play", "pause")
         assertThat(sink.events("carplay.audio.rebuffer").size).isEqualTo(1)
-        repeat(14) { renderer.packet(20 + it, (20 + it) * 1024L, pcm(4096, 0x0102)) }
-        renderer.steps(14)
+        // Warm resume: 60 % of 300 ms is 34 560 bytes, reached by the 9th write — not the 15th.
+        repeat(8) { renderer.packet(20 + it, (20 + it) * 1024L, pcm(4096, 0x0102)) }
+        renderer.steps(8)
         assertThat(track.playing).isFalse()
         renderer.packet(40, 40 * 1024L, pcm(4096, 0x0102))
         renderer.step(0)
+        assertThat(track.playing).isTrue()
+    }
+
+    @Test
+    fun `a track change on a warm link starts the new song on the warm buffer, not a cold 300 ms`() {
+        warmth.ended() // the previous song's stream just ended, the link is still warm
+        val renderer = renderer("media", pcm48Stereo)
+        check(renderer.prepare())
+        // Warm: plays once 60 % of 300 ms (34 560 bytes, the 9th 4 KiB write) is queued, not the cold 15th.
+        repeat(8) { renderer.packet(it, it * 1024L, pcm(4096, 0x0102)) }
+        renderer.steps(8)
+        assertThat(track.playing).isFalse()
+        renderer.packet(8, 8 * 1024L, pcm(4096, 0x0102))
+        renderer.step(0)
+        assertThat(track.playing).isTrue()
+    }
+
+    @Test
+    fun `without a recent song the first play keeps the full cold 300 ms`() {
+        val renderer = renderer("media", pcm48Stereo)
+        check(renderer.prepare())
+        // Cold: still paused at the 8th write (warm would have started), plays by the 15th.
+        repeat(8) { renderer.packet(it, it * 1024L, pcm(4096, 0x0102)) }
+        renderer.steps(8)
+        assertThat(track.playing).isFalse()
+        repeat(7) { renderer.packet(8 + it, (8 + it) * 1024L, pcm(4096, 0x0102)) }
+        renderer.steps(7)
         assertThat(track.playing).isTrue()
     }
 
@@ -275,7 +304,8 @@ class AudioRendererTest {
     @Test
     fun `a format the device cannot play is refused before anything is built`() {
         val refusing = FakeRendererPlatform(minBuffer = -2)
-        val renderer = AudioRenderer(AudioStreamInfo(100, "default", pcm48Mono, 0), refusing, focus, calls, time, log)
+        val renderer =
+            AudioRenderer(AudioStreamInfo(100, "default", pcm48Mono, 0), refusing, focus, calls, time, log, warmth)
 
         assertThat(renderer.prepare()).isFalse()
         assertThat(refusing.track == null).isTrue()

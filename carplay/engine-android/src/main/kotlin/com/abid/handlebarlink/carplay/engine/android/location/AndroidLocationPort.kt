@@ -27,8 +27,23 @@ internal class AndroidLocationPort(
     private val log = logger.child("location")
 
     @Volatile private var latest: CarPlayLocationFix? = null
+    private var fixes = 0
 
-    private val listener = LocationListener { location -> latest = location.toFix() }
+    private val listener =
+        LocationListener { location ->
+            latest = location.toFix()
+            fixes++
+            // Every ~30 s (at 1 Hz) report how good and steady the bike's fix is, to confirm the forwarding works.
+            if (fixes % STATS_EVERY_FIXES == 1) {
+                log.info(
+                    "location.stats",
+                    "fixes" to fixes,
+                    "provider" to location.provider,
+                    "accuracyM" to if (location.hasAccuracy()) location.accuracy else null,
+                    "speedMps" to if (location.hasSpeed()) location.speed else null,
+                )
+            }
+        }
 
     // Guard clauses for a platform API; the ACCESS_FINE_LOCATION check stays inline, immediately before the location
     // calls (nothing between them), so lint (and AGENTS rule 11) sees the permission at the adapter, no @SuppressLint.
@@ -94,5 +109,8 @@ internal class AndroidLocationPort(
         /** One fix a second (DiPlay's poll rate); no minimum distance, so a stationary bike still refreshes time. */
         const val MIN_INTERVAL_MILLIS = 1_000L
         const val MIN_DISTANCE_METERS = 0f
+
+        /** Report fix quality every this many fixes (~30 s at 1 Hz). */
+        const val STATS_EVERY_FIXES = 30
     }
 }

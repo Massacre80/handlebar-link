@@ -11,6 +11,8 @@ data class Association(
     val id: Int?,
     /** The device's Bluetooth address, upper case like `BluetoothDevice.getAddress()`. */
     val address: String,
+    /** The name chosen at setup ("HONDA BTU 2040"); null on Android 12, which lists associations by address only. */
+    val name: String? = null,
 )
 
 /** Android's companion-device presence for this app's associations (docs/PLAN.md M4). */

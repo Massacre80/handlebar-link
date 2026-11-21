@@ -17,6 +17,7 @@ internal class TrackFeed(
     private val sampleRate: Int,
     private val tuner: LatencyTuner?,
     private val sides: Sides,
+    warm: Boolean = false,
 ) {
     /** What the feed reports to and reads from besides its track. */
     class Sides(
@@ -42,6 +43,12 @@ internal class TrackFeed(
     private var fadeApplied = false
     private var underrunsAtStart = 0
 
+    /**
+     * True once this stream has played: a later dip resumes on the smaller warm buffer, not the full cold start.
+     * Starts true for a track change on a warm link ([warm]), so the new song's first play skips the cold 300 ms too.
+     */
+    private var startedOnce = warm
+
     /** The working size now, in frames. */
     val bufferFrames: Int get() = tuner?.frames ?: plan.initialFrames
 
@@ -66,7 +73,7 @@ internal class TrackFeed(
             lastWriteMillis = sides.time.elapsedMillis()
             if (!playing) {
                 prebufferedBytes += count
-                if (prebufferedBytes >= plan.startFrames.toLong() * plan.frameBytes) start()
+                if (prebufferedBytes >= restartFrames().toLong() * plan.frameBytes) start()
             }
         }
     }
@@ -91,8 +98,18 @@ internal class TrackFeed(
         if (route.channel == AudioChannel.PHONE && track.onEarpiece) sides.calls.routedToEarpiece()
     }
 
+    /**
+     * How much to queue before (re)starting: the full cold-start buffer the first time and for speech, but once a
+     * media stream has played, a smaller warm buffer ([MEDIA_RESUME_PERCENT] of it) — so a track change or a brief
+     * Wi-Fi dip resumes without draining to cold and re-filling the whole 300 ms (DiPlay keeps 300 ms as the floor,
+     * PR #746; rigPlay resumes without a full cold re-fill, PR #60). Owner, 2026-11-21: music buffered on each song.
+     */
+    private fun restartFrames(): Int =
+        if (startedOnce && route.isMedia) plan.startFrames * MEDIA_RESUME_PERCENT / PERCENT else plan.startFrames
+
     private fun start() {
         underrunsAtStart = track.underrunCount
+        startedOnce = true
         track.play()
         playing = true
         checkCallRoute()
@@ -140,6 +157,11 @@ internal class TrackFeed(
 
     private companion object {
         const val TAIL_WAIT_MILLIS = 500L
+
+        /** A media stream that has played resumes on this fraction of the cold-start buffer (keeps it preloaded). */
+        const val MEDIA_RESUME_PERCENT = 60
+        const val PERCENT = 100
+
         const val U32 = 0xFFFF_FFFFL
         const val FADE_DIVISOR = 100
         const val BYTE = 0xFF

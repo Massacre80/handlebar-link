@@ -39,7 +39,9 @@ class AndroidCompanionPresence
             val manager = manager ?: return emptyList()
             return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 manager.myAssociations.mapNotNull { info ->
-                    info.deviceMacAddress?.let { Association(info.id, it.toString().uppercase(Locale.ROOT)) }
+                    info.deviceMacAddress?.let {
+                        Association(info.id, it.toString().uppercase(Locale.ROOT), info.displayName?.toString())
+                    }
                 }
             } else {
                 // Android 12: getMyAssociations() does not exist yet.

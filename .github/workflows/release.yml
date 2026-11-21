@@ -100,7 +100,12 @@ jobs:
           set -euo pipefail
           sha="$(cut -d' ' -f1 < "$APK.sha256")"
           notes="$(mktemp)"
+          # This version's section of CHANGELOG.md (the lines under `## <version>` up to the next `## `).
+          changelog="$(awk -v v="## $VERSION" 'index($0, v) == 1 {p=1; next} p && /^## / {exit} p' CHANGELOG.md)"
           {
+            if [ -n "$changelog" ]; then
+              printf '%s\n\n' "$changelog"
+            fi
             echo "SHA-256: \`$sha\`"
             echo
             echo "Not an Apple-certified product. CarPlay depends on a builder-supplied accessory identity and is not guaranteed to survive iOS updates."

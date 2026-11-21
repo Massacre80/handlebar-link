@@ -122,35 +122,83 @@ internal fun carPlayCanvas(
     val heightMm = widthMm * height / width
     val fps = refreshRate.toInt().coerceIn(MIN_FPS, MAX_FPS)
     val side = squareSide(max(width, height), decoderTakes)
-    if (side == null) {
-        val whole = CarPlayViewArea(width, height)
-        val safe = safeInsets(edges, orientation, window, whole)
-        return base.copy(
-            widthPixels = width,
-            heightPixels = height,
-            widthMillimetres = reportedMm(widthMm),
-            heightMillimetres = reportedMm(heightMm),
-            maxFps = fps,
-            viewAreas = if (safe == CarPlayInsets.NONE) emptyList() else listOf(whole.copy(safe = safe)),
-            initialViewArea = 0,
-        )
-    }
     val squareMm = if (width >= height) reportedMm(widthMm) else reportedMm(heightMm)
-    val wide = CarPlayViewArea(side, evenDown(side.toLong() * landscape.height / landscape.width))
-    val tall = CarPlayViewArea(evenDown(side.toLong() * portrait.width / portrait.height), side)
-    val areas =
-        listOf(
-            wide.copy(safe = safeInsets(edges, CarPlayOrientation.LANDSCAPE, landscape, wide)),
-            tall.copy(safe = safeInsets(edges, CarPlayOrientation.PORTRAIT, portrait, tall)),
-        )
+    val tall = side?.let { CarPlayViewArea(evenDown(it.toLong() * portrait.width / portrait.height), it) }
+    return when {
+        // No square the decoder takes: DiPlay's plain canvas, the window itself.
+        side == null || tall == null -> {
+            plainDisplay(
+                base,
+                CarPlayViewArea(width, height),
+                reportedMm(widthMm),
+                reportedMm(heightMm),
+                fps,
+                edges,
+                orientation,
+                window,
+            )
+        }
+
+        // iOS refuses a turning square that STARTS in its portrait area ("resolution not supported", owner
+        // 2026-11-21, device-confirmed); only a genuine portrait display is accepted, as the early builds' real
+        // panel was. So portrait is a plain portrait display at the square's portrait-area size and that area's share
+        // of the square's reference physical size (lesson 107) — the zoom the square intends, data kept to the
+        // square's. Landscape keeps the turning square.
+        orientation == CarPlayOrientation.PORTRAIT -> {
+            plainDisplay(
+                base,
+                tall,
+                reportedMm(squareMm.toDouble() * tall.width / tall.height),
+                squareMm,
+                fps,
+                edges,
+                CarPlayOrientation.PORTRAIT,
+                portrait,
+            )
+        }
+
+        else -> {
+            val wide = CarPlayViewArea(side, evenDown(side.toLong() * landscape.height / landscape.width))
+            base.copy(
+                widthPixels = side,
+                heightPixels = side,
+                widthMillimetres = squareMm,
+                heightMillimetres = squareMm,
+                maxFps = fps,
+                viewAreas =
+                    listOf(
+                        wide.copy(safe = safeInsets(edges, CarPlayOrientation.LANDSCAPE, landscape, wide)),
+                        tall.copy(safe = safeInsets(edges, CarPlayOrientation.PORTRAIT, portrait, tall)),
+                    ),
+                initialViewArea = if (window.height > window.width) PORTRAIT_AREA else LANDSCAPE_AREA,
+            )
+        }
+    }
+}
+
+/**
+ * A plain CarPlay display of one [area]: its pixels and millimetres; it declares the area only to carry safe insets.
+ */
+@Suppress("LongParameterList") // The display's pixels, its two millimetre sizes, and the facts its safe insets need.
+private fun plainDisplay(
+    base: CarPlayConfig,
+    area: CarPlayViewArea,
+    widthMillimetres: Int,
+    heightMillimetres: Int,
+    fps: Int,
+    edges: ScreenEdges,
+    orientation: CarPlayOrientation,
+    window: WindowSize,
+): CarPlayConfig {
+    val safe = safeInsets(edges, orientation, window, area)
     return base.copy(
-        widthPixels = side,
-        heightPixels = side,
-        widthMillimetres = squareMm,
-        heightMillimetres = squareMm,
+        widthPixels = area.width,
+        heightPixels = area.height,
+        widthMillimetres = widthMillimetres,
+        heightMillimetres = heightMillimetres,
         maxFps = fps,
-        viewAreas = areas,
-        initialViewArea = if (window.height > window.width) PORTRAIT_AREA else LANDSCAPE_AREA,
+        viewAreas = if (safe == CarPlayInsets.NONE) emptyList() else listOf(area.copy(safe = safe)),
+        initialViewArea = 0,
     )
 }
 

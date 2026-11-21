@@ -101,6 +101,7 @@ internal interface RendererPlatform {
  * `carplay.audio.track` (format, route, performance mode, buffer), `carplay.audio.playing`, `carplay.audio.buffer`,
  * `carplay.audio.rebuffer`, `carplay.audio.stats` every 5 s and `carplay.audio.renderer_failed`.
  */
+@Suppress("LongParameterList") // Each is a distinct collaborator the audio port injects; no grouping clarifies them.
 internal class AudioRenderer(
     private val stream: AudioStreamInfo,
     private val platform: RendererPlatform,
@@ -108,6 +109,7 @@ internal class AudioRenderer(
     private val calls: CallAudio,
     private val time: TimeProvider,
     private val log: Logger,
+    private val warmth: MediaWarmth,
 ) : AudioPlayer {
     private class Packet(
         val sequence: Int,
@@ -183,6 +185,8 @@ internal class AudioRenderer(
         } catch (e: RuntimeException) {
             if (running) log.error("carplay.audio.renderer_failed", e, "audioType" to stream.audioType)
         } finally {
+            // So the next song's stream (a fresh stream on a track change) starts warm, not cold.
+            if (route.isMedia) warmth.ended()
             logStats(ended = true)
             release()
         }
@@ -255,7 +259,9 @@ internal class AudioRenderer(
                 )
             }
         val sides = TrackFeed.Sides(stream.audioType, calls, time, log) { running }
-        feed = TrackFeed(built, usable, route, format.sampleRate, tuner, sides)
+        // A track change on a warm link (media opening right after media ended) skips the cold-start buffer.
+        val warm = route.isMedia && warmth.recent()
+        feed = TrackFeed(built, usable, route, format.sampleRate, tuner, sides, warm)
         return usable
     }
 

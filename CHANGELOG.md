@@ -1,41 +1,12 @@
 # Changelog
 
-All notable changes to Handlebar Link are documented here. The format follows
-[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions follow semantic
-versioning and are tagged in this repository.
+## 2.1.0 — 2026-11-21
 
-## [2.0.0] — 2026-11-21
+- **Portrait display.** BikePlay now runs in portrait. iOS refuses a rotating-square display that starts in its portrait area, so portrait is declared as a plain portrait display at the right physical size — the zoom matches landscape, and the "CarPlay does not support this display resolution" screen is gone.
+- **Re-pair after reinstall.** Reinstalling the app no longer sends you back through setup when the meter is still paired. The app re-adopts the meter from its surviving companion-device association, which also restores ignition auto-start.
+- **Smoother music.** A song that dips mid-stream now resumes on a warm buffer (~100 ms, down from ~300 ms), and skipping to the next song keeps that warm buffer instead of cold-starting every track.
+- **Richer ride logging.** Location forwarding logs periodic GPS stats (provider, accuracy, speed), making the next ride's logs easier to read.
 
-First public release, built from the `v2` line that replaces the early prototype.
+## 2.0.0 — 2026-11-20
 
-### Added
-
-- Meter link for the Honda CB350/CB350RS: BLE protocol, pairing through Android's
-  companion-device consent, ignition auto-start, restart recovery and ride diagnostics.
-- **BikePlay**, the app's own CarPlay receiver: wired bootstrap, Wi-Fi Direct session,
-  picture and touch, audio, Siri, calls and the iAP2 tunnel hand-off. CarLink is no longer
-  used or required; handlebar presses are routed to BikePlay.
-- Smart handlebar actions per situation (riding, ringing, on a call), with safe microphone
-  mute handling and a rider-facing Handlebar page.
-- Garage: service, chain, paper and custom reminders with daily notifications, service log,
-  colourways and "Forget this bike".
-- Night and Bento themes, portrait and landscape (two-pane) layouts, one app header,
-  design-system tokens and screenshot tests for every screen.
-- Companion-device presence, foreground-service and update recovery, and a shareable
-  diagnostic log.
-- Public release packaging: AGPL-3.0 licence, third-party notices, signed release builds
-  and a tagged-release workflow.
-
-### Changed
-
-- `main` now points to this line; the former 4-commit prototype is kept at `prototype`
-  and tagged `prototype-1.0`.
-- Release builds are signed with a key configured outside the repository. Development
-  builds were debug-signed and must be uninstalled before installing this release.
-
-### Notes
-
-- Not an Apple-certified product. CarPlay depends on a builder-supplied accessory identity
-  and may stop working after an iOS update. See the README's CarPlay notice.
-
-[2.0.0]: https://github.com/Massacre80/handlebar-link/releases/tag/v2.0.0
+- First public release: Honda CB350 dashboard with its own wireless CarPlay receiver, intercom audio, calls, and GPS forwarding to the iPhone.
