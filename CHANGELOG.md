@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.3 — 2026-11-23
+
+- **Music plays on your intercom again.** CarPlay's music now goes out over the intercom's music (A2DP) channel and lets the phone route it there, instead of trying to force it onto the intercom's *call* channel — which shares its Bluetooth address but is only open during a call, so music fell silent. Songs now play on the V6.
+
 ## 2.1.2 — 2026-11-23
 
 - **BikePlay's Home control goes to your bike dashboard.** The Home button in the on-screen controls now returns to Handlebar Link's home screen (CarPlay keeps running in the background), instead of opening the iPhone's CarPlay app grid. Back still steps back inside CarPlay.

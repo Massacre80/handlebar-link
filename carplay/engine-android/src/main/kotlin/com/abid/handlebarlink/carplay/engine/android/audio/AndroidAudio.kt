@@ -213,18 +213,7 @@ private class AndroidRendererPlatform(
             track.release()
             error("AudioTrack did not initialize at ${format.sampleRate} Hz")
         }
-        // A call or Siri on the headset: its output device of the same type and address (an SCO or LE Audio sink).
-        preferred
-            ?.let { audio.device(AudioManager.GET_DEVICES_OUTPUTS, it) }
-            ?.let { device ->
-                val set = track.setPreferredDevice(device)
-                audio.platform.log.info(
-                    "carplay.audio.track_device",
-                    "channel" to route.channel,
-                    "device" to preferred.name,
-                    "set" to set,
-                )
-            }
+        applyVoiceDevice(track, route, preferred)
         val listener =
             if (route.channel == AudioChannel.PHONE) {
                 AudioRouting
@@ -239,6 +228,33 @@ private class AndroidRendererPlatform(
                 null
             }
         return AndroidPcmTrack(track, listener)
+    }
+
+    /**
+     * Calls and Siri play on the rider's headset: pin the track to the SCO/LE-Audio output CallAudio resolved (its
+     * matcher, [device], keys on type *and* address). Media is never pinned — CarPlay's music plays through a plain
+     * `USAGE_MEDIA` track and Android routes it to the active A2DP device, the way DiPlay's `AndroidMediaSink` does
+     * (docs/LESSONS.md 138). An intercom exposes a call (SCO) and a music (A2DP) output at the *same* Bluetooth
+     * address, SCO first, so pinning media by address alone grabbed the call output; SCO is closed outside a call, so
+     * the music fell silent on every app that shared it.
+     */
+    private fun applyVoiceDevice(
+        track: AudioTrack,
+        route: AudioRoute,
+        preferred: CommunicationDevice?,
+    ) {
+        if (route.isMedia) return
+        preferred
+            ?.let { audio.device(AudioManager.GET_DEVICES_OUTPUTS, it) }
+            ?.let { device ->
+                val set = track.setPreferredDevice(device)
+                audio.platform.log.info(
+                    "carplay.audio.track_device",
+                    "channel" to route.channel,
+                    "device" to preferred.name,
+                    "set" to set,
+                )
+            }
     }
 
     private fun channelMask(channels: Int): Int =

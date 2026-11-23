@@ -11,8 +11,8 @@ android {
     namespace = "com.abid.handlebarlink"
     defaultConfig {
         applicationId = "com.abid.handlebarlink"
-        versionCode = 6
-        versionName = "2.1.2"
+        versionCode = 7
+        versionName = "2.1.3"
         // Starts instrumented tests with HiltTestApplication (Hilt testing guide).
         testInstrumentationRunner = "com.abid.handlebarlink.HiltTestRunner"
     }
