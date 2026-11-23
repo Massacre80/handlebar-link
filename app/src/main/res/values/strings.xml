@@ -401,7 +401,7 @@
     <string name="carplay_display_hint">‹ Swipe back for Handlebar Link</string>
     <string name="carplay_controls">Controls</string>
     <string name="carplay_hide_controls">Hide controls</string>
-    <string name="carplay_home">CarPlay home</string>
+    <string name="carplay_home">Home</string>
     <string name="carplay_status_not_available">Not in this version of the app yet</string>
     <string name="carplay_status_permission">Needs Nearby devices to reach your iPhone</string>
     <string name="carplay_status_permission_microphone">Needs the microphone for Siri and calls</string>

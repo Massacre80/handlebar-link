@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.1.2 — 2026-11-23
+
+- **BikePlay's Home control goes to your bike dashboard.** The Home button in the on-screen controls now returns to Handlebar Link's home screen (CarPlay keeps running in the background), instead of opening the iPhone's CarPlay app grid. Back still steps back inside CarPlay.
+
 ## 2.1.1 — 2026-11-23
 
 - **Re-pairing your iPhone works again.** If your iPhone was already paired with the bike (for example after reinstalling or flashing a ROM), the Add-iPhone screen used to sit on "Waiting" forever and BikePlay wouldn't connect. Now an already-paired iPhone is recognised straight away — no need to un-pair and pair again.

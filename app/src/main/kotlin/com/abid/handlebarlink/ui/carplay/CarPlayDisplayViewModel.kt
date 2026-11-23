@@ -114,11 +114,6 @@ class CarPlayDisplayViewModel
             link?.touch(contacts)
         }
 
-        /** Home on the iPhone (the knob's Home): goes to CarPlay's app grid. */
-        fun home() {
-            link?.press(CarPlayKey.HOME)
-        }
-
         /** Back on the iPhone (the knob's Back): one step back in CarPlay. */
         fun back() {
             link?.press(CarPlayKey.BACK)

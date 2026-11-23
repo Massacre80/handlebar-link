@@ -53,6 +53,7 @@ import com.abid.handlebarlink.carplay.engine.android.CarPlaySurfaceBounds
 import com.abid.handlebarlink.carplay.engine.android.touch.CarPlayTouch
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.ui.navigation.HomeRoute
 import com.abid.handlebarlink.ui.navigation.Navigator
 import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import kotlinx.coroutines.delay
@@ -77,7 +78,7 @@ fun CarPlayDisplayEntry(navigator: Navigator) {
         onTouch = viewModel::touch,
         onHintShown = viewModel::hintShown,
         onBack = viewModel::back,
-        onHome = viewModel::home,
+        onHome = { navigator.navigate(HomeRoute) },
         onSettings = { navigator.navigate(SettingsRoute) },
     )
 }
