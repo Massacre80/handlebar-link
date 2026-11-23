@@ -58,3 +58,42 @@ class RiderHeadsets
 
         override fun preferred(): CarPlayHeadset? = current.value
     }
+
+/**
+ * Where the rider plays music (CarPlay's media), as our CarPlay's renderer sees it: null when the rider chose [PHONE]
+ * or has chosen nothing (music stays on the phone by default, as before); else the chosen device, by its address and
+ * its own Bluetooth name, so the renderer prefers that output (`setPreferredDevice`). Unlike calls, it never falls back
+ * to the primary device — music defaults to the phone.
+ */
+internal fun carPlayMusic(
+    devices: List<SavedDevice>,
+    music: String?,
+): CarPlayHeadset? {
+    val target = music?.takeIf { it != PHONE }?.let { chosen -> devices.firstOrNull { it.address == chosen } }
+    return target?.let { CarPlayHeadset(it.address, it.model) }
+}
+
+/**
+ * [CarPlayHeadsetSource] for music, from the rider's devices (mirrors [RiderHeadsets]): the phone until the rider
+ * chooses an added device. Kept current in the app's scope, so the audio thread that asks ([preferred]) only reads a
+ * value.
+ */
+@Singleton
+class RiderMedia
+    @Inject
+    constructor(
+        devices: DeviceSettings,
+        @ApplicationScope scope: CoroutineScope,
+        logger: Logger,
+    ) : CarPlayHeadsetSource {
+        private val log = logger.child("carplay")
+
+        private val current: StateFlow<CarPlayHeadset?> =
+            combine(devices.devices, devices.music, ::carPlayMusic)
+                .catch { error ->
+                    if (error !is IOException) throw error
+                    log.warn("carplay.music.settings_failed", "error" to error.toString())
+                }.stateIn(scope, SharingStarted.Eagerly, null)
+
+        override fun preferred(): CarPlayHeadset? = current.value
+    }

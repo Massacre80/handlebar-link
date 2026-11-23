@@ -119,11 +119,14 @@ internal class FakeRendererPlatform(
     var plan: PlaybackPlan? = null
     var requestedMode: Int? = null
     var preferred: CommunicationDevice? = null
+    var mediaPreferred: CommunicationDevice? = null
 
     override fun minBufferBytes(
         sampleRate: Int,
         channels: Int,
     ): Int = minBuffer
+
+    override fun mediaDevice(): CommunicationDevice? = mediaPreferred
 
     var failDecoder = false
 

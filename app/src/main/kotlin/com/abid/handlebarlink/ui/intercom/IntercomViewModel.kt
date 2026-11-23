@@ -42,7 +42,7 @@ class IntercomViewModel
         /** The page's state. */
         val uiState: StateFlow<IntercomUiState> =
             combine(
-                combine(devices.devices, combine(devices.primary, devices.calls, ::Choices), ::Pair),
+                combine(devices.devices, combine(devices.primary, devices.calls, devices.music, ::Choices), ::Pair),
                 bluetooth.statuses(),
                 combine(routing.mediaRoute(), routing.mediaOutputs(), ::AudioNow),
                 reconnecting,
@@ -59,6 +59,9 @@ class IntercomViewModel
 
         /** Sends call audio to [route] (a device's address or PHONE); returns once stored. */
         suspend fun chooseCallsNow(route: String) = devices.chooseCalls(route)
+
+        /** Plays music on [route] (a device's address or PHONE); returns once stored. */
+        suspend fun chooseMusicNow(route: String) = devices.chooseMusic(route)
 
         /** Removes [address] from the app (Android's pairing stays); returns once stored. */
         suspend fun removeNow(address: String) = devices.remove(address)

@@ -35,6 +35,20 @@ class PairingTrackerTest {
     }
 
     @Test
+    fun `the screen opens paired when an iPhone is already bonded, so a re-pair needs no fresh bond event`() {
+        val bonded = listOf(RadioDevice(iphone, "Abid's iPhone", emptySet()))
+        assertThat(PairingTracker.start(allowed = true, on = true, localName = "POCO F1", bonded = bonded).shown)
+            .isEqualTo(Paired(PairedIphone(iphone, "Abid's iPhone")))
+    }
+
+    @Test
+    fun `a bonded device that is not an iPhone leaves the screen waiting`() {
+        val bonded = listOf(RadioDevice(other, "V6 Pro+", emptySet()))
+        assertThat(PairingTracker.start(allowed = true, on = true, localName = "POCO F1", bonded = bonded).shown)
+            .isEqualTo(Waiting("POCO F1"))
+    }
+
+    @Test
     fun `an iPhone pairing from its settings goes from pairing to paired`() {
         val bonding = waiting.then(bond(Bond.BONDING))
         assertThat(bonding.state.shown).isEqualTo(Pairing(iphone, "Abid's iPhone"))

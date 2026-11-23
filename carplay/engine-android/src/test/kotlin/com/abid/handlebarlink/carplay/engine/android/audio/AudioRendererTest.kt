@@ -8,6 +8,7 @@ import assertk.assertions.isEmpty
 import assertk.assertions.isEqualTo
 import assertk.assertions.isFalse
 import assertk.assertions.isGreaterThanOrEqualTo
+import assertk.assertions.isNull
 import assertk.assertions.isTrue
 import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadset
 import com.abid.handlebarlink.carplay.engine.android.CarPlayHeadsetSource
@@ -71,7 +72,7 @@ class AudioRendererTest {
     }
 
     @Test
-    fun `a call's and Siri's tracks prefer the connected intercom, music and directions never pick a device`() {
+    fun `a call's and Siri's tracks prefer the connected intercom, music and directions the phone by default`() {
         modes.devices = listOf(EARPIECE, SPEAKER, INTERCOM)
         val preferred =
             listOf("telephony", "speechrecognition", "media", "default").associateWith { audioType ->
@@ -86,6 +87,21 @@ class AudioRendererTest {
         // Each voice track routed to the intercom while it played and gave the route back when released.
         assertThat(modes.routed).containsExactly(INTERCOM, INTERCOM)
         assertThat(modes.cleared).isEqualTo(2)
+    }
+
+    @Test
+    fun `music plays on the rider's chosen output when it is set, otherwise the phone`() {
+        platform.mediaPreferred = INTERCOM
+        val chosen = renderer("media", pcm48Mono)
+        check(chosen.prepare())
+        assertThat(platform.preferred).isEqualTo(INTERCOM)
+        chosen.release()
+
+        platform.mediaPreferred = null
+        val phone = renderer("media", pcm48Mono)
+        check(phone.prepare())
+        assertThat(platform.preferred).isNull()
+        phone.release()
     }
 
     @Test

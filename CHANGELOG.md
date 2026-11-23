@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 — 2026-11-23
+
+- **Re-pairing your iPhone works again.** If your iPhone was already paired with the bike (for example after reinstalling or flashing a ROM), the Add-iPhone screen used to sit on "Waiting" forever and BikePlay wouldn't connect. Now an already-paired iPhone is recognised straight away — no need to un-pair and pair again.
+- **Choose where music plays, even to a disconnected intercom.** The Music picker now lists your intercom (not only devices that happen to be connected right now), and choosing it actually routes CarPlay's music there — our own audio is sent to the device, the same way calls already are.
+- **On-screen controls in BikePlay.** A small floating cluster over the CarPlay screen — collapses to a dot, expands to Back · Home · Settings — so you can step back or jump to the app grid without reaching past the dash.
+
 ## 2.1.0 — 2026-11-21
 
 - **Portrait display.** BikePlay now runs in portrait. iOS refuses a rotating-square display that starts in its portrait area, so portrait is declared as a plain portrait display at the right physical size — the zoom matches landscape, and the "CarPlay does not support this display resolution" screen is gone.

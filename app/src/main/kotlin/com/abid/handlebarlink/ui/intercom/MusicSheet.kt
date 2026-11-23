@@ -3,7 +3,6 @@ package com.abid.handlebarlink.ui.intercom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -19,15 +18,17 @@ import com.abid.handlebarlink.core.designsystem.component.HlOptionRow
 import com.abid.handlebarlink.core.designsystem.component.HlSecondaryButton
 import com.abid.handlebarlink.core.designsystem.component.HlSheet
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.devices.PHONE
 import com.abid.handlebarlink.ui.devices.kindIcon
 
 /**
- * "Music": where media plays, chosen in the app (Android 14+, MediaRouter2): every connected output the
- * system offers, an added device under the rider's name for it. Choosing moves all media, CarPlay's too.
+ * "Music": where music (CarPlay's media) plays, chosen in the app. Each added device (one not connected for music says
+ * so; music reaches it once it connects) and the phone itself. Our CarPlay plays media on the chosen device with
+ * `setPreferredDevice`, so the device shows here even while it is disconnected.
  */
 @Composable
 fun MusicSheet(
-    outputs: List<Output>,
+    state: IntercomUiState,
     onChoose: (String) -> Unit,
     onCancel: () -> Unit,
 ) {
@@ -43,26 +44,22 @@ fun MusicSheet(
                 stringResource(R.string.intercom_music_detail),
             )
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(spacing.s8)) {
-                outputs.forEach { output ->
+                state.devices.forEach { device ->
                     HlOptionRow(
-                        when {
-                            output.kind != null -> kindIcon(output.kind)
-                            output.bluetooth -> HlIcons.Bluetooth
-                            else -> HlIcons.Phone
-                        },
-                        // The phone is "This phone" here as in Calls; a device carries the rider's name for it.
-                        if (output.bluetooth) output.name else stringResource(R.string.intercom_phone),
-                        stringResource(
-                            when {
-                                output.selected -> R.string.intercom_output_playing
-                                output.bluetooth -> R.string.intercom_output_connected
-                                else -> R.string.intercom_output_speaker
-                            },
-                        ),
-                        selected = output.selected,
-                        onClick = { onChoose(output.id) },
+                        kindIcon(device.kind),
+                        device.name,
+                        stringResource(if (device.music) R.string.device_connected else R.string.intercom_off),
+                        selected = (state.musicChoice as? Calls.Device)?.address == device.address,
+                        onClick = { onChoose(device.address) },
                     )
                 }
+                HlOptionRow(
+                    HlIcons.Phone,
+                    stringResource(R.string.intercom_phone),
+                    stringResource(R.string.intercom_phone_detail),
+                    selected = state.musicChoice == Calls.Phone,
+                    onClick = { onChoose(PHONE) },
+                )
             }
             HlSecondaryButton(stringResource(R.string.cancel), onCancel)
         }

@@ -12,6 +12,7 @@ import com.abid.handlebarlink.carplay.CarPlayVideoStatsSource
 import com.abid.handlebarlink.carplay.DataStoreCarPlaySettings
 import com.abid.handlebarlink.carplay.IphonePairing
 import com.abid.handlebarlink.carplay.RiderHeadsets
+import com.abid.handlebarlink.carplay.RiderMedia
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.android.CarPlayScreen
 import com.abid.handlebarlink.carplay.engine.android.createAndroidCarPlayPorts
@@ -56,14 +57,18 @@ abstract class CarPlayModule {
          * where Hilt first builds the link, even on the main thread (docs/LESSONS.md 60).
          */
         @Provides
+        @Suppress("LongParameterList") // Each is a distinct Hilt dependency the ports need; grouping would hide them.
         fun carPlayPortsSource(
             @ApplicationContext context: Context,
             time: TimeProvider,
             logger: Logger,
             screen: CarPlayScreen,
             headsets: RiderHeadsets,
+            media: RiderMedia,
         ): CarPlayPortsSource =
-            CarPlayPortsSource { createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen, headsets) }
+            CarPlayPortsSource {
+                createAndroidCarPlayPorts(context, time, logger.child("carplay"), screen, headsets, media)
+            }
 
         /** The picture's numbers for the CarPlay tab's Link quality. */
         @Provides

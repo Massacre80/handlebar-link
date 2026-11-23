@@ -31,6 +31,7 @@ import android.media.AudioFormat as PlatformFormat
 internal class AndroidAudioSystem(
     val platform: AndroidPlatform,
     private val headsets: CarPlayHeadsetSource,
+    val media: CarPlayHeadsetSource,
 ) {
     val manager: AudioManager by lazy { checkNotNull(platform.context.getSystemService(AudioManager::class.java)) }
 
@@ -172,6 +173,18 @@ private class AndroidRendererPlatform(
     ): Int = AudioTrack.getMinBufferSize(sampleRate, channelMask(channels), PlatformFormat.ENCODING_PCM_16BIT)
 
     override fun decoder(format: AudioFormat): PcmDecoder = MediaCodecPcmDecoder(format)
+
+    /**
+     * The rider's chosen music output as an output device, matched by Bluetooth address among the connected outputs
+     * (`GET_DEVICES_OUTPUTS`); null when nothing is chosen or the device is not connected, so music stays on the phone.
+     */
+    override fun mediaDevice(): CommunicationDevice? {
+        val chosen = audio.media.preferred()?.address ?: return null
+        return audio.manager
+            .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .firstOrNull { it.address.equals(chosen, ignoreCase = true) }
+            ?.let { CommunicationDevice(it.id, it.type, it.address, it.productName?.toString().orEmpty()) }
+    }
 
     override fun track(
         route: AudioRoute,

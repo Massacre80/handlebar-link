@@ -57,7 +57,14 @@ public class CarPlayPairing internal constructor(
     public fun session(): Flow<IphonePairingState> =
         channelFlow {
             val timers = Channel<PairingEvent>(Channel.UNLIMITED)
-            var tracked = PairingTracker.start(radio.allowed(), radio.isOn(), radio.localName())
+            val allowed = radio.allowed()
+            var tracked =
+                PairingTracker.start(
+                    allowed,
+                    radio.isOn(),
+                    radio.localName(),
+                    if (allowed) radio.bonded() else emptyList(),
+                )
             send(tracked.shown)
             if (tracked.shown == IphonePairingState.NotAllowed) return@channelFlow
             merge(radio.events(), timers.receiveAsFlow()).collect { event ->

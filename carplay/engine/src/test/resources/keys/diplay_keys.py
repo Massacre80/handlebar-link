@@ -9,12 +9,19 @@
 #   CarPlayController TELEPHONY_HOOK_SWITCH = 1, TELEPHONY_DROP = 3 (orchestration/CarPlayController.kt:3723-3724)
 import plistlib
 
+KNOB_UID = "2a2a2a2b"       # AirPlayHid.kt:24, 0x2a2a2a2b.toString(16)
 MEDIA_UID = "2a2a2a2c"      # AirPlayHid.kt:25, 0x2a2a2a2c.toString(16)
 TELEPHONY_UID = "2a2a2a2d"  # AirPlayHid.kt:26
 
 
 def hid(uid, index):
     return plistlib.dumps({"type": "hidSendReport", "uuid": uid, "hidReport": bytes([index])},
+                          fmt=plistlib.FMT_BINARY, sort_keys=False)
+
+
+# AirPlayHid.knobReport (AirPlayHid.kt:62-70): 4 bytes [buttons, x, y, wheel]; buttons bit0 select, bit1 home, bit2 back.
+def knob(buttons):
+    return plistlib.dumps({"type": "hidSendReport", "uuid": KNOB_UID, "hidReport": bytes([buttons, 0, 0, 0])},
                           fmt=plistlib.FMT_BINARY, sort_keys=False)
 
 
@@ -27,5 +34,7 @@ for name, index in [("play", 1), ("pause", 2), ("play_pause", 3), ("next", 4), (
     print("media", name, hid(MEDIA_UID, index).hex())
 for name, index in [("hook_switch", 1), ("drop", 3), ("release", 0)]:
     print("telephony", name, hid(TELEPHONY_UID, index).hex())
+for name, buttons in [("home", 0x02), ("back", 0x04), ("release", 0x00)]:
+    print("knob", name, knob(buttons).hex())
 for action in (2, 3):
     print("siri", action, siri(action).hex())

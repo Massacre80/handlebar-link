@@ -8,6 +8,7 @@ import com.abid.handlebarlink.carplay.CarPlayCanvas
 import com.abid.handlebarlink.carplay.CarPlayDisplayHint
 import com.abid.handlebarlink.carplay.CarPlayOrientation
 import com.abid.handlebarlink.carplay.engine.CarPlayConfig
+import com.abid.handlebarlink.carplay.engine.CarPlayKey
 import com.abid.handlebarlink.carplay.engine.CarPlayLink
 import com.abid.handlebarlink.carplay.engine.CarPlayViewArea
 import com.abid.handlebarlink.carplay.engine.TouchContact
@@ -111,6 +112,16 @@ class CarPlayDisplayViewModel
         /** The fingers on the picture now. */
         fun touch(contacts: List<TouchContact>) {
             link?.touch(contacts)
+        }
+
+        /** Home on the iPhone (the knob's Home): goes to CarPlay's app grid. */
+        fun home() {
+            link?.press(CarPlayKey.HOME)
+        }
+
+        /** Back on the iPhone (the knob's Back): one step back in CarPlay. */
+        fun back() {
+            link?.press(CarPlayKey.BACK)
         }
 
         /** The hint was shown; it is not shown again. */

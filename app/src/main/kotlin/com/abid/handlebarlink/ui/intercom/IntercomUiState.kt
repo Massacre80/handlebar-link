@@ -22,6 +22,8 @@ data class IntercomUiState(
     val handler: AssistantHandler = AssistantHandler.Ask,
     /** Where call audio goes: an added device, or the phone. */
     val calls: Calls = Calls.Phone,
+    /** Where music (CarPlay's media) plays, chosen in the app: an added device, or the phone. */
+    val musicChoice: Calls = Calls.Phone,
     /** Where media can play, to choose from (Android 14+); empty where it cannot be chosen. */
     val outputs: List<Output> = emptyList(),
     /** The intercom maker's app is installed. */
@@ -163,14 +165,33 @@ fun intercomState(
                 }
             }
         } ?: Calls.Phone
+    val musicChoice =
+        when (chosen.music) {
+            null, PHONE -> {
+                Calls.Phone
+            }
+
+            else -> {
+                saved.firstOrNull { it.address == chosen.music }?.let { Calls.Device(it.address, it.name) }
+                    ?: Calls.Phone
+            }
+        }
     val outputs = outputsOf(audio.outputs, saved)
-    return IntercomUiState(devices, music, calls = calls, outputs = outputs, vendorApp = vendorApp)
+    return IntercomUiState(
+        devices,
+        music,
+        calls = calls,
+        musicChoice = musicChoice,
+        outputs = outputs,
+        vendorApp = vendorApp,
+    )
 }
 
-/** The rider's choices: the primary device and where calls go (null: not chosen). */
+/** The rider's choices: the primary device, where calls go, and where music plays (null: not chosen). */
 data class Choices(
     val primary: String? = null,
     val calls: String? = null,
+    val music: String? = null,
 )
 
 /** What the Intercom page can do; it holds no logic of its own. */

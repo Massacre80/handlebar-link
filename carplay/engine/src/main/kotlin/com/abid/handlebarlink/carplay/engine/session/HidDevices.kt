@@ -50,6 +50,20 @@ internal object HidDevices {
         return report
     }
 
+    /**
+     * The knob report (DiPlay AirPlayHid.knobReport, AirPlayHid.kt:62-70): one buttons byte — bit 0 [SELECT_BIT], bit 1
+     * [HOME_BIT], bit 2 [BACK_BIT] — then the relative X, Y and wheel as signed bytes. Only the buttons are sent; the
+     * three axes stay 0 until rotary focus navigation uses them.
+     */
+    fun knobReport(
+        select: Boolean = false,
+        home: Boolean = false,
+        back: Boolean = false,
+    ): ByteArray {
+        val buttons = (if (select) SELECT_BIT else 0) or (if (home) HOME_BIT else 0) or (if (back) BACK_BIT else 0)
+        return byteArrayOf(buttons.toByte(), 0, 0, 0)
+    }
+
     /** `{type: hidSendReport, uuid: "2a2a2a2a", hidReport}`, keys in DiPlay's order (AirPlaySession.kt:444-451). */
     fun touchCommand(report: ByteArray): Plist.Dict = hidCommand(TOUCH_UID, report)
 
@@ -125,6 +139,11 @@ internal object HidDevices {
                 "09 b0 09 b1 09 b2 09 b3 09 b4 09 b5  09 b6 09 b7 09 b8 09 b9 09 ba 09 bb  05 07 09 2a " +
                 "75 08 95 01 81 00 c0",
         )
+
+    /** The knob report's buttons byte (AirPlayHid.kt:62-66): bit 0 select, bit 1 home, bit 2 back. */
+    private const val SELECT_BIT = 0x01
+    private const val HOME_BIT = 0x02
+    private const val BACK_BIT = 0x04
 
     private const val HEX = 16
     private const val BYTE_BITS = 8

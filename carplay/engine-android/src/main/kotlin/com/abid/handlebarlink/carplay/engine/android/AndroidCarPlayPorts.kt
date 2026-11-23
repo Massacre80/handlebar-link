@@ -45,13 +45,14 @@ public fun createAndroidCarPlayPorts(
     logger: Logger,
     screen: CarPlayScreen,
     headsets: CarPlayHeadsetSource = CarPlayHeadsetSource.ANY,
+    media: CarPlayHeadsetSource = CarPlayHeadsetSource.ANY,
 ): CarPlayPorts {
     val platform = AndroidPlatform(context, time, logger)
     val settings = PreferenceSettings { platform.preferences }
     val random = SecureRandom()
     val identities = IdentityStore({ File(platform.noBackupDirectory, IDENTITY_FILE) }, random, logger)
     val selector = IphoneSelector(platform, settings)
-    val audio = AndroidAudioSystem(platform, headsets)
+    val audio = AndroidAudioSystem(platform, headsets, media)
     return CarPlayPorts(
         bluetooth = AndroidBluetoothPort(platform, selector, identities),
         wifiDirect = AndroidWifiDirectPort(platform, selector, StableNetworks(settings, random), identities),

@@ -53,6 +53,12 @@ class DataStoreDeviceSettings
             store.edit { it[CALLS] = route }
         }
 
+        override val music: Flow<String?> = store.data.map { it[MUSIC] }
+
+        override suspend fun chooseMusic(route: String) {
+            store.edit { it[MUSIC] = route }
+        }
+
         override suspend fun remove(address: String) {
             store.edit { preferences ->
                 preferences[ORDER] = (addresses(preferences) - address).joinToString(SEPARATOR)
@@ -61,6 +67,7 @@ class DataStoreDeviceSettings
                 preferences.remove(modelKey(address))
                 if (preferences[PRIMARY] == address) preferences.remove(PRIMARY)
                 if (preferences[CALLS] == address) preferences.remove(CALLS)
+                if (preferences[MUSIC] == address) preferences.remove(MUSIC)
             }
         }
 
@@ -73,6 +80,7 @@ class DataStoreDeviceSettings
             val ORDER = stringPreferencesKey("devices")
             val PRIMARY = stringPreferencesKey("device_primary")
             val CALLS = stringPreferencesKey("device_calls")
+            val MUSIC = stringPreferencesKey("device_music")
 
             fun nameKey(address: String) = stringPreferencesKey("device_name_$address")
 

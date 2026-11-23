@@ -432,6 +432,11 @@ and picks that layer of `HandlebarMapping`.
   6 disconnecting; DiPlay `BydCarPlayCall.kt:22-24`; a ringing call wins), so ringing is seen; answer = telephony
   HID hook switch, decline/end = HID drop (DiPlay `CarPlayController.kt:750-753`); Siri = AirPlay `requestSiri`
   (siriAction 2 then 3, DiPlay `AirPlaySession.kt:390-393`); the music keys as media HID keys. Nothing is "Soon".
+- **On-screen controls (2026-11-22):** a floating overlay on the BikePlay display (`CarPlayControlCluster`), collapsed to
+  a handle or expanded to Back · Home · Settings, shown only while connected (bottom-left, clear of CarPlay's right dock).
+  Back and Home press the CarPlay **knob HID** (`CarPlayKey.HOME`/`BACK` → `HidDevices.knobReport`, DiPlay
+  `AirPlayHid.kt:62-70`; the knob was already declared in `/info`, only the report was missing); Settings opens the app's
+  Settings. An audio-output switcher was designed then dropped — the rider controls audio from the physical keys.
 - **Mute microphone** = `AudioManager.setMicrophoneMute` (MODIFY_AUDIO_SETTINGS, a normal permission; AOSP
   `AudioService.setMicrophoneMute` has no API-level gate and refuses only unmuting under the OP_MUTE_MICROPHONE
   app op; not part of Android 17's background audio hardening). The mute is global and outlives our process. Safety: it works only on a call, is read back after each change

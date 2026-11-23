@@ -116,11 +116,14 @@ private fun CallsEntry(navigator: Navigator) {
 private fun MusicEntry(navigator: Navigator) {
     val viewModel: IntercomViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
     MusicSheet(
-        state.outputs,
-        onChoose = { id ->
-            viewModel.playOn(id)
-            navigator.goBack()
+        state,
+        onChoose = { route ->
+            scope.launch {
+                viewModel.chooseMusicNow(route)
+                navigator.goBack()
+            }
         },
         onCancel = navigator::goBack,
     )

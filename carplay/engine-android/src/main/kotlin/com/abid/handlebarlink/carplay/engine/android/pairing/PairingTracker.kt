@@ -77,16 +77,40 @@ internal object PairingTracker {
     /** How long a bonded phone's service records may take before the bond is trusted. */
     const val CHECK_MILLIS = 12_000L
 
-    /** The state when the screen opens. */
+    /**
+     * The state when the screen opens. An iPhone already bonded (a re-paired one, or one the rider forgot and is now
+     * adding again) opens straight on [IphonePairingState.Paired], so it is chosen (un-forgotten) without the rider
+     * having to unpair and pair afresh: the bond makes no new BONDING→BONDED event, so [next] alone would wait forever
+     * (owner, 2026-11-23, after a ROM flash left the iPhone bonded).
+     */
     fun start(
         allowed: Boolean,
         on: Boolean,
         localName: String?,
+        bonded: List<RadioDevice> = emptyList(),
     ): Tracked =
         when {
-            !allowed -> Tracked(IphonePairingState.NotAllowed, null)
-            !on -> Tracked(IphonePairingState.BluetoothOff, localName)
-            else -> Tracked(IphonePairingState.Waiting(localName), localName)
+            !allowed -> {
+                Tracked(IphonePairingState.NotAllowed, null)
+            }
+
+            !on -> {
+                Tracked(IphonePairingState.BluetoothOff, localName)
+            }
+
+            else -> {
+                bonded
+                    .firstOrNull { IphoneEvidence.isIphone(it.name, it.uuids) }
+                    ?.let {
+                        Tracked(
+                            IphonePairingState.Paired(
+                                PairedIphone(it.address, IphoneEvidence.display(it.name, it.address)),
+                            ),
+                            localName,
+                        )
+                    }
+                    ?: Tracked(IphonePairingState.Waiting(localName), localName)
+            }
         }
 
     /** The state after [event]. */

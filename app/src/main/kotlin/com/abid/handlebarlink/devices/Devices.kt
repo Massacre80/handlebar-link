@@ -66,6 +66,12 @@ interface DeviceSettings {
 
     /** Sends call audio to [route]: a device's address or [PHONE]. */
     suspend fun chooseCalls(route: String)
+
+    /** Where the rider chose music (CarPlay's media) to play: a device's address or [PHONE]; null: the phone. */
+    val music: Flow<String?>
+
+    /** Plays music on [route]: a device's address or [PHONE]. */
+    suspend fun chooseMusic(route: String)
 }
 
 /** The phone itself as the place for call audio (earpiece or speaker). */

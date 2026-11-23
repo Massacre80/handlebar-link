@@ -80,7 +80,7 @@ internal interface RendererPlatform {
 
     fun decoder(format: AudioFormat): PcmDecoder
 
-    /** A track for [route]; [preferred]: the headset a call or Siri plays on (`setPreferredDevice`), else null. */
+    /** A track for [route]; [preferred] is the call, Siri or music device (`setPreferredDevice`), or null. */
     fun track(
         route: AudioRoute,
         format: AudioFormat,
@@ -88,6 +88,9 @@ internal interface RendererPlatform {
         performanceMode: Int,
         preferred: CommunicationDevice?,
     ): PcmTrack
+
+    /** The output the rider chose for music (`setPreferredDevice`), or null for the phone. A quick read. */
+    fun mediaDevice(): CommunicationDevice?
 }
 
 /**
@@ -203,8 +206,10 @@ internal class AudioRenderer(
         if (format.codec != AudioCodec.LPCM) decoder = platform.decoder(format)
         val planned = PlaybackPlan.of(route.isMedia, format.sampleRate, channels, minBuffer, platform.burstFrames)
         val mode = route.performanceMode(format.sampleRate, platform.nativeRate)
-        // Calls and Siri play on the rider's headset when it is connected (CallAudio); music and directions get null.
-        val headset = calls.voiceStarted(this, route.channel)
+        // Calls and Siri play on the rider's headset (CallAudio); music on the rider's chosen output when it is
+        // connected, else the phone; directions get null.
+        val headset =
+            if (route.isMedia) platform.mediaDevice() else calls.voiceStarted(this, route.channel)
         voice = route.channel.voiceUsesHeadset
         val built = platform.track(route, format, planned, mode, headset).also { track = it }
         val usable = attach(built, planned)

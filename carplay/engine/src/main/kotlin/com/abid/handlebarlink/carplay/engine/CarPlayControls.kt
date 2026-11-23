@@ -3,12 +3,13 @@ package com.abid.handlebarlink.carplay.engine
 import com.abid.handlebarlink.carplay.protocol.iap2.CallStateUpdate
 
 /**
- * A key the receiver presses on the iPhone through the HID devices `/info` declares (DiPlay AirPlayHid.kt:117-133):
- * the media keys and the telephony keys DiPlay sends. Each is an index into its device's report array.
+ * A key the receiver presses on the iPhone through the HID devices `/info` declares (DiPlay AirPlayHid.kt:106-133): the
+ * knob's Home and Back, the media keys and the telephony keys DiPlay sends. A media or telephony key is an index into
+ * its device's report array; the knob keys set a bit in its buttons byte ([HidDevices.knobReport]).
  *
- * Left out because DiPlay never sends them: the telephony descriptor's Phone Mute (index 4), flash, redial and keypad,
- * and the media descriptor's AC Search (index 6). The media descriptor has no volume usage, so volume stays with the
- * phone's own audio, as in DiPlay.
+ * Left out because DiPlay never sends them: the knob's Select and rotary wheel (no focus navigation yet), the telephony
+ * descriptor's Phone Mute (index 4), flash, redial and keypad, and the media descriptor's AC Search (index 6). The
+ * media descriptor has no volume usage, so volume stays with the phone's own audio, as in DiPlay.
  */
 public enum class CarPlayKey {
     /** Media index 1, Play (0xB0) (CarPlayMediaButton.PLAY). */
@@ -31,6 +32,12 @@ public enum class CarPlayKey {
 
     /** Telephony index 3, Drop (0x26): ends the call or declines a ringing one (CarPlayController.endCall, :753). */
     DROP,
+
+    /** Knob AC Home (0x0223): goes to CarPlay's home, its app grid (AirPlayHid knob, AirPlayHid.kt:62-70, 106-115). */
+    HOME,
+
+    /** Knob AC Back (0x0224): one step back in CarPlay (AirPlayHid knob, AirPlayHid.kt:62-70, 106-115). */
+    BACK,
 }
 
 /** One of the iPhone's calls ([CarPlayLink.calls]). */

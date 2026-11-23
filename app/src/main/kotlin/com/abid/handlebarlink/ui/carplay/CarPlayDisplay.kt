@@ -13,6 +13,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.displayCutout
@@ -52,6 +53,8 @@ import com.abid.handlebarlink.carplay.engine.android.CarPlaySurfaceBounds
 import com.abid.handlebarlink.carplay.engine.android.touch.CarPlayTouch
 import com.abid.handlebarlink.core.designsystem.component.HlText
 import com.abid.handlebarlink.core.designsystem.theme.HlTheme
+import com.abid.handlebarlink.ui.navigation.Navigator
+import com.abid.handlebarlink.ui.navigation.SettingsRoute
 import kotlinx.coroutines.delay
 
 /**
@@ -61,7 +64,7 @@ import kotlinx.coroutines.delay
  * and coming back asks for a key frame.
  */
 @Composable
-fun CarPlayDisplayEntry() {
+fun CarPlayDisplayEntry(navigator: Navigator) {
     val viewModel: CarPlayDisplayViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val shape by viewModel.shape.collectAsStateWithLifecycle()
@@ -73,6 +76,9 @@ fun CarPlayDisplayEntry() {
         show = viewModel::show,
         onTouch = viewModel::touch,
         onHintShown = viewModel::hintShown,
+        onBack = viewModel::back,
+        onHome = viewModel::home,
+        onSettings = { navigator.navigate(SettingsRoute) },
     )
 }
 
@@ -91,6 +97,9 @@ fun CarPlayDisplay(
     show: (SurfaceView) -> AutoCloseable,
     onTouch: (List<TouchContact>) -> Unit,
     onHintShown: () -> Unit,
+    onBack: () -> Unit = {},
+    onHome: () -> Unit = {},
+    onSettings: () -> Unit = {},
 ) {
     val colors = HlTheme.colors
     val spacing = HlTheme.spacing
@@ -128,23 +137,35 @@ fun CarPlayDisplay(
                     .semantics { contentDescription = description },
             onRelease = { it.handle?.close() },
         )
-        if (!state.connected) {
-            state.line?.let { line ->
-                HlText(
-                    line.words(),
-                    HlTheme.typography.body,
-                    colors.onGlass,
-                    Modifier
-                        .align(Alignment.Center)
-                        .padding(spacing.s24)
-                        .background(colors.glass, CircleShape)
-                        .padding(horizontal = spacing.s16, vertical = spacing.s8),
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
+        if (!state.connected) state.line?.let { ConnectingLine(it) }
         SwipeBackHint(state.hintDue, onHintShown, Modifier.align(Alignment.CenterStart))
+        if (state.connected) {
+            CarPlayControlCluster(
+                onBack,
+                onHome,
+                onSettings,
+                Modifier.align(Alignment.BottomStart).padding(spacing.s16),
+            )
+        }
     }
+}
+
+/** The status line while CarPlay is not connected: what it is doing, on a glass pill centred over the last picture. */
+@Composable
+private fun BoxScope.ConnectingLine(line: CarPlayLine) {
+    val colors = HlTheme.colors
+    val spacing = HlTheme.spacing
+    HlText(
+        line.words(),
+        HlTheme.typography.body,
+        colors.onGlass,
+        Modifier
+            .align(Alignment.Center)
+            .padding(spacing.s24)
+            .background(colors.glass, CircleShape)
+            .padding(horizontal = spacing.s16, vertical = spacing.s8),
+        textAlign = TextAlign.Center,
+    )
 }
 
 /** Where [picture]'s canvas goes in a window of [width] x [height] pixels (DiPlay contentRect). */

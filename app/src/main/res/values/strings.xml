@@ -184,10 +184,6 @@
     <string name="intercom_off">Not connected</string>
     <string name="intercom_music">Music</string>
     <string name="intercom_music_detail">Choose where music and BikePlay audio play</string>
-    <string name="intercom_output_playing">Playing now</string>
-    <string name="intercom_output_connected">Connected</string>
-    <string name="intercom_output_speaker">Speaker</string>
-    <string name="intercom_other_bluetooth">Another Bluetooth device</string>
     <string name="intercom_buttons">Buttons</string>
     <string name="intercom_primary">Primary</string>
     <string name="intercom_primary_intro">Home shows it, and calls go to it.</string>
@@ -403,6 +399,9 @@
     <string name="carplay_open">Open BikePlay</string>
     <string name="carplay_display">BikePlay screen</string>
     <string name="carplay_display_hint">‹ Swipe back for Handlebar Link</string>
+    <string name="carplay_controls">Controls</string>
+    <string name="carplay_hide_controls">Hide controls</string>
+    <string name="carplay_home">CarPlay home</string>
     <string name="carplay_status_not_available">Not in this version of the app yet</string>
     <string name="carplay_status_permission">Needs Nearby devices to reach your iPhone</string>
     <string name="carplay_status_permission_microphone">Needs the microphone for Siri and calls</string>

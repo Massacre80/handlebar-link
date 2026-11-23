@@ -90,7 +90,7 @@ fun IntercomScreen(
             Modifier.semantics { heading() },
         )
         PrimaryCard(primary, state.reconnect, actions.onReconnect)
-        Audio(state, primary, actions)
+        Audio(state, actions)
         AssistantButton(state, actions.onAssistant)
         if (state.devices.size > 1) Primary(state.devices, actions.onChoosePrimary)
         Details(primary, state.vendorApp, actions)
@@ -159,17 +159,13 @@ private fun PrimaryCard(
 @Composable
 private fun Audio(
     state: IntercomUiState,
-    device: IntercomDevice,
     actions: IntercomActions,
 ) {
     // Calls and Music name where audio goes the same way: the device as the rider named it, or this phone.
     val music =
-        when (val on = state.music) {
-            Music.Primary -> device.name
-            is Music.Other -> on.name
-            Music.OtherBluetooth -> stringResource(R.string.intercom_other_bluetooth)
-            Music.Phone -> stringResource(R.string.intercom_phone)
-            Music.Unknown -> if (device.music) device.name else stringResource(R.string.intercom_off)
+        when (val to = state.musicChoice) {
+            Calls.Phone -> stringResource(R.string.intercom_phone)
+            is Calls.Device -> to.name
         }
     val calls =
         when (val to = state.calls) {
@@ -186,13 +182,13 @@ private fun Audio(
             chevron = true,
         )
         HlGroupDivider()
-        // Chosen here too where Android allows it (14+: MediaRouter2); otherwise where it plays, as status.
+        // Music is chosen here too: our CarPlay plays media on the chosen device (setPreferredDevice), else the phone.
         HlValueRow(
             stringResource(R.string.intercom_music),
             hint = music,
-            onClick = actions.onMusic.takeIf { state.outputs.isNotEmpty() },
+            onClick = actions.onMusic,
             container = Color.Transparent,
-            chevron = state.outputs.isNotEmpty(),
+            chevron = true,
         )
     }
 }

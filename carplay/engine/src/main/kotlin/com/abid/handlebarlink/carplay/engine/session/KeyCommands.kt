@@ -10,11 +10,34 @@ internal object KeyCommands {
      * telephonyReport, AirPlayHid.kt:70-72), then the release (index 0), as DiPlay's `sendMedia` and `sendTelephony`
      * (AirPlaySession.kt:380-388).
      */
-    fun press(key: CarPlayKey): List<Plist.Dict> {
+    fun press(key: CarPlayKey): List<Plist.Dict> =
+        when (key) {
+            CarPlayKey.HOME, CarPlayKey.BACK -> knobPress(key)
+            else -> indexPress(key)
+        }
+
+    private fun indexPress(key: CarPlayKey): List<Plist.Dict> {
         val (uid, index) = KEYS.getValue(key)
         return listOf(
             HidDevices.hidCommand(uid, byteArrayOf(index.toByte())),
             HidDevices.hidCommand(uid, byteArrayOf(RELEASE.toByte())),
+        )
+    }
+
+    /**
+     * A knob button (Home or Back): its 4-byte knob report, then the release (all buttons up), both on the knob device,
+     * as DiPlay's `sendHidReport` (AirPlaySession.kt:444-451) carries a knob report.
+     */
+    private fun knobPress(key: CarPlayKey): List<Plist.Dict> {
+        val report =
+            when (key) {
+                CarPlayKey.HOME -> HidDevices.knobReport(home = true)
+                CarPlayKey.BACK -> HidDevices.knobReport(back = true)
+                else -> error("not a knob key: $key")
+            }
+        return listOf(
+            HidDevices.hidCommand(HidDevices.KNOB_UID, report),
+            HidDevices.hidCommand(HidDevices.KNOB_UID, HidDevices.knobReport()),
         )
     }
 

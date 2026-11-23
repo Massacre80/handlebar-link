@@ -65,7 +65,7 @@ fun EntryProviderScope<NavKey>.carPlayEntries(
         )
     }
     // A full page over the CarPlay tab (no tab bar); Back returns to the tab, CarPlay keeps running.
-    entry<CarPlayDisplayRoute> { CarPlayDisplayEntry() }
+    entry<CarPlayDisplayRoute> { CarPlayDisplayEntry(navigator) }
     entry<PairIphoneRoute> { PairIphoneEntry(navigator) }
     entry<IphoneSheetRoute>(metadata = sheet()) { IphoneSheetEntry(navigator) }
     entry<ForgetIphoneRoute>(metadata = DialogSceneStrategy.dialog()) { route -> ForgetEntry(route, navigator) }

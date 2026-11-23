@@ -141,6 +141,26 @@ class ControlsTest {
         }
 
     @Test
+    fun `knob Home and Back go to the iPhone as DiPlay's 4-byte knob report, then release`() =
+        runTest(timeout = TEST_TIMEOUT) {
+            val link = started()
+            val events = connectedEvents()
+
+            link.press(CarPlayKey.HOME)
+            link.press(CarPlayKey.BACK)
+            runCurrent()
+            val bodies = List(4) { events.next().body.toHex() }
+
+            assertThat(bodies).isEqualTo(listOf(KNOB_HOME, KNOB_RELEASE, KNOB_BACK, KNOB_RELEASE))
+            assertThat(sink.events("carplay.hid.key").map { it.fields }).isEqualTo(
+                listOf(
+                    listOf("key" to CarPlayKey.HOME, "sent" to true),
+                    listOf("key" to CarPlayKey.BACK, "sent" to true),
+                ),
+            )
+        }
+
+    @Test
     fun `a press goes out as POST command with DiPlay's headers`() =
         runTest(timeout = TEST_TIMEOUT) {
             val link = started()
@@ -339,6 +359,13 @@ class ControlsTest {
         const val TELEPHONY_HOOK_SWITCH = TELEPHONY_HEAD + "01" + HID_TAIL
         const val TELEPHONY_DROP = TELEPHONY_HEAD + "03" + HID_TAIL
         const val TELEPHONY_RELEASE = TELEPHONY_HEAD + "00" + HID_TAIL
+
+        /** `X8 "2a2a2a2b"` then `44` (data of four bytes): the knob device, a 4-byte report. Its own plist trailer. */
+        const val KNOB_HEAD = HID_HEAD + "583261326132613262" + "44"
+        const val KNOB_TAIL = "080f141923313a000000000000010100000000000000070000000000000000000000000000003f"
+        const val KNOB_HOME = KNOB_HEAD + "02000000" + KNOB_TAIL
+        const val KNOB_BACK = KNOB_HEAD + "04000000" + KNOB_TAIL
+        const val KNOB_RELEASE = KNOB_HEAD + "00000000" + KNOB_TAIL
 
         const val SIRI_START =
             "62706c6973743030d201020304547479706556706172616d735b7265717565737453697269d105065a73697269416374696f6e" +
