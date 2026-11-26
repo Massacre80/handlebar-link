@@ -87,6 +87,14 @@ internal class MicrophoneCapture(
 
     private val call = format.audioType == TELEPHONY
     private val channel = AudioRoute.of(MAIN_AUDIO, format.audioType).channel
+
+    /**
+     * Calls and Siri both play and record on the hands-free (SCO) link, which Android only brings up in communication
+     * mode: `setCommunicationDevice` to the headset is accepted outside it but no SCO audio flows, so Siri was silent
+     * on the helmet while calls worked only because they set this mode. The platform's echo canceller stays call-only
+     * ([call]); Siri uses `VOICE_RECOGNITION`, which has its own processing.
+     */
+    private val needsCommunicationMode = channel.voiceUsesHeadset
     private val samplesPerFrame =
         if (format.codec == AudioCodec.OPUS) OPUS_SAMPLES else maxOf(1, format.sampleRate * format.frameMillis / MILLIS)
     private val frameBytes = samplesPerFrame * format.channels * BYTES_PER_SAMPLE
@@ -97,7 +105,7 @@ internal class MicrophoneCapture(
         var encoder: OpusEncoder? = null
         var effects: AutoCloseable? = null
         try {
-            if (call) calls.enter(this)
+            if (needsCommunicationMode) calls.enter(this)
             val headset = calls.voiceStarted(this, channel)
             if (format.codec == AudioCodec.OPUS) encoder = platform.encoder(format.bitrate)
             val (source, built) = build(maxOf(minBuffer * 2, frameBytes * BUFFER_FRAMES), headset)
@@ -123,7 +131,7 @@ internal class MicrophoneCapture(
             releasePart("effects") { effects?.close() }
             releasePart("encoder") { encoder?.release() }
             calls.voiceEnded(this)
-            if (call) calls.leave(this)
+            if (needsCommunicationMode) calls.leave(this)
         }
     }
 

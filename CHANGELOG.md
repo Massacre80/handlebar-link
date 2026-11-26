@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.1.4 — 2026-11-27
+
+- **Siri plays on your intercom.** Siri's voice and microphone now use the intercom's hands-free link, which BikePlay now opens the same way it does for a call — before, Siri was routed to the intercom but the link never actually opened, so you heard nothing.
+- **Maps announcements play on your intercom.** Turn-by-turn directions were going to the phone instead of the intercom; they now ride the intercom's music (A2DP) channel, the same place your music plays.
+
 ## 2.1.3 — 2026-11-23
 
 - **Music plays on your intercom again.** CarPlay's music now goes out over the intercom's music (A2DP) channel and lets the phone route it there, instead of trying to force it onto the intercom's *call* channel — which shares its Bluetooth address but is only open during a call, so music fell silent. Songs now play on the V6.

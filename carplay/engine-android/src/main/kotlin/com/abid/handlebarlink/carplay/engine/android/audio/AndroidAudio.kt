@@ -213,7 +213,7 @@ private class AndroidRendererPlatform(
             track.release()
             error("AudioTrack did not initialize at ${format.sampleRate} Hz")
         }
-        applyVoiceDevice(track, route, preferred)
+        applyOutputDevice(track, route, preferred)
         val listener =
             if (route.channel == AudioChannel.PHONE) {
                 AudioRouting
@@ -231,19 +231,27 @@ private class AndroidRendererPlatform(
     }
 
     /**
-     * Calls and Siri play on the rider's headset: pin the track to the SCO/LE-Audio output CallAudio resolved (its
-     * matcher, [device], keys on type *and* address). Media is never pinned — CarPlay's music plays through a plain
-     * `USAGE_MEDIA` track and Android routes it to the active A2DP device, the way DiPlay's `AndroidMediaSink` does
-     * (docs/LESSONS.md 138). An intercom exposes a call (SCO) and a music (A2DP) output at the *same* Bluetooth
-     * address, SCO first, so pinning media by address alone grabbed the call output; SCO is closed outside a call, so
-     * the music fell silent on every app that shared it.
+     * Where a non-media track plays:
+     * - Calls and Siri play on the rider's headset over the hands-free link: pin to the SCO/LE-Audio output CallAudio
+     *   resolved (its matcher, [device], keys on type *and* address).
+     * - Directions (NAVIGATION) are playback only, so they belong on A2DP like music — but this ROM does not route a
+     *   `USAGE_ASSISTANCE_NAVIGATION_GUIDANCE` track to the intercom on its own (it lands on no device and plays on the
+     *   phone), so pin it to the rider's music output on its *A2DP* side.
+     *
+     * Music is never pinned: a plain `USAGE_MEDIA` track rides the active A2DP device by itself, as DiPlay's
+     * `AndroidMediaSink` does. An intercom exposes a call (SCO) and a music (A2DP) output at the *same* Bluetooth
+     * address, SCO first (docs/LESSONS.md 138), so every A2DP match here keys on the A2DP type, not the address alone.
      */
-    private fun applyVoiceDevice(
+    private fun applyOutputDevice(
         track: AudioTrack,
         route: AudioRoute,
         preferred: CommunicationDevice?,
     ) {
         if (route.isMedia) return
+        if (route.channel == AudioChannel.NAVIGATION) {
+            pinToMediaA2dp(track)
+            return
+        }
         preferred
             ?.let { audio.device(AudioManager.GET_DEVICES_OUTPUTS, it) }
             ?.let { device ->
@@ -255,6 +263,24 @@ private class AndroidRendererPlatform(
                     "set" to set,
                 )
             }
+    }
+
+    /** The rider's chosen music output on its A2DP side (never the SCO side that shares its address). */
+    private fun pinToMediaA2dp(track: AudioTrack) {
+        val address = audio.media.preferred()?.address ?: return
+        val device =
+            audio.manager
+                .getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+                .firstOrNull {
+                    it.type == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP && it.address.equals(address, ignoreCase = true)
+                } ?: return
+        val set = track.setPreferredDevice(device)
+        audio.platform.log.info(
+            "carplay.audio.track_device",
+            "channel" to AudioChannel.NAVIGATION,
+            "device" to device.address,
+            "set" to set,
+        )
     }
 
     private fun channelMask(channels: Int): Int =

@@ -74,7 +74,9 @@ class MicrophoneCaptureTest {
         assertThat(bodies).containsExactly("f880", "f880")
         assertThat(platform.encoderReleased).isTrue()
         assertThat(platform.effectsOpened).isEqualTo(0)
-        assertThat(modes.modes).containsExactly()
+        // Siri enters communication mode (and leaves it) like a call: the helmet's hands-free (SCO) link only opens in
+        // that mode, so Siri was silent on the headset without it. The call-only echo canceller still stays off.
+        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
     }
 
     @Test
@@ -145,8 +147,14 @@ class MicrophoneCaptureTest {
         assertThat(siriPlatform.preferred).isEqualTo(INTERCOM)
         assertThat(modes.routed).containsExactly(INTERCOM, INTERCOM)
         assertThat(modes.cleared).isEqualTo(2)
-        // Siri keeps the normal mode; only the call entered communication mode.
-        assertThat(modes.modes).containsExactly(AudioManager.MODE_IN_COMMUNICATION, AudioManager.MODE_NORMAL)
+        // Both the call and Siri enter communication mode and leave it: each needs the hands-free SCO link to the
+        // intercom, which Android only opens in that mode.
+        assertThat(modes.modes).containsExactly(
+            AudioManager.MODE_IN_COMMUNICATION,
+            AudioManager.MODE_NORMAL,
+            AudioManager.MODE_IN_COMMUNICATION,
+            AudioManager.MODE_NORMAL,
+        )
     }
 
     @Test
