@@ -41,7 +41,7 @@ robolectric = "4.18.1"
 # the engine (screenshot-validation-junit-engine) is released with this API under the same version.
 screenshotValidationApi = "0.0.1-alpha17"
 serialization = "1.13.0"
-spotless = "8.11.0"
+spotless = "8.12.0"
 targetSdk = "37"
 turbine = "1.2.1"
 vcuGradlePlugin = "1.1.2"
